@@ -1,0 +1,76 @@
+# 通用需求與 Test Case 模板
+
+所有欄位由當前專案的來源與決策填寫。模板的 null、空陣列與說明文字都代表尚待補足，不能當成正式規則、真實工具或已完成驗證。
+
+## 需求釐清記錄
+
+- 原始描述與來源定位。
+- 已知：本專案資料明確支持的內容。
+- 分歧：哪兩種解讀會造成不同實作或 Expected。
+- 下一題：目前最有影響的一個決策問題。
+- 人的回答：原意、決策人與時間；不知道就保留 open。
+- 已確認規則：適用條件、操作、可觀測結果、時機／容差。
+- 未決項目：Q ID、owner、確認時點、影響與阻塞階段。
+
+## 風險與範圍
+
+每項風險寫明失敗情境、影響、可能性／曝露、不確定性、優先序與理由，再決定對應的測試層級、方法、資料和證據。選定範圍記入 scope；未選項目留下取捨理由與剩餘風險。
+
+## 案例草稿 JSON
+
+建立真實案例時依本專案命名 ID 與 title，將檔名設為相同 ID。這個空白草稿沒有產品判準，不具備 ready 條件：
+
+```json
+{
+  "id": "TC-001",
+  "title": "填入本專案要驗證的具體行為",
+  "revision": 1,
+  "status": "draft",
+  "purpose": null,
+  "ac_ids": [],
+  "risk_ids": [],
+  "scenario_ids": [],
+  "level": null,
+  "type": null,
+  "environment": {
+    "target": null,
+    "build_binding": null,
+    "tools": null,
+    "binding_refs": []
+  },
+  "preconditions": [{"action": null, "verify": null}],
+  "data": [],
+  "steps": [{
+    "n": 1,
+    "action": null,
+    "input": null,
+    "observe": null,
+    "when": null,
+    "evidence": null,
+    "checks": []
+  }],
+  "cleanup": [{"action": null, "verify": null}],
+  "independence": null,
+  "verdict_rules": {"pass": null, "fail": null, "inconclusive": null},
+  "blockers": [],
+  "provenance": {"author": "assistant", "model": "unknown", "context_refs": []}
+}
+```
+
+存在具體缺口時建立 Q，將 Q ID 填入 blockers，並設 blocked。不能留下空 blockers 卻宣稱相關資訊完整。
+
+## 由草稿變成完整案例
+
+逐一確認下列資訊，以真實名稱和值取代空白：
+
+1. 目的與依據：選定 AC、風險、情境，並確認 AC 的版本及來源。
+2. 初態：如何自行建立；從哪裡確認前置成立。
+3. 資料：具體值、單位、格式與取得方式；依資料型別設計適當的代表值／邊界。
+4. 操作：實際 UI 路徑、request、CLI、檔案或設備動作。只有概念性操作時不能宣稱可執行。
+5. 斷言：加入 `checks: [{"expected": "已確認的可觀測結果", "rule_refs": ["實際 AC ID"]}]`。每個宣稱覆蓋的 AC 都要有對應斷言。
+6. 判定：何時看哪個輸出；何種證據可支持 PASS、FAIL 或無法判定。
+7. 重跑：本案自己的清理、隔離、重置，不依賴另一個案例。檢查所有會影響本案的殘留狀態；只知道主要資料已清空，不能推定快取、去重記錄或待處理事件也已清空。缺少重置契約時列待確認，或使用已確認可隔離的新 fixture。
+
+生成時 Actual 留待實測，寫入 RUN，不能填進案例設計。人工程序與自動化程序都需要以上資訊；自動化另記真實腳本、相依套件與執行方式。
+
+如果只是先討論需求，可以用對話或 Markdown 表達草稿；確定專案資料夾後再轉入 registry 與 cases，無須為了開始對話而先假造完整 JSON。
