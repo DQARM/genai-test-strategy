@@ -1,14 +1,13 @@
 interface:
-  display_name: GenAI 測試策略
-  short_description: 先詢問有沒有已知規格，再整理專案資料、逐題釐清並產生完整測試案例
-  default_prompt: 請使用 $genai-test-strategy，先問我有沒有已知規格或需求草稿，再建立或選定專案資料夾，依有無文件讀稿或逐題訪談，產生完整
-    Test Case。
-  icon_small: assets/icon.svg
-  icon_large: assets/icon.svg
+  display_name: "GenAI 測試策略"
+  short_description: "先確認規格、選擇本機或遠端版控，逐題釐清並產生完整測試案例"
+  default_prompt: "請使用 $genai-test-strategy，先問我有沒有已知規格，再選定專案資料夾及本機或 Git server 版控；選 server 時協助登入，依本專案需求產生完整 Test Case。"
+  icon_small: "assets/icon.svg"
+  icon_large: "assets/icon.svg"
 policy:
   products:
-  - chatgpt
-  - codex
-  - api
-  - atlas
+  - "chatgpt"
+  - "codex"
+  - "api"
+  - "atlas"
   allow_implicit_invocation: true

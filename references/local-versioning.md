@@ -2,7 +2,9 @@
 
 ## 原則
 
-專案根目錄使用 `.git` 保存歷史；不需帳號、Git server 或網路。工具沒有 remote add、fetch、pull 或 push 行為。既有 repo 保留設定並只提交明確檔案；專案位於別的 repo 裡時預設停止初始化，選用該根目錄，或在清楚需要獨立 repo 時明確使用 `--standalone`。
+兩種模式都在專案根目錄使用 `.git` 保存歷史。先詢問使用者選擇：本機模式不需帳號、Git server 或網路；server 模式另依 [git-server.md](git-server.md) 協助登入及同步。`qa_project.py` 本身沒有 remote add、fetch、pull 或 push 行為，這些由代理在 server 模式另外處理；checkpoint 成功只表示本機已保存。
+
+既有 repo 保留設定並只提交明確檔案；專案位於別的 repo 裡時預設停止初始化，選用該根目錄，或在清楚需要獨立 repo 時明確使用 `--standalone`。需要 clone 已有內容的遠端時先建立正確工作副本再 init，不在已初始化的資料夾內另套一層 repo。
 
 只做文件／黑箱測試也可使用。SUT build 沒有原始碼時用供應商版本＋韌體／安裝包 hash；本機 Git HEAD 只辨識測試專案，不自動代表被測產品版本。
 
