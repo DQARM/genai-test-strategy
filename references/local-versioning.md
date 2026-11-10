@@ -21,6 +21,7 @@ Python 3.10+ 與 Git 是唯一執行依賴。Windows 可用 `py -3` 取代下例
 | qa/cases/ | 結構化完整案例 |
 | qa/spec.md、test-cases.md、traceability.md | 生成的人用視圖 |
 | qa/id-glossary.md | 前綴英文來源、中文意思與用途；由 render 產生 |
+| qa/report.html | 離線閱讀網頁；來源與完整案例雙向連結，保留規則引用路徑 |
 | qa/decisions/、approvals/、reviews/ | 真實決策、核可、四輪審查 |
 | qa/review-packs/、baselines/ | 交接包與不可重名的案例快照 |
 | qa/runs/、evidence/ | 實際結果與證據 |
@@ -49,6 +50,8 @@ python qa/tools/qa_project.py check-run . --id RUN-001
 初始化與 checkpoint 是分開動作；代理在初始化並檢查結果後應建立第一個 checkpoint。再次 init 不覆寫資料，也不升級專案內工具。工具升級先比較版本、檢查差異、保留 checkpoint 再明確替換。
 
 工具 1.1.0 新增生成視圖的編號說明及 id-glossary.md。既有專案若仍用 1.0.0，需依上述升級流程更新 qa/tools/qa_project.py 後再 render，不能宣稱舊工具已有新功能；當輪對話仍依 identifiers.md 解釋編號。只有說明性的生成視圖改變，不修改既有 ID；若更新 registry.project.id_glossary，設計 digest 也會改變，需遵守原有審查／核可規則。
+
+工具 1.2.0 的 render 新增 `qa/report.html`，仍只需 Python 標準函式庫；原有輸出保留。舊專案須先依上述流程將專案內工具更新至 1.2.0，再 render。新網頁是生成視圖，單純重新生成不修改 registry、案例或設計 digest；補來源、改引用或改規格則仍遵守原有變更／審查規則。說明及分享限制見 [report.md](report.md)。
 
 checkpoint 遇到既有 staged 內容會拒絕提交，不會把別人的變更混入。請讀現況、說明阻塞，保留使用者 index；可先完成文件與檢查。若 Git 缺 identity，只在這一次 commit 使用明確 automation identity，不改全域設定。hook 或簽章失敗如實回報，不能假稱保存成功。
 

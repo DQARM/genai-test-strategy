@@ -26,6 +26,7 @@ init 產生 `qa/registry.json`，保留以下欄位：
   `id_glossary` 可保存本專案的前綴字典：`{"前綴": {"english": "英文來源", "meaning": "中文意思", "purpose": "用途", "basis": "定義依據"}}`。未知定義保留 null 並待確認。此欄位不改變 ID 或 schema_version；變更內容仍會改變設計 digest。
 - `scope`: objective、in、out（沒有排除就明寫）、selected_ac_ids、selected_risk_ids、selected_scenario_ids、selected_case_ids、decision_ref。只有選定項目作為本輪覆蓋分母；所有未選風險仍須有取捨與剩餘風險。
 - `sources`: `{id, path, sha256, locator, kind, status, version, note}`。kind 是 normative／harness／observation；status 是 confirmed／unconfirmed。normative 是應然規則；harness 是可驗證操作介面；observation 是現狀，不可作 Expected 的規則依據。locator 提供頁碼／段落。使用 hashlib 或 inventory 取得真實 sha256，不手編。
+  可加 `title`（方便閱讀的名稱）及 `excerpt`（實際讀取的相關摘錄，須保留 locator）；均非必填，不能為了網頁完整而編造摘錄。報告顯示這些已登錄欄位，不自行解析或完整嵌入原始 PDF／Word。新增欄位仍會改變 registry 的設計 digest。
   案例另引用的操作指南、輸入資料檔、自動化腳本及其依賴鎖定檔也登錄為來源並記 hash；尚未驗證的輔助內容標 unconfirmed，不因自動產生就當作已驗證。未登錄的外部依賴變化不會被 digest 自動察覺，必須先補足版本綁定。
 - `decisions`: `{id, statement, by, at, evidence_ref, affected_ids, supersedes?}`。決策原文／摘要寫在對應 Markdown；同一回答可直接支持多項規則，不用重問。
 - `questions`: `{id, text, status, owner, due_or_trigger, impact_ids, blocks, decision_refs}`。status 是 open／resolved／deferred。owner 不知填 unassigned。blocks 可為 baseline、execution、release；impact_ids 可含 ALL 或具體 ID。resolved 必須有 DEC 依據；deferred 仍是未解問題。

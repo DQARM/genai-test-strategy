@@ -1,11 +1,13 @@
 """Regression checks using synthetic projects and approvals; never product evidence."""
 import hashlib
+from html.parser import HTMLParser
 import json
 from pathlib import Path
 import subprocess
 import sys
 import tempfile
 import unittest
+from urllib.parse import unquote
 
 TOOL = Path(__file__).with_name("qa_project.py")
 
@@ -21,6 +23,37 @@ def get(path):
 
 def sha(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+class ReportParser(HTMLParser):
+    def __init__(self, content):
+        super().__init__()
+        self.ids, self.links, self.records, self.scripts = [], [], {}, []
+        self.current = None
+        self.feed(content)
+
+    def handle_starttag(self, tag, attrs):
+        attrs = dict(attrs)
+        if 'id' in attrs:
+            self.ids.append(attrs['id'])
+        if tag == 'article' and 'data-record-id' in attrs:
+            self.current = attrs['data-record-id']
+            self.records[self.current] = {'anchor': attrs['id'], 'links': [], 'text': ''}
+        if tag == 'a':
+            href = attrs.get('href', '')
+            self.links.append(href)
+            if self.current:
+                self.records[self.current]['links'].append(href)
+        if tag == 'script':
+            self.scripts.append(attrs)
+
+    def handle_endtag(self, tag):
+        if tag == 'article':
+            self.current = None
+
+    def handle_data(self, data):
+        if self.current:
+            self.records[self.current]['text'] += data
 
 
 class WorkflowTests(unittest.TestCase):
@@ -108,6 +141,7 @@ class WorkflowTests(unittest.TestCase):
 
     def test_render_explains_ids_without_changing_records(self):
         self.fixture()
+        design_digest = self.run_tool("digest").stdout
         before = {p: p.read_bytes() for p in (self.root / "qa/registry.json", self.root / "qa/cases/TC-001.json")}
         self.run_tool("render")
         spec = (self.root / "qa/spec.md").read_text()
@@ -122,6 +156,92 @@ class WorkflowTests(unittest.TestCase):
         self.assertTrue((self.root / "qa/id-glossary.md").is_file())
         for path, content in before.items():
             self.assertEqual(path.read_bytes(), content)
+        self.assertEqual(design_digest, self.run_tool("digest").stdout)
+        self.assertTrue((self.root / "qa/report.html").is_file())
+
+    def test_html_bidirectional_and_transitive_sources(self):
+        reg, case = self.fixture()
+        # The case's AC has no direct source; its parent requirement supplies it.
+        reg['acceptance'][0]['source_refs'] = []
+        (self.root / 'inputs/unused.md').write_text('Not used by any case')
+        reg['sources'].append({'id': 'SRC-UNUSED', 'path': 'inputs/unused.md',
+                               'sha256': sha(self.root / 'inputs/unused.md'), 'kind': 'observation',
+                               'status': 'unconfirmed', 'locator': 'whole file'})
+        put(self.root / 'qa/registry.json', reg)
+        self.run_tool('render')
+        report = ReportParser((self.root / 'qa/report.html').read_text())
+        tc = report.records['TC-001']
+        for sid in ('SRC-SPEC', 'SRC-HARNESS'):
+            src = report.records[sid]
+            self.assertIn('#' + src['anchor'], tc['links'])
+            self.assertIn('#' + tc['anchor'], src['links'])
+        self.assertNotIn('#' + report.records['SRC-UNUSED']['anchor'], tc['links'])
+        self.assertIn('目前沒有案例引用', report.records['SRC-UNUSED']['text'])
+        self.assertIn('#' + report.records['REQ-001']['anchor'], tc['links'])
+        self.assertIn('預期結果依據：步驟 1', tc['text'])
+        self.assertIn('操作／觀測依據', tc['text'])
+        for field in ('reset fixture to OFF', 'evaluate once', 'on return', 'output ON', 'close fixture'):
+            self.assertIn(field, tc['text'])
+        self.assertEqual(len(report.ids), len(set(report.ids)))
+        self.assertTrue(all(href[1:] in report.ids for href in report.links if href.startswith('#')))
+
+    def test_html_missing_changed_and_unconfirmed_references(self):
+        reg, case = self.fixture()
+        reg['acceptance'][0]['source_refs'].append('SRC-MISSING')
+        reg['requirements'][0]['status'] = 'proposed'
+        reg['sources'][0]['status'] = 'unconfirmed'
+        (self.root / 'inputs/spec.md').write_text('A different revision')
+        (self.root / 'inputs/harness.md').unlink()
+        case['ac_ids'].append('AC-MISSING')
+        put(self.root / 'qa/registry.json', reg)
+        put(self.root / 'qa/cases/TC-001.json', case)
+        self.run_tool('render')
+        report = ReportParser((self.root / 'qa/report.html').read_text())
+        self.assertIn('來源已變更', report.records['SRC-SPEC']['text'])
+        self.assertIn('unconfirmed', report.records['SRC-SPEC']['text'])
+        self.assertIn('來源檔案不可用', report.records['SRC-HARNESS']['text'])
+        self.assertIn('SRC-MISSING（未登錄）', report.records['TC-001']['text'])
+        self.assertIn('AC-MISSING（未登錄）', report.records['TC-001']['text'])
+        self.assertIn('proposed', report.records['REQ-001']['text'])
+        self.assertTrue(all(href[1:] in report.ids for href in report.links if href.startswith('#')))
+
+    def test_html_escapes_content_and_restricts_file_links(self):
+        reg, case = self.fixture()
+        hostile = '<script>alert("test")</script><img src=x onerror=alert(1)>'
+        reg['project']['name'] = hostile
+        reg['sources'][0]['excerpt'] = hostile
+        filename = 'inputs/規格 #1?.md'
+        (self.root / filename).write_text('Text')
+        reg['sources'][0]['path'] = filename
+        reg['sources'][1]['path'] = '../outside.md'
+        case['title'] = hostile
+        put(self.root / 'qa/registry.json', reg)
+        put(self.root / 'qa/cases/TC-001.json', case)
+        self.run_tool('render')
+        html = (self.root / 'qa/report.html').read_text()
+        report = ReportParser(html)
+        self.assertNotIn('<script>', html)
+        self.assertNotIn('<img ', html)
+        self.assertEqual(report.scripts, [])
+        self.assertIn(hostile, report.records['TC-001']['text'])
+        # A path containing '#' is a filename in sources, not an evidence fragment.
+        self.assertIn('../' + filename, [unquote(x) for x in report.links])
+        self.assertNotIn('../../outside.md', report.links)
+        self.assertIn('路徑不安全', report.records['SRC-HARNESS']['text'])
+        self.assertTrue(all(not x.startswith(('https:', 'http:', 'javascript:', 'file:')) for x in report.links))
+
+    def test_html_empty_project_and_custom_glossary(self):
+        html = (self.root / 'qa/report.html').read_text()
+        self.assertIn('尚未登錄來源', html)
+        self.assertIn('尚未建立測試案例', html)
+        reg = get(self.root / 'qa/registry.json')
+        reg['project']['id_glossary'] = {'SRC': {'english': None},
+                                       'BIZ': {'english': 'Business Rule', 'meaning': '業務規則', 'purpose': '追蹤規則'}}
+        put(self.root / 'qa/registry.json', reg)
+        self.run_tool('render')
+        html = (self.root / 'qa/report.html').read_text()
+        self.assertIn('SRC＝待確認', html)
+        self.assertIn('Business Rule', html)
 
     def test_render_uses_project_definitions_and_marks_unknown_ids(self):
         reg, _ = self.fixture()

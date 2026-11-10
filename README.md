@@ -2,10 +2,10 @@
 
 | 項目 | 內容 |
 | --- | --- |
-| 文件版本 | 1.6 |
+| 文件版本 | 1.7 |
 | 更新日期 | 2026-11-10（Asia/Taipei） |
 | 適用 Skill | GenAI 測試策略 / genai-test-strategy |
-| 適用專案工具 | `qa_project.py` 1.1.0 |
+| 適用專案工具 | `qa_project.py` 1.2.0 |
 | 文字編碼 | UTF-8 |
 | Skill 頁面 | [GenAI 測試策略](https://chatgpt.com/skills?skill_id=6af1747b432881919448466eb247e9c9) |
 
@@ -19,6 +19,7 @@
 本手冊可以放在專案根目錄，檔名保留 `README.md`。
 一般操作以對 AI 下指令為主；進階使用者可使用後面的命令列流程。
 本手冊說明已安裝 Skill 的使用方式；工具程式隨 Skill 提供，初始化後會複製進專案。
+日常閱讀可開啟 `qa/report.html`：來源資料與完整測試案例有雙向超連結；原有文件與紀錄全部保留。
 
 ## 目錄
 
@@ -453,8 +454,9 @@ Q-002 暫時不知道，責任人是產品負責人，需在案例核可前確�
 | `qa/cases/TC-*.json` | 案例的結構化來源。 |
 | `qa/test-cases.md` | 方便人閱讀的完整案例視圖。 |
 | `qa/traceability.md` | 已選 AC／風險／情境與案例的對照。 |
+| `qa/report.html` | 可離線開啟的閱讀報告；來源清單、完整案例與規則可互相點閱。 |
 
-請修改 JSON 來源後重新 render；直接修改生成的 Markdown，內容會在下次
+請修改 JSON 來源後重新 render；直接修改生成的 Markdown 或 HTML，內容會在下次
 render 被覆蓋。你可以直接告訴 AI 要改哪個案例，由它維持來源與視圖一致。
 
 ## 08. 四輪審查與新工作階段交接
@@ -667,6 +669,7 @@ inputs/requirements/ 中的規格已更新。
 | 檔案／資料夾 | 用途 |
 | --- | --- |
 | `qa/session.md` | 目前進度與下次接續事項。 |
+| `qa/report.html` | 網頁閱讀入口：來源清單、案例清單、完整步驟、雙向引用及規則詳情。 |
 | `qa/spec.md` | 需求、驗收條件及待確認事項的生成視圖。 |
 | `qa/strategy.md` | 品質目標、風險、方法、範圍及放行證據。 |
 | `qa/plan.md` | 本輪執行安排、版本、資料、環境與限制。 |
@@ -718,6 +721,35 @@ inputs/requirements/ 中的規格已更新。
 
 核可案例的狀態由 APP／BL 記錄，並沒有把 TC.status 改成 approved 的步驟。
 執行結果寫在 RUN，不能將 TC.status 改成 PASS 或 FAIL。
+
+### 13.6 用網頁點閱來源與測試案例
+
+你可以對 AI 說：
+
+```text
+請保留原有產出，更新來源與測試案例的網頁閱讀報告。
+我要看到所有來源、所有案例，以及每個案例引用哪些來源；兩邊都能互相點閱。
+請保留完整操作步驟，標示待確認規則與引用缺口。
+```
+
+工具 1.2.0 起，執行 `render` 就會另外產生 `qa/report.html`，用瀏覽器直接開啟即可。
+不需要部署網站或連上 Git server。SRC＝Source（資料來源），TC＝Test Case（測試案例），
+AC＝Acceptance Criterion（驗收條件），REQ＝Requirement（需求）；數字後綴是各類流水號。
+
+| 想看什麼 | 點閱方式 |
+| --- | --- |
+| 有哪些來源 | 「來源清單」列出編號、檔名／名稱、版本、類型與確認狀態。 |
+| 有哪些案例 | 「案例清單」列出標題、設計狀態、本輪是否選取，以及引用來源。 |
+| 案例的完整步驟 | 點案例編號，查看環境、前置、資料、操作、預期結果、判準、證據及清理方式。 |
+| 案例參考哪些來源 | 點來源編號；引用路徑會列出 TC → AC → REQ → SRC 等實際已登錄關係。 |
+| 某份來源影響哪些案例 | 在來源詳情的「反查引用案例」點選案例。沒有引用的來源也會列出。 |
+| 來源原文 | 看登錄摘錄與頁碼／段落，或點來源原檔連結開啟專案內文件。 |
+
+規格依據與操作／觀測指南會標示不同用途；有連結不代表已覆蓋或已測試。
+未登錄的引用、遺失的檔案及已變更的來源都會標示，不由 AI 自行補猜關係。
+原檔連結須保留專案的相對目錄；只分享 HTML 時，頁內已收錄的資料與雙向連結仍可閱讀，
+但不會附帶所有來源原檔。更新資料後請重新 render，網頁只是產生當下的快照。
+詳細說明見 [閱讀報告指引](references/report.md)。
 
 ## 14. 本機與 Git server 版控、備份與復原
 
@@ -934,7 +966,7 @@ py -3 qa/tools/qa_project.py checkpoint . -m "保存 RUN-001 與執行證據"
 | init | 建立結構及工具副本；不自動建立第一個 commit。 |
 | inventory | 記錄來源檔案的盤點變化；不自動讀懂或採納產品規則。 |
 | check | 檢查已整理記錄的結構；不執行產品測試。 |
-| render | 從 registry 與 cases 產生 spec、test-cases、traceability 視圖。 |
+| render | 從 registry 與 cases 產生原有 Markdown 視圖、編號字典與可點閱的 report.html。 |
 | digest | 列出目前設計內容的識別值。 |
 | checkpoint | 對符合範圍及條件的檔案建立本機 Git commit。 |
 | review-pack | 建立審查輸入與提示；不替你完成獨立審查。 |
@@ -1018,10 +1050,11 @@ APP 必須綁定目前 digest，且 case_ids 恰好等於 `scope.selected_case_i
 symlink、常見私密檔名、虛擬環境、`.git` 內容及 raw 證據目錄有排除處理。
 這些規則不是完整機密偵測；提交前仍需確認實際清單及應保存的內容。
 
-### Q15：Skill 更新後，專案內工具版本仍是 1.0.0。
+### Q15：Skill 更新後，專案內工具仍是舊版，沒有網頁報告。
 
 專案工具是初始化時的副本；重跑 init 不會升級它。
 1.1.0 新增文件中的編號說明與 `qa/id-glossary.md`；舊版不會自動產生。
+1.2.0 新增雙向超連結閱讀報告 `qa/report.html`；需更新專案內工具，再執行 render。
 但 AI 當輪回覆仍應遵守最新的編號解釋規則。
 請 AI 比較新舊工具，先保存 checkpoint，再明確安排升級與相容性檢查。
 
@@ -1155,6 +1188,7 @@ symlink、常見私密檔名、虛擬環境、`.git` 內容及 raw 證據目錄�
 - [ ] 每個 Expected 都能追溯到已確認規則。
 - [ ] 案例可獨立重跑；實際介面與引用的輔助檔案都有版本資訊。
 - [ ] registry／cases 已更新，生成視圖已 render，結構檢查結果已處理。
+- [ ] `qa/report.html` 已更新；來源與案例能雙向點閱，引用缺口及來源異動已如實標示。
 
 **建立正式案例基線：**
 
@@ -1177,5 +1211,5 @@ symlink、常見私密檔名、虛擬環境、`.git` 內容及 raw 證據目錄�
 請保存本次成果，更新 session，說明剩餘風險，並告訴我下次接著做哪一件事。
 ```
 
-文件依據：此 Skill 目前安裝版本的 [SKILL.md](SKILL.md)、[local-versioning.md](references/local-versioning.md)、[git-server.md](references/git-server.md)、[records.md](references/records.md)、[review.md](references/review.md)、[templates.md](references/templates.md)、[domain-adaptation.md](references/domain-adaptation.md)、[identifiers.md](references/identifiers.md)，以及 `qa_project.py 1.1.0` 的實際命令與行為。
+文件依據：此 Skill 目前安裝版本的 [SKILL.md](SKILL.md)、[local-versioning.md](references/local-versioning.md)、[git-server.md](references/git-server.md)、[report.md](references/report.md)、[records.md](references/records.md)、[review.md](references/review.md)、[templates.md](references/templates.md)、[domain-adaptation.md](references/domain-adaptation.md)、[identifiers.md](references/identifiers.md)，以及 `qa_project.py 1.2.0` 的實際命令與行為。
 工具版本或專案格式變更時，請先核對 --version、--help 與更新內容，再調整本 SOP。

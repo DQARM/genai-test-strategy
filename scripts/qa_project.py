@@ -2,6 +2,7 @@
 """Local QA records and version checkpoints. Python 3.10+, stdlib + Git only."""
 import argparse
 import hashlib
+from html import escape
 import json
 import os
 from pathlib import Path
@@ -10,8 +11,9 @@ import shutil
 import subprocess
 import sys
 from datetime import datetime, timezone
+from urllib.parse import quote
 
-VERSION = "1.1.0"
+VERSION = "1.2.0"
 ID_TERMS = {
     "SRC": ("Source", "資料來源", "追蹤文件、操作指南或其他依據"),
     "REQ": ("Requirement", "需求", "追蹤單一產品需求"),
@@ -528,6 +530,268 @@ def render(root):
     catalog = ["# 專案編號字典", "", "由工具預設慣例與 registry.project.id_glossary 產生；修改來源字典後重新 render。", ""]
     catalog += legend(set(ID_TERMS) | set(overrides) | seen)
     safe(root, "qa/id-glossary.md").write_text("\n".join(catalog) + "\n", encoding="utf-8")
+    render_html(root, reg, cases)
+
+
+def render_html(root, reg, cases):
+    """Read-only, offline view of explicit references; never infer product coverage."""
+    maps = {g: {r["id"]: r for r in reg.get(g, [])} for g in GROUPS}
+    maps["cases"] = cases
+    labels = {
+        "id": "編號", "title": "名稱", "text": "內容", "path": "專案內原始檔",
+        "version": "來源版本", "revision": "修訂版次", "sha256": "登錄檔案指紋（SHA-256）",
+        "locator": "頁碼／段落", "kind": "來源類型", "status": "狀態", "note": "備註",
+        "excerpt": "來源摘錄（依登錄內容）", "source_refs": "來源資料", "decision_refs": "決策依據",
+        "requirement_ids": "對應需求", "confirmation": "確認紀錄", "oracle": "驗收判準",
+        "purpose": "測試目的", "level": "測試層級", "type": "執行方式", "ac_ids": "關聯驗收條件",
+        "risk_ids": "關聯風險", "scenario_ids": "關聯情境", "environment": "測試環境",
+        "target": "受測環境／對象", "build_binding": "受測版本辨識", "tools": "工具與版本",
+        "binding_refs": "操作／觀測依據", "preconditions": "前置條件", "action": "操作",
+        "verify": "確認方式", "data": "測試資料", "name": "名稱", "value": "值", "unit": "單位",
+        "basis": "依據", "input": "輸入", "observe": "觀察點", "when": "判定時機",
+        "evidence": "需保存的證據", "checks": "預期結果與規則", "expected": "預期結果",
+        "rule_refs": "判準依據", "cleanup": "清理與復原", "independence": "獨立重跑方式",
+        "verdict_rules": "判定條件（不是實際結果）", "pass": "通過條件", "fail": "失敗條件",
+        "inconclusive": "無法判定條件", "blockers": "阻塞問題", "automation": "自動化資料",
+        "provenance": "產生依據", "statement": "決策內容", "by": "決策人", "at": "時間",
+        "evidence_ref": "決策記錄原檔", "affected_ids": "影響項目", "impact_ids": "影響項目",
+        "owner": "責任人", "due_or_trigger": "確認時點", "blocks": "阻塞階段",
+        "failure": "失敗情境", "impact": "影響", "priority": "優先度", "rationale": "理由",
+        "likelihood": "發生可能性", "uncertainty": "不確定性", "residual_risk": "剩餘風險",
+        "description": "情境描述", "category": "類型", "selection": "選取結果", "reason": "理由",
+        "tolerance": "容差", "supersedes": "替代舊項目", "merged_into": "合併目標",
+    }
+    ref_groups = {"source_refs": "sources", "binding_refs": "sources", "decision_refs": "decisions",
+                  "decision_ref": "decisions", "requirement_ids": "requirements", "ac_ids": "acceptance",
+                  "rule_refs": "acceptance", "risk_ids": "risks", "scenario_ids": "scenarios",
+                  "case_ids": "cases", "blockers": "questions", "merged_into": "scenarios"}
+    for key in ("ac", "risk", "scenario", "case"):
+        ref_groups["selected_" + key + "_ids"] = ref_groups[key + "_ids"]
+    backlinks, routes, gaps = {}, {}, {}
+
+    def ids(value):
+        return value if isinstance(value, list) else []
+
+    def anchor(group, rid):
+        return group + "-" + str(rid).encode("utf-8").hex()
+
+    def e(value):
+        return escape(str(value), quote=True)
+
+    def link(group, rid):
+        if rid not in maps.get(group, {}):
+            return '<span class="gap">' + e(rid) + '（未登錄）</span>'
+        return '<a href="#' + anchor(group, rid) + '">' + e(rid) + '</a>'
+
+    def auto_link(rid):
+        for group in maps:
+            if rid in maps[group]:
+                return link(group, rid)
+        return e(rid)
+
+    def file_link(value, allow_fragment=False):
+        raw = str(value)
+        rel, _, fragment = raw.partition("#") if allow_fragment else (raw, "", "")
+        try:
+            p = safe(root, rel)
+            if not p.is_file():
+                raise ValueError("missing")
+        except (ValueError, OSError):
+            return '<span class="gap">' + e(raw) + '（檔案不可用／路徑不安全）</span>'
+        url = "../" + quote(Path(rel).as_posix(), safe="/")
+        if fragment:
+            url += "#" + quote(fragment, safe="")
+        return '<a href="' + e(url) + '">' + e(raw) + '</a>'
+
+    def value(v, key=""):
+        if v is None or v == "":
+            return '<span class="muted">尚未提供</span>'
+        if isinstance(v, list):
+            return '<ul>' + ''.join('<li>' + value(x, key) + '</li>' for x in v) + '</ul>' if v else '無列項'
+        if isinstance(v, dict):
+            return '<dl>' + ''.join('<dt>' + e(labels.get(k, k)) + '</dt><dd>' + value(x, k) + '</dd>'
+                                   for k, x in v.items()) + '</dl>' if v else '尚未提供'
+        if key in ref_groups:
+            return link(ref_groups[key], str(v))
+        if key in ("impact_ids", "affected_ids", "supersedes", "basis"):
+            return auto_link(str(v))
+        if key in ("path", "evidence_ref"):
+            return file_link(v, allow_fragment=key == "evidence_ref")
+        return e(v)
+
+    def touch(cid, group, rid):
+        backlinks.setdefault((group, rid), set()).add(cid)
+        if rid not in maps.get(group, {}):
+            gaps[cid].add((group, rid))
+
+    def source(cid, sid, role, chain):
+        touch(cid, "sources", sid)
+        row = (sid, role, tuple(chain + [("sources", sid)]))
+        if row not in routes[cid]:
+            routes[cid].append(row)
+
+    def rule(cid, group, rid, role, chain):
+        touch(cid, group, rid)
+        row = maps[group].get(rid, {})
+        chain = chain + [(group, rid)]
+        for sid in ids(row.get("source_refs")):
+            source(cid, sid, role, chain)
+        for did in ids(row.get("decision_refs")):
+            touch(cid, "decisions", did)
+        if group == "acceptance":
+            for req in ids(row.get("requirement_ids")):
+                rule(cid, "requirements", req, role, chain)
+
+    for cid, case in cases.items():
+        routes[cid], gaps[cid] = [], set()
+        base = [("cases", cid)]
+        for aid in ids(case.get("ac_ids")):
+            rule(cid, "acceptance", aid, "案例宣告關聯", base)
+        for step in case.get("steps", []):
+            for check in step.get("checks", []):
+                for aid in ids(check.get("rule_refs")):
+                    rule(cid, "acceptance", aid, "預期結果依據：步驟 " + str(step.get("n", "?")), base)
+        for field, role in (("environment", "操作／觀測依據"), ("automation", "自動化操作依據")):
+            for sid in ids((case.get(field) or {}).get("binding_refs")):
+                source(cid, sid, role, base)
+        for data in case.get("data", []):
+            basis = data.get("basis")
+            if isinstance(basis, str) and basis in maps["sources"]:
+                source(cid, basis, "測試資料依據", base)
+        for field, group in (("risk_ids", "risks"), ("scenario_ids", "scenarios"), ("blockers", "questions")):
+            for rid in ids(case.get(field)):
+                touch(cid, group, rid)
+
+    def case_links(group, rid):
+        linked = sorted(backlinks.get((group, rid), set()))
+        return '、'.join(link("cases", c) for c in linked) if linked else '<span class="muted">目前沒有案例引用</span>'
+
+    def source_links(cid):
+        return '、'.join(link("sources", sid) for sid in sorted({r[0] for r in routes[cid]})) or '未連結來源文件'
+
+    health = {}
+    for sid, src in maps["sources"].items():
+        try:
+            p = safe(root, src.get("path", ""))
+            if not p.is_file():
+                raise ValueError("missing")
+            actual = file_hash(p)
+            note = "未登錄檔案指紋" if not src.get("sha256") else (
+                "檔案指紋相符" if actual == src["sha256"] else "來源已變更，需重新閱讀及評估影響")
+            health[sid] = (note, actual)
+        except (ValueError, OSError):
+            health[sid] = ("來源檔案不可用／路徑不安全", None)
+
+    css = """
+    :root{--ink:#172d43;--muted:#50657a;--line:#d7e3ec;--blue:#085786;--teal:#007d80}
+    *{box-sizing:border-box}html{scroll-padding-top:5rem}body{margin:0;background:#f4f7fa;color:var(--ink);font:16px/1.65 system-ui,'Noto Sans TC',sans-serif}
+    a{color:var(--blue);text-underline-offset:3px}a:hover{color:var(--teal)}a:focus-visible{outline:3px solid #ef9b32;outline-offset:3px}
+    header{background:#102f4b;color:white;padding:3rem max(5vw,calc((100vw - 1240px)/2))}header h1{font-size:clamp(1.7rem,4vw,2.7rem);margin:.4rem 0}header p{max-width:80ch;color:#e1edf5}
+    .eyebrow{letter-spacing:.14em;font-size:.8rem;color:#86e1dc}.meta{font-size:.85rem;overflow-wrap:anywhere}
+    nav{position:sticky;top:0;z-index:2;display:flex;flex-wrap:wrap;gap:.3rem 1.2rem;padding:.8rem 5vw;background:white;border-bottom:1px solid var(--line)}nav a{font-weight:650}
+    main{max-width:1340px;margin:auto;padding:1.5rem clamp(1rem,4vw,3rem) 4rem}section{margin:2rem 0}h2{font-size:1.5rem}h3{font-size:1.2rem;margin:.2rem 0 1rem}h4{margin:1.2rem 0 .5rem}
+    .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem}.stat{padding:1rem 1.4rem;background:white;border:1px solid var(--line);border-top:4px solid var(--teal);border-radius:10px}.stat b{font-size:2rem;display:block}
+    .record{background:white;border:1px solid var(--line);border-radius:12px;padding:1.5rem;margin:1rem 0;overflow-wrap:anywhere;scroll-margin-top:5rem}.record:target{outline:3px solid #e89b35;background:#fffdf6}
+    .scroll{overflow-x:auto}table{border-collapse:collapse;width:100%;background:white}th,td{border:1px solid var(--line);padding:.65rem .8rem;text-align:left;vertical-align:top;overflow-wrap:anywhere}th{background:#e9f1f7;font-weight:650}.steps{min-width:800px}.steps td{min-width:100px}.steps td:first-child{min-width:45px}
+    dl{display:grid;grid-template-columns:minmax(100px,180px) minmax(0,1fr);gap:.45rem 1rem;margin:.4rem 0}dt{font-weight:650;color:var(--muted)}dd{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}dd dl{font-size:.95em}ul{padding-left:1.3rem;margin:.25rem 0}li{margin:.35rem 0}
+    .muted{color:var(--muted)}.gap{color:#9d3d05;font-weight:650}.notice{border-left:4px solid #e59a2b;background:#fff5e5;padding:.8rem 1rem}.badge{display:inline-block;padding:.15rem .55rem;background:#e7f4f3;color:#075d60;border-radius:6px;font-size:.85rem}.back{font-size:.85rem;margin-top:1rem}
+    .document{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit}summary{cursor:pointer;font-weight:650;padding:.6rem 0}footer{padding:1rem;color:var(--muted);border-top:1px solid var(--line)}
+    @media(max-width:650px){.stats{gap:.4rem}.stat{padding:.7rem}.stat b{font-size:1.4rem}dl{grid-template-columns:1fr;gap:.1rem}.record{padding:1rem}dd{margin-bottom:.5rem}nav{position:static}}
+    @media print{body{background:white;font-size:10pt}header{background:white;color:#172d43;padding:0}header p,.eyebrow{color:#172d43}nav,.back{display:none}main{padding:0;max-width:none}.record{border-radius:0}a{color:#172d43}.scroll{overflow:visible}.steps{min-width:0}.steps td{min-width:0}tr{break-inside:avoid}h2,h3,h4{break-after:avoid}details{display:block}}
+    """
+    project = reg.get("project", {})
+    title = project.get("name", "測試專案")
+    overrides = project.get("id_glossary", {})
+
+    def terms_for(prefix):
+        if prefix in overrides:
+            custom = overrides[prefix]
+            candidate = tuple(custom.get(k) for k in ("english", "meaning", "purpose")) if isinstance(custom, dict) else ()
+            return candidate if len(candidate) == 3 and all(isinstance(t, str) and meaningful(t) for t in candidate) else ("待確認", "待確認", "請確認本專案定義")
+        return ID_TERMS.get(prefix, ("待確認", "待確認", "請確認本專案定義"))
+
+    prefix_note = '；'.join(p + '＝' + terms_for(p)[0] + '（' + terms_for(p)[1] + '）' for p in ("SRC", "TC"))
+    out = ['<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8">',
+           '<meta name="viewport" content="width=device-width, initial-scale=1">',
+           '<title>' + e(title) + '｜來源與測試案例</title><style>' + css + '</style></head><body>',
+           '<header id="top"><div class="eyebrow">GENAI TEST STRATEGY · PROJECT REPORT</div>',
+           '<h1>' + e(title) + '</h1><p>來源與測試案例 · 雙向追溯閱讀報告</p>',
+           '<p>' + e(prefix_note) + '。點選編號查看完整內容，再由來源反查相關案例。</p>',
+           '<div class="meta">產生時間：' + e(now()) + ' · 工具版本：' + VERSION + '</div></header>',
+           '<nav aria-label="報告章節"><a href="#sources">來源清單</a><a href="#cases">案例清單</a>',
+           '<a href="#rules">需求與驗收</a><a href="#other">風險與待確認</a><a href="#glossary">編號說明</a><a href="#documents">其他成果</a></nav><main>',
+           '<div class="notice">這是設計資料的閱讀快照。連結表示已登錄的引用，不代表已覆蓋、已核可或已執行；本頁不產生實際測試結果。</div>',
+           '<div class="stats">' + ''.join('<div class="stat"><b>' + str(n) + '</b>' + label + '</div>' for n, label in
+                                           ((len(maps["sources"]), "來源資料"), (len(cases), "測試案例"),
+                                            (sum(q.get("status") != "resolved" for q in maps["questions"].values()), "未決問題"))) + '</div>']
+    out += ['<section id="glossary"><h2>編號說明</h2><p>ID＝Identifier（識別碼）。數字後綴是各類流水號，不代表優先度、版本、核可或結果；文字後綴是專案標籤。</p>',
+            '<details><summary>查看英文來源、中文意思與用途</summary><table><thead><tr><th>前綴</th><th>英文來源</th><th>意思</th><th>用途</th></tr></thead><tbody>']
+    prefixes = set(ID_TERMS) | set(overrides) | {str(r).split("-", 1)[0] for rows in maps.values() for r in rows}
+    for prefix in sorted(prefixes):
+        terms = terms_for(prefix)
+        out.append('<tr>' + ''.join('<td>' + e(x) + '</td>' for x in (prefix, *terms)) + '</tr>')
+    out += ['</tbody></table></details></section>', '<section id="sources"><h2>來源清單</h2>',
+            '<p>normative＝規格依據；harness＝操作／觀測指南；observation＝現況觀察。指紋相符僅表示檔案未改變，不代表內容已確認。</p>',
+            '<div class="scroll"><table><thead><tr><th>來源編號</th><th>名稱／檔案</th><th>類型／版本／狀態</th><th>引用案例</th></tr></thead><tbody>']
+    for sid, src in maps["sources"].items():
+        out.append('<tr><td>' + link("sources", sid) + '</td><td>' + e(src.get("title") or src.get("path", "尚未提供")) +
+                   '</td><td>' + e(' / '.join(str(src.get(k) or '未提供') for k in ("kind", "version", "status"))) +
+                   '</td><td>' + case_links("sources", sid) + '</td></tr>')
+    out += ['</tbody></table></div>' if maps["sources"] else '</tbody></table></div><p>尚未登錄來源。</p>']
+    for sid, src in maps["sources"].items():
+        out += ['<article class="record" id="' + anchor("sources", sid) + '" data-record-id="' + e(sid) + '"><h3>' + e(sid) + ' · ' + e(src.get("title") or src.get("path", "來源")) + '</h3>',
+                value({k: v for k, v in src.items() if k not in ("id", "title")}),
+                '<p class="notice">檔案檢查：' + e(health[sid][0]) + '</p>',
+                '<h4>反查引用案例</h4><p>' + case_links("sources", sid) + '</p><p class="back"><a href="#sources">返回來源清單</a></p></article>']
+    selected = set(reg.get("scope", {}).get("selected_case_ids", []))
+    out += ['</section><section id="cases"><h2>測試案例清單</h2><p>draft＝草稿；blocked＝有阻塞；ready＝設計就緒；retired＝停用。人工執行的完整步驟列在各案例內。</p>',
+            '<div class="scroll"><table><thead><tr><th>案例編號</th><th>標題</th><th>狀態／本輪範圍</th><th>參考來源</th></tr></thead><tbody>']
+    for cid, case in cases.items():
+        out.append('<tr><td>' + link("cases", cid) + '</td><td>' + e(case.get("title", "")) + '</td><td>' + e(case.get("status", "未提供")) +
+                   (' / 本輪已選' if cid in selected else ' / 本輪未選') + '</td><td>' + source_links(cid) + '</td></tr>')
+    out += ['</tbody></table></div>' if cases else '</tbody></table></div><p>尚未建立測試案例。</p>']
+    for cid, case in cases.items():
+        tail = ("cleanup", "independence", "verdict_rules", "blockers", "automation", "provenance")
+        out += ['<article class="record" id="' + anchor("cases", cid) + '" data-record-id="' + e(cid) + '"><h3>' + e(cid) + ' · ' + e(case.get("title", "")) + '</h3>',
+                value({k: v for k, v in case.items() if k not in ("id", "title", "steps", "actual", "result", *tail)}), '<h4>完整操作步驟</h4>',
+                '<p>下表數字為操作順序；Expected 是預期結果，須由已確認規則支持。</p>',
+                '<div class="scroll"><table class="steps"><thead><tr>' + ''.join('<th>' + s + '</th>' for s in
+                    ("步驟", "操作／輸入", "觀察／判定時機", "預期結果／規則", "證據")) + '</tr></thead><tbody>']
+        for step in case.get("steps", []):
+            cells = [e(step.get("n", "?")), value({k: step.get(k) for k in ("action", "input")}),
+                     value({k: step.get(k) for k in ("observe", "when")}),
+                     value(step.get("checks")) if step.get("checks") else '此步驟未列產品斷言', value(step.get("evidence"))]
+            out.append('<tr>' + ''.join('<td>' + c + '</td>' for c in cells) + '</tr>')
+        out += ['</tbody></table></div>', value({k: case[k] for k in tail if k in case}), '<h4>參考來源與引用路徑</h4>']
+        if routes[cid]:
+            out.append('<ul>')
+            for sid, role, chain in routes[cid]:
+                out.append('<li><span class="badge">' + e(role) + '</span> ' + ' → '.join(link(g, r) for g, r in chain) + '</li>')
+            out.append('</ul>')
+        else:
+            out.append('<p class="notice">未連結來源文件；請檢視規則／決策依據，不能自行補推來源。</p>')
+        if gaps[cid]:
+            out.append('<p class="gap">引用缺口：' + '、'.join(link(g, r) for g, r in sorted(gaps[cid])) + '</p>')
+        out += ['<p class="back"><a href="#cases">返回案例清單</a> · <a href="#sources">查看全部來源</a></p></article>']
+    out.append('</section>')
+    for section, heading, groups in (("rules", "需求、驗收條件與決策", ("requirements", "acceptance", "decisions")),
+                                    ("other", "風險、候選情境與待確認事項", ("risks", "scenarios", "questions"))):
+        out.append('<section id="' + section + '"><h2>' + heading + '</h2>')
+        for group in groups:
+            for rid, row in maps[group].items():
+                out += ['<article class="record" id="' + anchor(group, rid) + '" data-record-id="' + e(rid) + '"><h3>' + e(rid) + '</h3>',
+                        value({k: v for k, v in row.items() if k != "id"}), '<h4>相關案例</h4><p>' + case_links(group, rid) +
+                        '</p><p class="back"><a href="#cases">返回案例清單</a></p></article>']
+        out.append('</section>')
+    out += ['<section id="documents"><h2>其他成果與本輪範圍</h2>', value(reg.get("scope", {}))]
+    for filename, label in (("strategy.md", "測試策略"), ("plan.md", "本輪計畫"), ("session.md", "工作進度")):
+        p = safe(root, "qa/" + filename)
+        if p.is_file():
+            out += ['<details class="record"><summary>' + label + '</summary><pre class="document">' + e(p.read_text(encoding="utf-8")) + '</pre></details>']
+    out += ['<p>原有文件仍保留：' + ' · '.join(file_link("qa/" + f) for f in
+            ("spec.md", "test-cases.md", "traceability.md", "id-glossary.md", "registry.json")) + '</p></section>',
+            '<footer>本頁由專案記錄產生，請修改原始記錄後重新 render，不直接編輯本頁。可離線閱讀；以瀏覽器尋找功能搜尋編號或文字。來源原檔連結需保留專案相對目錄；僅分享此 HTML 仍可使用頁內雙向連結。<a href="#top">回到頂端</a></footer></main></body></html>']
+    safe(root, "qa/report.html").write_text(''.join(out), encoding="utf-8")
 
 
 def checkpoint(args, root):

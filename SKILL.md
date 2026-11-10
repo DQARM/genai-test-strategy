@@ -1,6 +1,6 @@
 ---
 name: genai-test-strategy
-description: 通用的 GenAI 輔助需求釐清與測試策略工作流程。先詢問是否已有已知規格或需求草稿，再建立或選定專案資料夾，讓使用者選擇本機 Git 或 Git server 版控；選 server 時協助登入及連接儲存庫。有文件先讀稿，無文件逐題訪談，補完可驗證規格、評估風險，產生有具體步驟與判準的 Test Case。適用軟體、系統、設備及 AI 產品等，不預設範例規則。從模糊需求開始、由規格設計案例、審查案例或續作專案時使用；支援人工測試、四輪審查、核可基線與證據追溯，不需原始碼或 CI/CD。
+description: 通用的 GenAI 輔助需求釐清與測試策略工作流程。先詢問是否已有已知規格或需求草稿，再建立或選定專案資料夾，讓使用者選擇本機 Git 或 Git server 版控；選 server 時協助登入及連接儲存庫。有文件先讀稿，無文件逐題訪談，補完可驗證規格、評估風險，產生有具體步驟與判準的 Test Case。適用軟體、系統、設備及 AI 產品等，不預設範例規則。從模糊需求開始、由規格設計案例、審查案例或續作專案時使用；支援人工測試、四輪審查、核可基線、證據追溯與來源／案例雙向連結的 HTML 閱讀報告，不需原始碼或 CI/CD。
 ---
 
 # GenAI 測試策略
@@ -48,6 +48,7 @@ description: 通用的 GenAI 輔助需求釐清與測試策略工作流程。先
 - 建立／更新結構化記錄：讀 [records.md](references/records.md)。
 - 新增、引用或解釋資料編號：讀 [identifiers.md](references/identifiers.md)。
 - 產生完整案例：先讀 [templates.md](references/templates.md) 並填入本專案的已確認內容。
+- 交付可點閱的來源／案例報告：讀 [report.md](references/report.md)；在保留既有產出的前提下生成 `qa/report.html`。
 - 選擇適合本專案的提問、風險與證據：讀 [domain-adaptation.md](references/domain-adaptation.md)，只採適用部分。
 - 使用者需要案例示意時才讀 [worked-example.md](references/worked-example.md)；各範例互相獨立，不是任何新專案的預設規格。
 - 本機版本、快照、執行紀錄：讀 [local-versioning.md](references/local-versioning.md)。
@@ -111,6 +112,6 @@ description: 通用的 GenAI 輔助需求釐清與測試策略工作流程。先
 已建立專案檔案時完成以下保存流程；若本輪只在對話草擬，回報草稿與下一題即可，不宣稱已執行檔案檢查或保存版本。
 
 1. 更新 registry、策略／計畫及 `qa/session.md`：完成什麼、下一個問題、未決 owner／時點、本輪修改與下一步。
-2. 執行 `check`、`render`。工具 1.1.0 起會在生成視圖加入編號說明並產生 `qa/id-glossary.md`；核對本專案自訂含義，未知前綴不可略過。舊工具不會自動升級；依 local-versioning.md 處理版本，當輪對話仍須說明編號。檢查失敗就修正結構或如實保留 blocked；檢查成功不稱產品通過。
+2. 執行 `check`、`render`。保留規格、策略／計畫、案例、追溯、進度與版本紀錄。工具 1.2.0 起另產生離線閱讀網頁 `qa/report.html`，含來源清單、完整案例、雙向引用、規則／決策及編號說明；交付時提供可開啟位置。原有 Markdown、JSON 與 `qa/id-glossary.md` 保留。舊工具不會自動升級；依 local-versioning.md 處理版本。核對編號含義及引用缺口，不把網頁連結當成已覆蓋或已執行證據。檢查失敗就修正結構或如實保留 blocked；檢查成功不稱產品通過。
 3. 執行 `checkpoint -m <meaningful-message>` 留下本機版本；只提交本輪明確檔案。不碰既有 staged 內容、不改 Git 全域 identity。本機模式不 push；server 模式依 git-server.md，在既定儲存庫、分支及上傳範圍內同步並讀回驗證，不重問已授權的例行保存。
 4. 簡短回報：新增／變更成果、最優先風險、未決缺口、版本與下一步。區分「已存本機」「已同步」「同步待處理」；登入或同步失敗時保留本機成果，不假稱上傳成功。需要人決策時只提出下一題，不要求重複同意已授權的例行保存。
