@@ -2,12 +2,13 @@
 import hashlib
 from html.parser import HTMLParser
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
 import tempfile
 import unittest
-from urllib.parse import unquote
+from urllib.parse import unquote, urlsplit
 
 TOOL = Path(__file__).with_name("qa_project.py")
 
@@ -210,25 +211,39 @@ class WorkflowTests(unittest.TestCase):
         hostile = '<script>alert("test")</script><img src=x onerror=alert(1)>'
         reg['project']['name'] = hostile
         reg['sources'][0]['excerpt'] = hostile
-        filename = 'inputs/規格 #1?.md'
-        (self.root / filename).write_text('Text')
-        reg['sources'][0]['path'] = filename
         reg['sources'][1]['path'] = '../outside.md'
         case['title'] = hostile
-        put(self.root / 'qa/registry.json', reg)
-        put(self.root / 'qa/cases/TC-001.json', case)
-        self.run_tool('render')
-        html = (self.root / 'qa/report.html').read_text()
-        report = ReportParser(html)
-        self.assertNotIn('<script>', html)
-        self.assertNotIn('<img ', html)
-        self.assertEqual(report.scripts, [])
-        self.assertIn(hostile, report.records['TC-001']['text'])
-        # A path containing '#' is a filename in sources, not an evidence fragment.
-        self.assertIn('../' + filename, [unquote(x) for x in report.links])
-        self.assertNotIn('../../outside.md', report.links)
-        self.assertIn('路徑不安全', report.records['SRC-HARNESS']['text'])
-        self.assertTrue(all(not x.startswith(('https:', 'http:', 'javascript:', 'file:')) for x in report.links))
+        # Exercise URL-reserved characters with a filename valid on Windows too.
+        filenames = [('inputs/規格 #1% &.md',
+                      '../inputs/%E8%A6%8F%E6%A0%BC%20%231%25%20%26.md')]
+        if os.name != 'nt':
+            # '?' is a legal POSIX filename character but reserved on Windows.
+            filenames.append(('inputs/規格 #1?.md',
+                              '../inputs/%E8%A6%8F%E6%A0%BC%20%231%3F.md'))
+        for filename, expected_href in filenames:
+            with self.subTest(filename=filename):
+                (self.root / filename).write_text('Text', encoding='utf-8')
+                reg['sources'][0]['path'] = filename
+                put(self.root / 'qa/registry.json', reg)
+                put(self.root / 'qa/cases/TC-001.json', case)
+                self.run_tool('render')
+                html = (self.root / 'qa/report.html').read_text(encoding='utf-8')
+                report = ReportParser(html)
+                self.assertNotIn('<script>', html)
+                self.assertNotIn('<img ', html)
+                self.assertEqual(report.scripts, [])
+                self.assertIn(hostile, report.records['TC-001']['text'])
+                # Filename characters must not become URL fragments or queries.
+                hrefs = [x for x in report.links if unquote(x) == '../' + filename]
+                self.assertTrue(hrefs, filename)
+                for href in hrefs:
+                    self.assertEqual(href, expected_href)
+                    parsed = urlsplit(href)
+                    self.assertEqual((parsed.query, parsed.fragment), ('', ''))
+                    self.assertTrue((self.root / 'qa' / unquote(parsed.path)).is_file())
+                self.assertNotIn('../../outside.md', report.links)
+                self.assertIn('路徑不安全', report.records['SRC-HARNESS']['text'])
+                self.assertTrue(all(not x.startswith(('https:', 'http:', 'javascript:', 'file:')) for x in report.links))
 
     def test_html_empty_project_and_custom_glossary(self):
         html = (self.root / 'qa/report.html').read_text()

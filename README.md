@@ -2,7 +2,7 @@
 
 | 項目 | 內容 |
 | --- | --- |
-| 文件版本 | 1.9 |
+| 文件版本 | 1.9.1 |
 | 更新日期 | 2026-11-11（Asia/Taipei） |
 | 適用 Skill | GenAI 測試策略 / genai-test-strategy |
 | 適用專案工具 | `qa_project.py` 1.2.0 |
@@ -1148,6 +1148,24 @@ symlink、常見私密檔名、虛擬環境、`.git` 內容及 raw 證據目錄�
 1.2.0 新增雙向超連結閱讀報告 `qa/report.html`；需更新專案內工具，再執行 render。
 但 AI 當輪回覆仍應遵守最新的編號解釋規則。
 請 AI 比較新舊工具，先保存 checkpoint，再明確安排升級與相容性檢查。
+
+### Q16：Windows 安裝驗證在建立「規格 #1?.md」時錯誤。
+
+舊測試程式使用含 `?` 的檔名建立測試資料；Windows 將 `?` 視為檔名保留字元，
+因此在測試準備階段就中斷，尚未驗證到 HTML 連結功能。這是測試資料的跨平台問題。
+1.9.1 的測試修正改用 Windows 合法、仍含中文、空白、`#`、`%` 與 `&` 的檔名，
+檢查連結編碼、解碼後檔案及 HTML 內容逸出；含 `?` 的額外變體只在非 Windows 執行。
+共用的 HTML 測試不會因 Windows 而跳過。此修正不更動專案資料或 `qa_project.py` 的版本。
+
+在更新後的 Skill 資料夾執行：
+
+```powershell
+py -3 -m unittest discover -s scripts -p "test_qa_project.py" -v
+```
+
+若看到 `Symlinks unavailable`，表示該環境無法建立符號連結，對應測試記為 skipped，
+不可算成通過；其他 skip 也須查看實際原因。Linux 通過不代表已完成原生 Windows 驗證。
+依既定升級條件處理剩餘錯誤與跳過項目，不刪除測試或把錯誤改成跳過來宣稱通過。
 
 ## 17. 通用案例模板與跨專案使用方式
 
