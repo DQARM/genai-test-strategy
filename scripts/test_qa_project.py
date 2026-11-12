@@ -155,6 +155,189 @@ class WorkflowTests(unittest.TestCase):
                 "stop_conditions": ["timebox ends", "fixture becomes unavailable"],
                 "cleanup": [{"action": "close fixture", "verify": "process terminated"}]}
 
+    def qa_pair(self, **changes):
+        row = {"id": "QA-001", "kind": "clarification", "question_id": None,
+               "question_text": "哪些模式允許匯出？", "options": ["所有模式", "只有維修模式"],
+               "answer_text": "第二個", "answer_status": "answered", "capture": "verbatim",
+               "missing_reason": None, "asked_at": None, "answered_at": None, "answered_by": "使用者",
+               "interpretation": "只有維修模式允許；其餘限制未確認。", "related_ids": [],
+               "supersedes": None, "change_reason": None}
+        row.update(changes)
+        return row
+
+    def record_pair(self, row, ok=True):
+        put(self.root / "qa/input.json", row)
+        return self.run_tool("record-qa", "--input", "qa/input.json", ok=ok)
+
+    def test_qa_preserves_short_answer_options_and_does_not_create_decisions(self):
+        row = self.qa_pair(answer_text="  第二個\n保留原始換行與空白。  ")
+        before = get(self.root / "qa/registry.json")
+        self.record_pair(row)
+        reg = get(self.root / "qa/registry.json")
+        stored = reg["interactions"][0]
+        self.assertEqual(stored["answer_text"], row["answer_text"])
+        self.assertEqual(stored["options"], row["options"])
+        self.assertEqual(reg["decisions"], before["decisions"])
+        self.assertEqual(reg["questions"], before["questions"])
+        self.assertEqual(reg["requirements"], before["requirements"])
+        self.assertIsNone(stored["answered_at"])
+        self.assertTrue(stored["answer_recorded_at"])
+        self.assertEqual(json.loads(self.run_tool("show-qa", "--id", "QA-001").stdout), stored)
+        index = self.run_tool("show-qa").stdout
+        self.assertNotIn(row["answer_text"], index)
+        self.assertNotIn("interpretation", index)
+
+    def test_qa_pending_is_completed_once_without_changing_question(self):
+        row = self.qa_pair(answer_status="pending", answer_text=None, answered_by=None, interpretation=None)
+        self.record_pair(row)
+        saved = get(self.root / "qa/registry.json")["interactions"][0]
+        completed = {**saved, "answer_status": "answered", "answer_text": "第二個", "answered_by": "使用者", "interpretation": "僅維修模式"}
+        self.record_pair(completed)
+        actual = get(self.root / "qa/registry.json")["interactions"]
+        self.assertEqual(len(actual), 1)
+        self.assertEqual(actual[0]["recorded_at"], saved["recorded_at"])
+        self.assertEqual(actual[0]["question_text"], saved["question_text"])
+        self.assertIn("unchanged", self.record_pair(actual[0]).stdout)
+        changed = {**actual[0], "answer_text": "第一個"}
+        self.assertIn("cannot be overwritten", self.record_pair(changed, ok=False).stderr)
+        self.assertEqual(get(self.root / "qa/registry.json")["interactions"], actual)
+
+    def test_qa_pending_cannot_change_options_during_completion(self):
+        row = self.qa_pair(answer_status="pending", answer_text=None, answered_by=None, interpretation=None)
+        self.record_pair(row)
+        before = (self.root / "qa/registry.json").read_bytes()
+        completed = self.qa_pair(options=["只有維修模式", "所有模式"])
+        self.record_pair(completed, ok=False)
+        self.assertEqual((self.root / "qa/registry.json").read_bytes(), before)
+
+    def test_qa_unknown_answer_is_kept_but_cannot_support_a_decision(self):
+        reg, _ = self.fixture()
+        self.record_pair(self.qa_pair(answer_text="不知道", answer_status="unknown", interpretation="仍未決定，不能推定不允許。"))
+        reg = get(self.root / "qa/registry.json")
+        reg["decisions"][0]["interaction_refs"] = ["QA-001"]
+        put(self.root / "qa/registry.json", reg)
+        self.assertIn("cannot support a confirmed decision", self.run_tool("check", ok=False).stdout)
+        self.assertEqual(reg["interactions"][0]["answer_text"], "不知道")
+
+    def test_qa_correction_retains_original_and_warns_stale_decision(self):
+        self.fixture()
+        self.record_pair(self.qa_pair(related_ids=["REQ-001", "RISK-001"]))
+        reg = get(self.root / "qa/registry.json")
+        old = copy.deepcopy(reg["interactions"][0])
+        reg["decisions"][0]["interaction_refs"] = ["QA-001"]
+        put(self.root / "qa/registry.json", reg)
+        self.record_pair(self.qa_pair(id="QA-002", kind="correction", answer_text="更正，所有模式皆可。",
+                                     interpretation="使用者更正為所有模式；受影響規則待更新。",
+                                     supersedes="QA-001", change_reason="使用者更正適用模式"))
+        current = get(self.root / "qa/registry.json")
+        self.assertEqual(current["interactions"][0], old)
+        self.assertEqual(len(current["interactions"]), 2)
+        self.assertIn("superseded answer QA-001", self.run_tool("check").stdout)
+        self.run_tool("render")
+        html = (self.root / "qa/report.html").read_text(encoding="utf-8")
+        parser = ReportParser(html)
+        for rid in ("QA-001", "QA-002"):
+            self.assertIn("#" + parser.records[rid]["anchor"], parser.records["TC-001"]["links"])
+            self.assertIn("#" + parser.records["TC-001"]["anchor"], parser.records[rid]["links"])
+        self.assertIn("已由", parser.records["QA-001"]["text"])
+        self.assertIn("#" + parser.records["QA-001"]["anchor"], parser.records["DEC-001"]["links"])
+        self.assertIn("#" + parser.records["QA-001"]["anchor"], parser.records["REQ-001"]["links"])
+        self.assertIn("#" + parser.records["QA-001"]["anchor"], parser.records["RISK-001"]["links"])
+
+    def test_qa_missing_original_requires_label_and_never_fills_raw_fields(self):
+        row = self.qa_pair(capture="summary_only", question_text=None, options=[], answer_text=None,
+                           answer_status="unavailable", missing_reason="舊紀錄僅存摘要，原問答已不可見。")
+        self.record_pair(row)
+        self.assertIn("incomplete original Q&A", self.run_tool("check").stdout)
+        saved = get(self.root / "qa/registry.json")["interactions"][0]
+        self.assertIsNone(saved["question_text"])
+        self.assertIsNone(saved["answer_text"])
+        self.record_pair(self.qa_pair(id="QA-002", capture="summary_only"), ok=False)
+        self.record_pair(self.qa_pair(id="QA-003", capture="partial", missing_reason=None), ok=False)
+
+    def test_qa_invalid_refs_cycles_and_times_do_not_write_partial_records(self):
+        self.record_pair(self.qa_pair())
+        before = (self.root / "qa/registry.json").read_bytes()
+        for change in ({"related_ids": ["REQ-MISSING"]}, {"question_id": "Q-MISSING"},
+                       {"supersedes": "QA-002", "change_reason": "循環"},
+                       {"supersedes": "QA-001", "change_reason": None},
+                       {"asked_at": "2026-11-13T12:00:00"}, {"options": "第二個"}):
+            with self.subTest(change=change):
+                self.record_pair(self.qa_pair(id="QA-002", **change), ok=False)
+                self.assertEqual((self.root / "qa/registry.json").read_bytes(), before)
+
+    def test_qa_html_escapes_raw_content_and_keeps_all_anchors_valid(self):
+        raw = '<script>alert("x")</script> & "第二個"\n```html'
+        self.record_pair(self.qa_pair(question_text=raw, answer_text=raw, options=[raw]))
+        self.run_tool("render")
+        parser = ReportParser((self.root / "qa/report.html").read_text(encoding="utf-8"))
+        self.assertFalse(parser.scripts)
+        self.assertIn(raw, parser.records["QA-001"]["text"])
+        self.assertEqual(len(parser.ids), len(set(parser.ids)))
+        self.assertTrue(all(link[1:] in parser.ids for link in parser.links if link.startswith("#")))
+        markdown = (self.root / "qa/interview.md").read_text(encoding="utf-8")
+        self.assertIn("Question and Answer", markdown)
+        self.assertIn("````json", markdown)
+
+    def test_qa_review_pack_keeps_both_ends_of_correction_not_unrelated_setup(self):
+        self.fixture()
+        self.record_pair(self.qa_pair())
+        reg = get(self.root / "qa/registry.json")
+        reg["decisions"][0]["interaction_refs"] = ["QA-001"]
+        put(self.root / "qa/registry.json", reg)
+        self.record_pair(self.qa_pair(id="QA-002", supersedes="QA-001", change_reason="改口", answer_text="第一個"))
+        self.record_pair(self.qa_pair(id="QA-003", kind="setup", question_text="專案放哪裡？", options=[], answer_text="目前工作區"))
+        full = self.run_tool("digest").stdout.strip()
+        self.run_tool("review-pack", "--id", "REV-QA")
+        packet = get(self.root / "qa/review-packs/REV-QA/packet.json")
+        self.assertEqual(packet["interview_evidence_ids"], ["QA-001", "QA-002"])
+        self.assertEqual([r["id"] for r in packet["review_input"]["registry"]["interactions"]], ["QA-001", "QA-002"])
+        self.assertEqual(packet["artifact_digest"], full)
+        self.assertEqual(len(get(self.root / "qa/registry.json")["interactions"]), 3)
+
+    def test_qa_review_pack_filters_unselected_questions(self):
+        self.fixture()
+        reg = get(self.root / "qa/registry.json")
+        reg["questions"] = [{"id": qid, "text": "合成問題", "status": "open", "owner": "使用者", "due_or_trigger": "後續",
+                              "impact_ids": impacts, "decision_refs": []} for qid, impacts in
+                             [("Q-IN", ["REQ-001"]), ("Q-OUT", [])]]
+        put(self.root / "qa/registry.json", reg)
+        self.record_pair(self.qa_pair(question_id="Q-IN", answer_status="unknown", answer_text="不知道", interpretation="保留缺口"))
+        self.record_pair(self.qa_pair(id="QA-002", question_id="Q-OUT"))
+        self.run_tool("review-pack", "--id", "REV-SCOPE")
+        packet = get(self.root / "qa/review-packs/REV-SCOPE/packet.json")
+        self.assertEqual(packet["interview_evidence_ids"], ["QA-001"])
+
+    def test_qa_changes_digest_but_render_and_read_do_not(self):
+        before = self.run_tool("digest").stdout.strip()
+        self.record_pair(self.qa_pair())
+        after = self.run_tool("digest").stdout.strip()
+        self.assertNotEqual(before, after)
+        self.run_tool("render")
+        self.run_tool("show-qa", "--id", "QA-001")
+        self.assertEqual(after, self.run_tool("digest").stdout.strip())
+
+    def test_qa_legacy_registry_without_pairs_is_preserved(self):
+        reg = get(self.root / "qa/registry.json")
+        reg.pop("interactions")
+        put(self.root / "qa/registry.json", reg)
+        before = (self.root / "qa/registry.json").read_bytes()
+        self.run_tool("check")
+        self.run_tool("render")
+        self.assertEqual((self.root / "qa/registry.json").read_bytes(), before)
+        self.assertIn("尚未登錄成對問答", (self.root / "qa/interview.md").read_text(encoding="utf-8"))
+
+    def test_qa_pending_answer_conflicts_with_resolved_question(self):
+        self.fixture()
+        reg = get(self.root / "qa/registry.json")
+        reg["questions"] = [{"id": "Q-001", "text": "匯出模式？", "status": "open", "owner": "使用者", "due_or_trigger": "案例設計前", "decision_refs": []}]
+        put(self.root / "qa/registry.json", reg)
+        self.record_pair(self.qa_pair(question_id="Q-001", answer_status="pending", answer_text=None, answered_by=None, interpretation=None))
+        reg = get(self.root / "qa/registry.json")
+        reg["questions"][0].update(status="resolved", decision_refs=["DEC-001"])
+        put(self.root / "qa/registry.json", reg)
+        self.assertIn("conflicts with resolved question", self.run_tool("check", ok=False).stdout)
+
     def test_risk_requirement_gaps_warn_in_draft_and_block_scoped_baseline(self):
         reg, _ = self.fixture()
         reg["requirements"][0].pop("risk_assessment")

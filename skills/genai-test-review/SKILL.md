@@ -18,6 +18,7 @@ description: 審查已存在的測試案例與測試設計。使用者要求檢�
 ## 審查界線與獨立性
 
 - 讀取規格、來源、決策、策略、計畫、案例、共用判準及覆蓋項目；預設只新增本次審查紀錄。不要修改這些設計輸入、原始來源、既有審查、核可、基線、執行記錄或 `qa/session.md`。依據矛盾、未決規則、操作缺口皆寫入 Finding，交回設計端處理。
+- 有成對問答時，只讀與本輪決策相關的原始問題、選項、回答及更正鏈，核對條件是否被摘要省略；AI 解讀不是原話，回答存在不等於規則已確認。缺原文標限制，不補造逐字稿、不重啟訪談。詳見 handoff.md。
 - Expected（預期結果）只由本專案已確認規則或已確認的比較關係支持。不得由受測程式、現行介面行為、產碼對話或教材猜答案；相互一致不等於規則正確。
 - 只有真實的新工作階段重新載入指定版本，才能標 `fresh-session`。原對話中即使改用此 Skill，仍標 `same-session`；人實際審查才標 `human`。無法確認獨立性時保守標 same-session 並說明。新工作階段也不保證無共同偏誤，最終核可仍由人完成。
 - 未獲適用授權／環境不支援時不自行建立獨立代理；可準備新對話提示。審查授權不包含執行產品測試或操作真實設備，不填 Actual 或產品 PASS。
@@ -49,6 +50,6 @@ description: 審查已存在的測試案例與測試設計。使用者要求檢�
 
 ## 編號與共用能力
 
-優先沿用專案的 `project.id_glossary`／`qa/id-glossary.md`。每則回覆、每份獨立報告第一次使用前綴時說明英文來源、中文及用途，或附簡短圖例；後綴意義也要說明。ID＝Identifier（識別碼）。REV 取自 Review（審查紀錄），F 取自 Finding（審查發現），TC＝Test Case（測試案例），AC＝Acceptance Criterion（驗收條件），REQ 取自 Requirement（需求），SRC 取自 Source（資料來源），COV 取自 Coverage（覆蓋項目），DEC 取自 Decision（決策），Q 取自 Question（待釐清問題），EXP 取自 Exploration（探索任務），RISK 是 Risk（風險）這個單字，不另捏造縮寫。數字是本類流水號，不代表優先度、版本或通過。其他或意義不明的既有前綴不可猜，保留原編號並標未知。
+優先沿用專案的 `project.id_glossary`／`qa/id-glossary.md`。每則回覆、每份獨立報告第一次使用前綴時說明英文來源、中文及用途，或附簡短圖例；後綴意義也要說明。ID＝Identifier（識別碼）。REV 取自 Review（審查紀錄），F 取自 Finding（審查發現），TC＝Test Case（測試案例），AC＝Acceptance Criterion（驗收條件），REQ 取自 Requirement（需求），SRC 取自 Source（資料來源），COV 取自 Coverage（覆蓋項目），DEC 取自 Decision（決策），Q 取自 Question（待釐清問題），QA＝Question and Answer（問答紀錄），EXP 取自 Exploration（探索任務），RISK 是 Risk（風險）這個單字，不另捏造縮寫。數字是本類流水號，不代表優先度、版本或通過。其他或意義不明的既有前綴不可猜，保留原編號並標未知。
 
-只用專案已有工具和版控選擇，不維護另一份工具、ID 字典或產品資料庫。審查只需讀取及記錄；不要執行會改動設計的 init、inventory、render、baseline 或 start-run。`digest`／`check` 只協助驗證結構與版本，不能取代語意審查。保存本次紀錄時依 handoff.md 的明確檔案範圍操作；不自動改 remote、分支或登入服務。
+只用專案已有工具和版控選擇，不維護另一份工具、ID 字典或產品資料庫。審查只需讀取及記錄；不要執行會改動設計的 init、inventory、record-qa、render、baseline 或 start-run。`digest`／`check` 只協助驗證結構與版本，不能取代語意審查。保存本次紀錄時依 handoff.md 的明確檔案範圍操作；不自動改 remote、分支或登入服務。

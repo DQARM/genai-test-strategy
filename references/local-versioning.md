@@ -20,6 +20,7 @@ Python 3.10+ 與 Git 是唯一執行依賴。Windows 可用 `py -3` 取代下例
 | qa/strategy.md、plan.md、session.md | 策略、執行安排與續作進度 |
 | qa/cases/ | 結構化完整案例 |
 | qa/spec.md、test-cases.md、traceability.md | 生成的人用視圖 |
+| qa/interview.md | 原始問答、AI 解讀及更正鏈的生成視圖；真相在 registry.interactions |
 | qa/risks.md | 每筆需求的風險評估狀態、危害／可能性／優先序與案例關係；由 registry 生成 |
 | qa/test-design.md | 方法、覆蓋項目及探索任務的生成視圖 |
 | qa/id-glossary.md | 前綴英文來源、中文意思與用途；由 render 產生 |
@@ -62,6 +63,8 @@ checkpoint 遇到既有 staged 內容會拒絕提交，不會把別人的變更�
 工具 1.4.0 在 review-pack 加入審查 Skill 與交接協定資訊，PROMPT 指向 genai-test-review；既有 1.3.0 包仍可手動交給該 Skill。schema 1、設計 digest 與基線要求不變。兩個 Skill 共用專案的 qa/tools/qa_project.py，審查端不安裝第二份工具或重新 init。
 
 工具 1.5.0 增加 requirement-risk-v1、直接需求關聯、嚴重度與評估狀態，以及 risks.md／HTML 風險表。舊資料可繼續 draft 檢查與 render；新基線前依 [risk-assessment.md](risk-assessment.md#檢查與舊專案) 補本輪評估及真實依據。既有工具副本需明確升級；不重建專案、不改舊基線或執行證據，填補缺欄位不代表人已核可。
+
+工具 1.6.0 增加 record-qa、show-qa、interactions 及問答閱讀視圖，詳見 [interview-records.md](interview-records.md)。舊專案不重建、不補造歷史；更新專案內工具後才有新功能。既有資料若沒有 interactions，仍可 draft 檢查與 render。問答屬 registry，新增／更正／關聯更動會改變完整設計 digest；舊基線不覆寫。
 
 ## 比較與復原
 

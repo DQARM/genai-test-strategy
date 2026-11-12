@@ -18,6 +18,7 @@
 | REQ | Requirement | 需求 | 追蹤單一產品需求 |
 | AC | Acceptance Criterion | 驗收條件 | 定義可觀測且可判定的產品條件 |
 | Q | Question | 待釐清問題 | 追蹤未決事項、責任人與確認時點 |
+| QA | Question and Answer | 問答紀錄 | 成對保存原始提問、選項及回答，分開記 AI 解讀 |
 | DEC | Decision | 決策 | 記錄人的決定與依據 |
 | RISK | Risk | 風險 | 追蹤失敗情境、影響與取捨 |
 | SC | Scenario | 測試情境 | 表示待選或已選的測試情境 |

@@ -19,6 +19,8 @@
 
 REV 取自 Review（審查），001 是這類紀錄的流水號；交接包與審查記錄所在目錄不同，使用時確認各自唯一名稱。尚未安裝新 Skill 時，提供其安裝入口或交由人按已選四項審查；不假稱已安裝、不偷偷在原對話把自查當獨立審查。審查 Skill 的 GitHub 入口為 [genai-test-review](https://github.com/DQARM/genai-test-strategy/tree/dev/skills/genai-test-review)。
 
+工具 1.6.0 起，review-pack 帶 interview_evidence_ids 與相關原始問答／更正鏈；獨立審查須核對人的回答是否支持決策中的適用條件，AI 解讀不是原話。未保留原文則列限制，不把歷史摘要補成逐字稿。
+
 ## 獨立性與版本
 
 只有真實新工作階段重新載入依據才標 fresh-session；原對話自查標 same-session，人實際審查才標 human。換模型可降低部分共同偏誤但不保證獨立判準；同源假設即使在程式與案例中一致，仍需查明規格支持。沒有獲准或環境不支援時不自行建立代理，改交新對話包。

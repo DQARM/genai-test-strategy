@@ -30,7 +30,8 @@ init 產生 `qa/registry.json`，保留以下欄位：
 - `sources`: `{id, path, sha256, locator, kind, status, version, note}`。kind 是 normative／harness／observation／experience；status 是 confirmed／unconfirmed。normative 是應然規則；harness 是可驗證操作介面；observation 是現狀；experience 是缺陷歷史或經驗線索，後兩者不可直接作 Expected 的規則依據。locator 提供頁碼／段落。使用 hashlib 或 inventory 取得真實 sha256，不手編。
   可加 `title`（方便閱讀的名稱）及 `excerpt`（實際讀取的相關摘錄，須保留 locator）；均非必填，不能為了網頁完整而編造摘錄。報告顯示這些已登錄欄位，不自行解析或完整嵌入原始 PDF／Word。新增欄位仍會改變 registry 的設計 digest。
   案例另引用的操作指南、輸入資料檔、自動化腳本及其依賴鎖定檔也登錄為來源並記 hash；尚未驗證的輔助內容標 unconfirmed，不因自動產生就當作已驗證。未登錄的外部依賴變化不會被 digest 自動察覺，必須先補足版本綁定。
-- `decisions`: `{id, statement, by, at, evidence_ref, affected_ids, supersedes?}`。決策原文／摘要寫在對應 Markdown；同一回答可直接支持多項規則，不用重問。
+- `decisions`: `{id, statement, by, at, evidence_ref, affected_ids, interaction_refs?, supersedes?}`。實際決策寫在對應 Markdown，interaction_refs 指回原始 QA（Question and Answer，問答紀錄；後綴為流水號）。同一回答可支持多項規則；原話與 AI 解讀分開，不以解讀冒充原話。
+- `interactions`：選填陣列，保存 QA 的 question_text、options、answer_text、answer_status、capture、interpretation、question_id、related_ids、真實已知時間／回答者及更正鏈。完整契約、pending 完成與缺原文處理見 [interview-records.md](interview-records.md)。record-qa 不會自動建立決策、增加需求題數或核可。
 - `questions`: `{id, text, status, owner, due_or_trigger, impact_ids, blocks, decision_refs}`。status 是 open／resolved／deferred。owner 不知填 unassigned。blocks 可為 baseline、execution、release；impact_ids 可含 ALL 或具體 ID。resolved 必須有 DEC 依據；deferred 仍是未解問題。
 - `requirements`: `{id, text, revision, status, source_refs, decision_refs, confirmation, supersedes?}`。status 是 proposed／confirmed／superseded。confirmed 必須有 confirmed normative source 或 DEC，並有真實 confirmation。
   需求另有 `risk_assessment: {status, requirement_revision, rationale, source_refs, decision_refs}`，status 為 unassessed／proposed／confirmed，與需求本身的 status 分開；缺欄位視為未評估。評估版次綁需求 revision，confirmed 需真實決策或已確認 normative 來源。未辨識風險仍須留下檢視範圍與理由，不能當成零風險。

@@ -21,6 +21,8 @@
 
 工具 1.5.0 的 registry 可含 project.risk_policy=requirement-risk-v1、risk_criteria、requirements.risk_assessment 及 risks.requirement_ids／severity／理由欄位。依 criteria.md 核對本輪評估、版本與取捨；欄位缺少時列未評估／限制，不將舊 priority 轉成嚴重度。新基線條件由設計端處理，審查端不升級工具或修改資料。
 
+工具 1.6.0 增加 registry.interactions 與 interview_evidence_ids。QA＝Question and Answer（問答紀錄；數字後綴為流水號），保存 question_text、options、answer_text、answer_status、capture、獨立 interpretation 及 supersedes 更正鏈；decisions.interaction_refs 指回原始問答。只按相關引用載入，不帶全部初始化／續問對話；設計端提供的更正鏈包含舊答案被更新的依據。show-qa --id 可唯讀取得單筆，無 --id 只列精簡索引。原話缺失時列限制，不根據摘要重建；原始問答是核對決策的證據，不能自動變成產品 Expected。審查端不執行 record-qa，不改寫問答。
+
 packet 的 artifact_digest 綁原始完整設計；review_input 可能過濾來源種類，不能對過濾後資料另算 digest 冒充原設計版本。pack 不是完整來源備份，原始文件與決策證據通常仍在專案；跨環境須一併提供對應版本的必要檔案。
 
 既有專案可唯讀執行（路徑含空白時加引號，Windows 可用 py -3）：

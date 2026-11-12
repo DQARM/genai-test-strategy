@@ -13,7 +13,7 @@ import sys
 from datetime import datetime, timezone
 from urllib.parse import quote
 
-VERSION = "1.5.0"
+VERSION = "1.6.0"
 DESIGN_POLICY = "coverage-items-v1"
 RISK_POLICY = "requirement-risk-v1"
 TECHNIQUES = {"equivalence", "boundary-2", "boundary-3", "decision-table",
@@ -22,6 +22,7 @@ ID_TERMS = {
     "SRC": ("Source", "資料來源", "追蹤文件、操作指南或其他依據"),
     "REQ": ("Requirement", "需求", "追蹤單一產品需求"),
     "AC": ("Acceptance Criterion", "驗收條件", "定義可觀測且可判定的產品條件"),
+    "QA": ("Question and Answer", "問答紀錄", "成對保存提問、選項、原始回答與獨立的 AI 解讀"),
     "Q": ("Question", "待釐清問題", "追蹤未決事項、責任人與確認時點"),
     "DEC": ("Decision", "決策", "記錄人的決定與依據"),
     "RISK": ("Risk", "風險", "追蹤失敗情境、影響與取捨"),
@@ -37,7 +38,7 @@ ID_TERMS = {
 }
 ROUNDS = ["traceability", "executable", "coverage", "consistency"]
 GROUPS = ["sources", "decisions", "questions", "requirements", "acceptance", "risks", "scenarios"]
-OPTIONAL_GROUPS = ["coverage_items", "charters"]
+OPTIONAL_GROUPS = ["coverage_items", "charters", "interactions"]
 GROUPS += OPTIONAL_GROUPS
 SKIP_DIRS = {".git", ".venv", "venv", "node_modules", "__pycache__", ".pytest_cache"}
 PRIVATE = re.compile(r"(^\.env($|\.)|\.(pem|key|p12|pfx)$|^id_(rsa|ed25519)$|^credentials($|\.))", re.I)
@@ -311,6 +312,160 @@ def inspect_risks(reg, cases, maps, gate, errors, warnings, refs):
             errors.append(f"{rid}: selected risk cannot also be deferred")
 
 
+def inspect_interactions(reg, cases, errors, warnings):
+    """Validate recorded pairs, not their truth or completeness against a host chat."""
+    rows = reg.get("interactions", [])
+    if not isinstance(rows, list):
+        errors.append("registry.interactions must be a list")
+        return
+    known = {r.get("id") for g in GROUPS for r in reg.get(g, []) if isinstance(r, dict)} | set(cases)
+    questions = {r["id"]: r for r in reg.get("questions", [])}
+    pairs, superseded = {}, set()
+    statuses = {"pending", "answered", "partial", "unknown", "deferred", "unavailable"}
+    def text_present(v):
+        return isinstance(v, str) and bool(v.strip())
+    for row in rows:
+        if not isinstance(row, dict):
+            errors.append("interactions: expected an object")
+            continue
+        rid = row.get("id", "")
+        if not isinstance(rid, str) or not re.fullmatch(r"QA-[A-Za-z0-9_-]+", rid) or rid in pairs:
+            errors.append(f"Invalid or duplicate QA ID: {rid}")
+        status, capture = row.get("answer_status"), row.get("capture")
+        if row.get("kind") not in ("setup", "clarification", "checkpoint", "correction"):
+            errors.append(f"{rid}: invalid interaction kind")
+        if status not in statuses:
+            errors.append(f"{rid}: invalid answer_status")
+        if capture not in ("verbatim", "partial", "summary_only"):
+            errors.append(f"{rid}: invalid capture")
+        options = row.get("options")
+        if not isinstance(options, list) or any(not text_present(x) for x in options):
+            errors.append(f"{rid}: options must be a list of the original option texts")
+        for key in ("question_text", "answer_text", "interpretation", "answered_by", "missing_reason"):
+            if row.get(key) is not None and not isinstance(row[key], str):
+                errors.append(f"{rid}: {key} must be text or null")
+        if capture == "verbatim" and not text_present(row.get("question_text")):
+            errors.append(f"{rid}: verbatim capture needs the original question_text")
+        if capture in ("partial", "summary_only") and not text_present(row.get("missing_reason")):
+            errors.append(f"{rid}: incomplete capture needs missing_reason")
+        if capture == "summary_only" and (row.get("question_text") is not None or row.get("answer_text") is not None or options):
+            errors.append(f"{rid}: summary_only must not invent raw question, options or answer")
+        if status == "pending":
+            if row.get("answer_text") is not None or row.get("answered_at") is not None or row.get("answered_by") is not None or row.get("answer_recorded_at") is not None:
+                errors.append(f"{rid}: pending must not contain an answer or answer metadata")
+        else:
+            if status == "unavailable":
+                if capture == "verbatim" or row.get("answer_text") is not None or not text_present(row.get("missing_reason")):
+                    errors.append(f"{rid}: unavailable answer must be null with missing_reason")
+            elif capture == "verbatim" and not text_present(row.get("answer_text")):
+                errors.append(f"{rid}: verbatim capture needs the original answer_text")
+            if not text_present(row.get("interpretation")):
+                errors.append(f"{rid}: non-pending answer needs a separate interpretation")
+            if not row.get("answer_recorded_at"):
+                errors.append(f"{rid}: missing answer_recorded_at")
+        if not row.get("recorded_at"):
+            errors.append(f"{rid}: missing recorded_at")
+        for key in ("recorded_at", "answer_recorded_at", "asked_at", "answered_at"):
+            stamp = row.get(key)
+            if stamp is not None:
+                try:
+                    parsed = datetime.fromisoformat(stamp.replace("Z", "+00:00"))
+                    if parsed.utcoffset() is None:
+                        raise ValueError("timezone missing")
+                except (ValueError, AttributeError, TypeError):
+                    errors.append(f"{rid}: {key} must be an ISO 8601 timestamp with timezone or null")
+        qid = row.get("question_id")
+        if qid is not None and (not isinstance(qid, str) or qid not in questions):
+            errors.append(f"{rid}: unknown question_id {qid}")
+        related = row.get("related_ids", [])
+        if not isinstance(related, list) or any(not isinstance(x, str) or x not in known for x in related):
+            errors.append(f"{rid}: related_ids must reference existing records or cases")
+        old = row.get("supersedes")
+        if old is not None:
+            if not isinstance(old, str) or old not in pairs:
+                errors.append(f"{rid}: supersedes must reference an earlier QA record")
+            elif old in superseded:
+                errors.append(f"{rid}: supersedes must target the current end of a correction chain")
+            else:
+                superseded.add(old)
+            if not text_present(row.get("change_reason")):
+                errors.append(f"{rid}: correction needs change_reason")
+        pairs[rid] = row
+        if capture != "verbatim":
+            warnings.append(f"{rid}: incomplete original Q&A ({capture}); do not treat a summary as a transcript")
+    for did in reg.get("decisions", []):
+        linked = did.get("interaction_refs", [])
+        if not isinstance(linked, list):
+            errors.append(f"{did['id']}: interaction_refs must be a list")
+            continue
+        for rid in linked:
+            row = pairs.get(rid) if isinstance(rid, str) else None
+            if row is None:
+                errors.append(f"{did['id']}: unknown interaction reference {rid}")
+            elif row.get("answer_status") in ("pending", "unknown", "deferred", "unavailable"):
+                errors.append(f"{did['id']}: unresolved answer {rid} cannot support a confirmed decision")
+            elif rid in superseded:
+                warnings.append(f"{did['id']}: superseded answer {rid}; assess affected rules, risks and cases")
+    for rid, row in pairs.items():
+        if rid not in superseded and row.get("question_id") in questions:
+            question = questions[row["question_id"]]
+            if question.get("status") == "resolved" and row.get("answer_status") in ("pending", "unknown", "deferred", "unavailable"):
+                errors.append(f"{question['id']}: unresolved current answer {rid} conflicts with resolved question")
+
+
+def record_qa(args, root):
+    """Persist a supplied pair. Only an unanswered pair may be completed in place."""
+    reg, cases = load(root)
+    incoming = json.load(sys.stdin) if args.input == "-" else read(safe(root, args.input))
+    if not isinstance(incoming, dict):
+        fail("Q&A input must be one JSON object")
+    rows = reg.setdefault("interactions", [])
+    old = next((r for r in rows if r.get("id") == incoming.get("id")), None)
+    incoming.setdefault("recorded_at", old.get("recorded_at") if old else now())
+    if incoming.get("answer_status") != "pending":
+        incoming.setdefault("answer_recorded_at", (old or {}).get("answer_recorded_at") or now())
+    if old:
+        if incoming == old:
+            print("Q&A already recorded; unchanged.")
+            return
+        changed = {k for k in set(old) | set(incoming) if old.get(k) != incoming.get(k)}
+        completing = old.get("answer_status") == "pending" and incoming.get("answer_status") != "pending"
+        allowed = {"answer_text", "answer_status", "answered_at", "answered_by", "answer_recorded_at", "interpretation", "related_ids"}
+        if not completing:
+            allowed = {"related_ids"}
+        if changed - allowed:
+            fail("Recorded question/answer cannot be overwritten. Use a new QA ID with supersedes and change_reason.")
+        old_links, new_links = old.get("related_ids", []), incoming.get("related_ids", [])
+        if not isinstance(new_links, list) or any(x not in new_links for x in old_links):
+            fail("Existing related_ids cannot be silently removed.")
+        rows[rows.index(old)] = incoming
+    else:
+        rows.append(incoming)
+    errors, warnings = [], []
+    inspect_interactions(reg, cases, errors, warnings)
+    ids = [r.get("id") for g in GROUPS for r in reg.get(g, [])] + list(cases)
+    if len(ids) != len(set(ids)):
+        errors.append("Record IDs must be unique across groups and cases")
+    if errors:
+        fail("; ".join(errors))
+    write(safe(root, "qa/registry.json"), reg)
+    print(json.dumps({"recorded": incoming["id"], "warnings": warnings,
+                      "note": "Only Q&A recorded; no product decision, question count, approval or test result created."}, ensure_ascii=False))
+
+
+def show_qa(args, root):
+    reg, _ = load(root)
+    rows = reg.get("interactions", [])
+    if args.id:
+        row = next((r for r in rows if r.get("id") == args.id), None)
+        if row is None:
+            fail("Q&A ID not found")
+        print(json.dumps(row, ensure_ascii=False, indent=2))
+    else:
+        print(json.dumps([{k: row.get(k) for k in ("id", "kind", "question_id", "answer_status", "capture", "related_ids", "supersedes")}
+                          for row in rows], ensure_ascii=False, indent=2))
+
+
 def inspect(root, gate="draft"):
     reg, cases = load(root)
     errors, warnings = [], []
@@ -348,6 +503,7 @@ def inspect(root, gate="draft"):
             else:
                 out.append(maps[group][rid])
         return out
+    inspect_interactions(reg, cases, errors, warnings)
     stale = set()
     for sid, source in maps["sources"].items():
         require(source, ["path", "sha256", "locator", "kind", "status"], sid)
@@ -772,6 +928,16 @@ def render(root):
             spec.append(f"| {cell(row['id'])} | {cell(row.get('status'))} | {cell(row.get('text'))} | {cell(basis)} |")
         spec.append("")
     save_view("qa/spec.md", spec)
+    interview = ["# 問答過程紀錄", "", "由 registry.interactions 產生；修改來源記錄後重新 render。原始問答與 AI 解讀分開；回答不自動等於產品決策或核可。", ""]
+    replacements = {row["supersedes"]: row["id"] for row in reg.get("interactions", []) if row.get("supersedes")}
+    if not reg.get("interactions"):
+        interview += ["尚未登錄成對問答；既有摘要不代表完整逐字紀錄。", ""]
+    for row in reg.get("interactions", []):
+        state = "已由 " + replacements[row["id"]] + " 更新" if row["id"] in replacements else "目前紀錄"
+        payload = json.dumps(row, ensure_ascii=False, indent=2)
+        fence = "`" * max(3, 1 + max((len(x) for x in re.findall(r"`+", payload)), default=0))
+        interview += ["## " + row["id"] + " — " + state, "", fence + "json", payload, fence, ""]
+    save_view("qa/interview.md", interview)
     trace = ["# 已選範圍追溯", "", "案例連結不代表已執行或已通過。", "", "| 已選項目 | 案例 | 狀態 |", "|---|---|---|"]
     for sk, ck in (("selected_ac_ids", "ac_ids"), ("selected_risk_ids", "risk_ids"), ("selected_scenario_ids", "scenario_ids")):
         for rid in reg["scope"].get(sk, []):
@@ -860,6 +1026,12 @@ def render_html(root, reg, cases):
         "timebox_minutes": "探索時間上限（分鐘）", "actions": "探索操作與觀察", "scope": "範圍",
         "stop_conditions": "停止條件", "question_ids": "待釐清問題",
         "risk_assessment": "需求風險評估", "risk_criteria": "風險分級準則",
+        "question_id": "對應待釐清問題", "question_text": "原始提問（含必要情境）", "options": "當時提供的選項",
+        "answer_text": "使用者原始回答", "answer_status": "回答狀態（不是規則確認狀態）",
+        "capture": "原文保存完整度", "missing_reason": "缺失原文與原因", "interpretation": "AI 解讀（不是原話）",
+        "asked_at": "實際提問時間", "answered_at": "實際回答時間", "answered_by": "回答者",
+        "recorded_at": "問答登錄時間", "answer_recorded_at": "回答登錄時間", "related_ids": "相關項目（不代表已採納）",
+        "interaction_refs": "原始問答依據", "change_reason": "更正原因",
         "severity": "危害嚴重度", "severity_rationale": "嚴重度依據",
         "likelihood_rationale": "可能性依據", "disposition": "取捨", "disposition_reason": "取捨理由",
     }
@@ -867,7 +1039,8 @@ def render_html(root, reg, cases):
                   "decision_ref": "decisions", "requirement_ids": "requirements", "ac_ids": "acceptance",
                   "rule_refs": "acceptance", "risk_ids": "risks", "scenario_ids": "scenarios",
                   "case_ids": "cases", "blockers": "questions", "merged_into": "scenarios",
-                  "coverage_ids": "coverage_items", "question_ids": "questions", "reference_refs": "sources"}
+                  "coverage_ids": "coverage_items", "question_ids": "questions", "reference_refs": "sources",
+                  "question_id": "questions", "interaction_refs": "interactions"}
     for key in ("ac", "risk", "scenario", "case"):
         ref_groups["selected_" + key + "_ids"] = ref_groups[key + "_ids"]
     backlinks, routes, gaps = {}, {}, {}
@@ -881,6 +1054,11 @@ def render_html(root, reg, cases):
                 yield from collect_refs(x, key)
         elif key in ref_groups and isinstance(v, str):
             yield ref_groups[key], v
+        elif key in ("related_ids", "supersedes") and isinstance(v, str):
+            for group in maps:
+                if v in maps[group]:
+                    yield group, v
+                    break
     for group, records in maps.items():
         for rid, record in records.items():
             for target in collect_refs(record):
@@ -930,7 +1108,7 @@ def render_html(root, reg, cases):
                                    for k, x in v.items()) + '</dl>' if v else '尚未提供'
         if key in ref_groups:
             return link(ref_groups[key], str(v))
-        if key in ("impact_ids", "affected_ids", "supersedes", "basis"):
+        if key in ("impact_ids", "affected_ids", "related_ids", "supersedes", "basis"):
             return auto_link(str(v))
         if key in ("path", "evidence_ref"):
             return file_link(v, allow_fragment=key == "evidence_ref")
@@ -991,8 +1169,37 @@ def render_html(root, reg, cases):
             for rid in ids(case.get(field)):
                 touch(cid, group, rid)
                 if group == "risks":
+                    for did in ids(maps[group].get(rid, {}).get("decision_refs")):
+                        touch(cid, "decisions", did)
                     for sid in ids(maps[group].get(rid, {}).get("source_refs")):
                         source(cid, sid, "風險評估線索；不是產品判準", base + [(group, rid)])
+
+    # Follow explicit Q/A, decision and related-record links; never infer textual agreement.
+    for qaid, pair in maps["interactions"].items():
+        connected = set()
+        for did, decision in maps["decisions"].items():
+            if qaid in ids(decision.get("interaction_refs")):
+                connected.update(backlinks.get(("decisions", did), set()))
+        refs_for_pair = ids(pair.get("related_ids")) + ([pair["question_id"]] if pair.get("question_id") else [])
+        for rid in refs_for_pair:
+            for group, records in maps.items():
+                if rid in records:
+                    connected.update({rid} if group == "cases" else backlinks.get((group, rid), set()))
+        for cid in connected:
+            touch(cid, "interactions", qaid)
+
+    # Keep corrections discoverable even when an existing rule still cites the old answer.
+    changed = True
+    while changed:
+        changed = False
+        for rid, pair in maps["interactions"].items():
+            previous = pair.get("supersedes")
+            if previous in maps["interactions"]:
+                linked = backlinks.get(("interactions", rid), set()) | backlinks.get(("interactions", previous), set())
+                for key in (("interactions", rid), ("interactions", previous)):
+                    if linked - backlinks.get(key, set()):
+                        backlinks.setdefault(key, set()).update(linked)
+                        changed = True
 
     def case_links(group, rid):
         linked = sorted(backlinks.get((group, rid), set()))
@@ -1056,7 +1263,7 @@ def render_html(root, reg, cases):
            '<div class="meta">產生時間：' + e(now()) + ' · 工具版本：' + VERSION + '</div></header>',
            '<nav aria-label="報告章節"><a href="#sources">來源清單</a><a href="#cases">案例清單</a>',
            '<a href="#risk-assessment">需求風險評估</a><a href="#coverage">設計覆蓋</a><a href="#exploration">探索任務</a>',
-           '<a href="#rules">需求與驗收</a><a href="#other">風險與待確認</a><a href="#glossary">編號說明</a><a href="#documents">其他成果</a></nav><main>',
+           '<a href="#interview">問答紀錄</a><a href="#rules">需求與驗收</a><a href="#other">風險與待確認</a><a href="#glossary">編號說明</a><a href="#documents">其他成果</a></nav><main>',
            '<div class="notice">這是設計資料的閱讀快照。連結表示已登錄的引用，不代表已覆蓋、已核可或已執行；本頁不產生實際測試結果。</div>',
            '<div class="stats">' + ''.join('<div class="stat"><b>' + str(n) + '</b>' + label + '</div>' for n, label in
                                            ((len(maps["sources"]), "來源資料"), (len(cases), "測試案例"),
@@ -1107,6 +1314,9 @@ def render_html(root, reg, cases):
             out.append('</ul>')
         else:
             out.append('<p class="notice">未連結來源文件；請檢視規則／決策依據，不能自行補推來源。</p>')
+        paired = sorted(rid for rid in maps["interactions"] if cid in backlinks.get(("interactions", rid), set()))
+        if paired:
+            out.append('<h4>相關問答（含歷史；連結不表示已採納）</h4><p>' + '、'.join(link("interactions", rid) for rid in paired) + '</p>')
         if gaps[cid]:
             out.append('<p class="gap">引用缺口：' + '、'.join(link(g, r) for g, r in sorted(gaps[cid])) + '</p>')
         out += ['<p class="back"><a href="#cases">返回案例清單</a> · <a href="#sources">查看全部來源</a></p></article>']
@@ -1139,6 +1349,18 @@ def render_html(root, reg, cases):
                    '</td><td>' + e(str(cov.get("technique")) + ' / ' + str(cov.get("description"))) + '</td><td>' +
                    ('、'.join(link("cases", cid) for cid in linked) or '無') + '</td><td>' + e(state) + '</td></tr>')
     out.append('</tbody></table></div></section>')
+    out += ['<section id="interview"><h2>問答過程紀錄</h2>',
+            '<p class="notice">原始問題、選項與回答分開保存，AI 解讀不是使用者原話。answered 只表示已回答，不表示規則已確認；pending／unknown／deferred／unavailable 仍有缺口。時間未知時留空，登錄時間不冒充原始對話時間。</p>',
+            '<p>capture：verbatim＝保留原文；partial＝部分原文缺失；summary_only＝只剩摘要。下列紀錄以登錄順序排列；舊紀錄保留更正連結。</p>']
+    replacements = {row["supersedes"]: row["id"] for row in reg.get("interactions", []) if row.get("supersedes")}
+    if not maps["interactions"]:
+        out.append('<p>尚未登錄成對問答；不代表過去沒有訪談，也不代表已完整保存。</p>')
+    for rid, row in maps["interactions"].items():
+        state = '已由 ' + link("interactions", replacements[rid]) + ' 更新' if rid in replacements else '目前紀錄'
+        out += ['<article class="record" id="' + anchor("interactions", rid) + '" data-record-id="' + e(rid) + '"><h3>' + e(rid) + '</h3><p class="badge">' + state + '</p>',
+                value({k: v for k, v in row.items() if k != "id"}), '<h4>相關案例（不是執行證據）</h4><p>' + case_links("interactions", rid) + '</p>',
+                related_links("interactions", rid), '<p class="back"><a href="#interview">返回問答紀錄</a></p></article>']
+    out.append('</section>')
     for section, heading, groups in (("rules", "需求、驗收條件與決策", ("requirements", "acceptance", "decisions")),
                                     ("other", "風險、候選情境與待確認事項", ("risks", "scenarios", "questions")),
                                     ("coverage-details", "覆蓋項目詳情", ("coverage_items",)),
@@ -1158,7 +1380,7 @@ def render_html(root, reg, cases):
         if p.is_file():
             out += ['<details class="record"><summary>' + label + '</summary><pre class="document">' + e(p.read_text(encoding="utf-8")) + '</pre></details>']
     out += ['<p>原有文件仍保留：' + ' · '.join(file_link("qa/" + f) for f in
-            ("spec.md", "risks.md", "test-design.md", "test-cases.md", "traceability.md", "id-glossary.md", "registry.json")) + '</p></section>',
+            ("spec.md", "interview.md", "risks.md", "test-design.md", "test-cases.md", "traceability.md", "id-glossary.md", "registry.json")) + '</p></section>',
             '<footer>本頁由專案記錄產生，請修改原始記錄後重新 render，不直接編輯本頁。可離線閱讀；以瀏覽器尋找功能搜尋編號或文字。來源原檔連結需保留專案相對目錄；僅分享此 HTML 仍可使用頁內雙向連結。<a href="#top">回到頂端</a></footer></main></body></html>']
     safe(root, "qa/report.html").write_text(''.join(out), encoding="utf-8")
 
@@ -1238,11 +1460,35 @@ def review_pack(args, root):
                  or s["id"] in comparison_ids or s["id"] in risk_evidence_ids}
     filtered = json.loads(json.dumps(data))
     filtered["registry"]["sources"] = [s for s in reg["sources"] if s["id"] in permitted]
+    # Only related interview evidence accompanies a review, not an entire setup/chat transcript.
+    pairs = {row["id"]: row for row in reg.get("interactions", [])}
+    interview_ids = {rid for decision in reg.get("decisions", []) for rid in decision.get("interaction_refs", [])}
+    in_scope = set(cases_id for cases_id in data["cases"] if cases_id in reg.get("scope", {}).get("selected_case_ids", []))
+    in_scope.update(x for key, values in reg.get("scope", {}).items() if key.startswith("selected_") and isinstance(values, list) for x in values)
+    req_ids, risk_ids = risk_scope(reg, data["cases"])
+    in_scope.update(req_ids | risk_ids)
+    selected_questions = {qid for cid, case in data["cases"].items() if cid in in_scope for qid in case.get("blockers", [])}
+    selected_questions.update(q["id"] for q in reg.get("questions", [])
+                              if "ALL" in q.get("impact_ids", []) or set(q.get("impact_ids", [])) & in_scope)
+    interview_ids.update(rid for rid, row in pairs.items() if row.get("kind") in ("clarification", "correction")
+                         and (row.get("question_id") in selected_questions or set(row.get("related_ids", [])) & in_scope))
+    changed = True
+    while changed:
+        changed = False
+        for rid, row in pairs.items():
+            previous = row.get("supersedes")
+            if previous and (rid in interview_ids or previous in interview_ids):
+                new_ids = {rid, previous} - interview_ids
+                if new_ids:
+                    interview_ids.update(new_ids)
+                    changed = True
+    filtered["registry"]["interactions"] = [row for row in reg.get("interactions", []) if row["id"] in interview_ids]
     packet = {"artifact_digest": digest(data), "created_at": now(), "review_input": filtered,
               "handoff": {"protocol_version": 1, "target_skill": "genai-test-review",
                           "design_tool_version": VERSION},
               "comparison_reference_ids": sorted(comparison_ids),
               "risk_evidence_source_ids": sorted(risk_evidence_ids),
+              "interview_evidence_ids": sorted(interview_ids),
               "instruction": "Reload confirmed rules, decisions, bindings, risk assessments and coverage items. Experience sources suggest scenarios only. Risk evidence supports assessment, not product Expected. Comparison artifacts support only the explicitly confirmed relation; observed behavior is not automatically correct."}
     write(pack / "packet.json", packet, exclusive=True)
     (pack / "PROMPT.md").write_text(
@@ -1252,6 +1498,7 @@ def review_pack(args, root):
         "artifact_digest 綁完整設計；review_input 可能過濾來源，不得用其子集重新計算並替換 digest。核對原始來源 hash 與目標版本。\n"
         "分四輪：traceability、executable、coverage、consistency。逐輪列 Finding：ID、case_ids、rule_refs、issue、evidence、proposal。\n"
         "覆蓋輪同時檢查已選 AC／風險／情境與保留 COV：分區、邊界、組合、初態及轉移是否完整；案例的輸入與斷言是否真的承接。暫緩項目查決策與剩餘風險。\n"
+        "以 interview_evidence_ids 的原始提問、選項及回答核對決策是否保留限制；AI interpretation 不是原話，摘要／缺失原文與已被更正的答案須標示限制。問答存在不等於規則核可。\n"
         "檢查本輪需求的 risk_assessment 狀態／版次、直接 requirement_ids、severity／likelihood／priority 準則及各自理由；未評估或 unknown 不當低風險。risk_evidence_source_ids 僅供風險評估，不提供產品 Expected。\n"
         "共用／推導判準須查人的採納、適用條件與限制；experience 僅供候選線索，comparison_reference_ids 僅供已確認的比較關係。EXP 是探索計畫，不算正式案例覆蓋。\n"
         "缺少產品規則則列待釐清，不得新增 Expected。不得從程式碼、產碼對話、目前 UI 行為推導 Expected。\n"
@@ -1360,9 +1607,13 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--version", action="version", version=VERSION)
     sub = parser.add_subparsers(dest="cmd", required=True)
-    for name in ("init", "inventory", "check", "render", "digest", "checkpoint", "review-pack", "baseline", "start-run", "check-run"):
+    for name in ("init", "inventory", "check", "render", "digest", "checkpoint", "review-pack", "baseline", "start-run", "check-run", "record-qa", "show-qa"):
         p = sub.add_parser(name)
         p.add_argument("root", help="Accessible local project root (quote paths containing spaces)")
+        if name == "record-qa":
+            p.add_argument("--input", required=True, help="Project-relative JSON file, or - for standard input")
+        if name == "show-qa":
+            p.add_argument("--id", help="Read one original pair; omit for a compact index")
         if name == "init":
             p.add_argument("--name")
             p.add_argument("--standalone", action="store_true")
@@ -1384,6 +1635,8 @@ def main():
     root = Path(args.root).expanduser().resolve()
     try:
         if args.cmd == "init": init(args, root)
+        elif args.cmd == "record-qa": record_qa(args, root)
+        elif args.cmd == "show-qa": show_qa(args, root)
         elif args.cmd == "inventory": inventory(root)
         elif args.cmd == "render": render(root)
         elif args.cmd == "digest": print(snapshot_digest(root))
