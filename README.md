@@ -2,10 +2,10 @@
 
 | 項目 | 內容 |
 | --- | --- |
-| 文件版本 | 1.13.0 |
+| 文件版本 | 1.14.0 |
 | 更新日期 | 2026-11-12（Asia/Taipei） |
 | 適用 Skill | GenAI 測試策略 / genai-test-strategy |
-| 適用專案工具 | `qa_project.py` 1.3.0 |
+| 適用專案工具 | `qa_project.py` 1.4.0 |
 | 文字編碼 | UTF-8 |
 | Skill 頁面 | [GenAI 測試策略](https://chatgpt.com/skills?skill_id=6af1747b432881919448466eb247e9c9) |
 
@@ -27,6 +27,8 @@ AI 再依規則選擇測試方法，列出要涵蓋的邊界、條件組合或�
 
 ## 目錄
 
+- [00. 兩個 Skill 如何配合](#00-兩個-skill-如何配合)
+
 - [01. 五分鐘開始使用](#01-五分鐘開始使用)
 - [02. 分工與重要觀念](#02-分工與重要觀念)
 - [03. 使用環境與專案資料夾](#03-使用環境與專案資料夾)
@@ -45,6 +47,29 @@ AI 再依規則選擇測試方法，列出要涵蓋的邊界、條件組合或�
 - [16. 常見問題與處理方式](#16-常見問題與處理方式)
 - [17. 通用案例模板與跨專案使用方式](#17-通用案例模板與跨專案使用方式)
 - [18. 每階段完成檢查表](#18-每階段完成檢查表)
+
+## 00. 兩個 Skill 如何配合
+
+本專案提供兩個可個別安裝的 Skill；既有 `genai-test-strategy` 名稱與入口保留。
+
+| Skill | 負責工作 | 安裝入口 |
+| --- | --- | --- |
+| `genai-test-strategy`：GenAI 測試策略 | 需求釐清、規格、風險、方法、完整案例；接回發現後修正，依人核可建立基線 | 本儲存庫根目錄的 [SKILL.md](SKILL.md) 及原有 agents／assets／references／scripts／README.md |
+| `genai-test-review`：GenAI 測試審查 | 審查既有案例的追溯、可執行性、覆蓋與一致性，留下具體發現與建議 | [skills/genai-test-review](https://github.com/DQARM/genai-test-strategy/tree/dev/skills/genai-test-review) 整個資料夾 |
+
+原本已安裝測試策略者，只需更新它，並依使用平台支援的 Skill 安裝方式新增測試審查。
+不要用審查 Skill 覆蓋原本的測試策略。平台要求選擇子資料夾時，審查入口選 `skills/genai-test-review`；只安裝儲存庫根目錄不能假定第二個 Skill 也已安裝。
+兩者共用同一個專案 `qa/`、編號字典及 `qa/tools/qa_project.py`；不建立第二套專案，也不把審查檔當新的需求來源。
+只有規格與案例文件時，審查 Skill 也可單獨使用，不必先初始化專案。
+
+日常使用：
+
+1. 用 `genai-test-strategy` 讀稿、釐清、選重點並產生案例；仍每五題統整、預設最多十題、足夠就提早交付。
+2. 要審查時，由設計端產生 `review-pack`；在新工作階段用 `genai-test-review`，提供同一專案與指定交接包。
+3. 審查端只新增發現紀錄，規格／案例不改；回到設計端依人的處置修正，對新版本再審查。原焦點、已問數及有效答案沿用。
+
+同一對話換 Skill 仍是 same-session（同工作階段自查）；真實新工作階段重新載入依據才是 fresh-session（新工作階段審查）。四輪審查是四種檢查，可一次交付，不是要求你再回答四輪問題。
+審查的產品決策缺口交回設計端，不能藉切換 Skill 重開十題。實際測試執行與證據整理能力仍保留在既有流程中，依任務啟用。
 
 ## 01. 五分鐘開始使用
 
@@ -422,7 +447,7 @@ AI 若無法可靠計時，會如實說明並依題數或你的停止指示收�
 
 這是對話流程的更新，不增加必填表單或計時服務。原有專案可直接採用；
 AI 會將本輪焦點、預算及來源、已問題目與最近檢查點記入 `qa/session.md`，換對話不會自動重設額度。
-本版只更新提問與統整流程，工具仍為 `qa_project.py` 1.3.0；既有 1.3.0 專案不需換工具。更舊工具若要使用覆蓋檢查及報告，升級方式見 Q15。
+兩個 Skill 沿用相同提問與進度記錄。工具 1.4.0 的交接提示會指定審查 Skill；既有 1.3.0 交接包也可手動指定 `genai-test-review` 使用，不需重新初始化。工具升級方式見 Q15。
 提問設計參考 [GOV.UK Question pages](https://design-system.service.gov.uk/patterns/question-pages/) 的必要性、說明目的與避免重問原則；五題統整與十題上限是本 Skill 的設計選擇，並非該指引提出的人類耐心門檻。
 
 ### 5.2 一次確認一個產品分歧
@@ -652,7 +677,7 @@ AI 將任務記在 `registry.charters`，可於 `qa/test-design.md` 及網頁「
 你可以說：
 
 ```text
-請先完成結構檢查，固定本輪範圍與案例內容，取得目前 digest。
+請使用 genai-test-strategy，先完成結構檢查，固定本輪範圍與案例內容，取得目前 digest。
 產生一份供新工作階段使用的 review-pack，列出需要一併提供的來源。
 本階段的自查請如實標記 same-session，不代替獨立審查。
 ```
@@ -672,28 +697,33 @@ AI 將任務記在 `registry.charters`，可於 `qa/test-design.md` 及網頁「
 讓審查者讀取相同專案版本，並貼上：
 
 ```text
-請使用 GenAI 測試策略，以獨立審查者身分讀取這個專案的
+請使用 genai-test-review，讀取這個專案的
 qa/review-packs/REV-001/packet.json 與 PROMPT.md。
 重新閱讀已確認規格、已選範圍、操作介面依據與四輪準則。
 不得從程式碼、產碼對話或目前 UI 行為推導 Expected。
 每個 Finding 請列案例 ID、規則 ID、具體差異、證據及修正建議。
-本次先留下審查記錄，不直接改寫規格或案例。
+本次只新增審查記錄，不改寫規格、案例或進度；不重新初始化或重設已問題數。
 ```
 
 請將 `REV-001` 換成實際交接包 ID。
 同一對話重新讀一遍只能算 same-session；真實新工作階段才標 fresh-session。
 換工作階段可減少上下文污染，但同模型仍可能延續相同偏誤，仍需檢查依據。
 
-目前 review-pack 命令預設產生 `packet.json` 與 `PROMPT.md`。
+工具 1.4.0 的 review-pack 產生 `packet.json` 與 `PROMPT.md`，附 handoff 協定及審查 Skill 名稱。
+既有包即使沒有 handoff 欄位，也可以手動指定審查 Skill，核對版本後使用。
 packet 包含結構化規格／範圍／案例及來源資訊，不會自動複製所有原始檔，
 也不保證自動產生 ZIP。審查者必須能讀取被引用的規格、介面文件、決策證據
-與 Skill 的審查準則；若換到另一環境，請另外提供所需來源副本與版本資訊。
+與測試審查 Skill 的準則；若換到另一環境，請另外提供所需來源副本與版本資訊。
+packet 的 artifact_digest 綁完整設計；review_input 可能過濾來源，不能對該子集重算 digest。
+審查紀錄初始 Finding 為 open，讀不到資料或未檢完範圍時，對應輪次不列完成並記 limitations。
+審查端只提交自己新增的審查檔，不直接執行會納入整個 qa 的 checkpoint，避免混入尚未交付的設計修改。
 
 ### 8.3 處理發現並重審
 
 你可以說：
 
 ```text
+請使用 genai-test-strategy，接回這份審查紀錄，沿用原專案、焦點及已問數。
 F-001 請修正；F-002 請列待澄清；F-003 請保留並記錄我的處置理由。
 更新受影響的案例，重新取得 digest，對修正後的版本再做必要審查。
 ```
@@ -854,7 +884,7 @@ API 是 Application Programming Interface（應用程式介面）；token 是模
 ```
 
 Skill 只能指引資料選取及工作節奏，無法自行移除宿主自動附帶的對話歷史。
-`qa_project.py` 1.3.0 沒有 token 計量、費用限制或自動裁切上下文功能。要使用本版的覆蓋檢查與報告，舊專案須依 Q15 更新工具。
+`qa_project.py` 1.4.0 沒有 token 計量、費用限制或自動裁切上下文功能。拆成兩個 Skill 也不會自動移除宿主攜帶的歷史；只有實際減少載入內容才可能降低用量，不能保證節費。要使用本版的覆蓋檢查與報告，舊專案須依 Q15 更新工具。
 若要硬性控制 API 帳單，呼叫程式還須配合選取上下文、取得實際用量及執行預算上限。
 沒有實際量測時不宣稱已節省多少；題數上限也不等於 token 或金額上限。
 
@@ -1286,6 +1316,7 @@ symlink、常見私密檔名、虛擬環境、`.git` 內容及 raw 證據目錄�
 1.1.0 新增文件中的編號說明與 `qa/id-glossary.md`；舊版不會自動產生。
 1.2.0 新增雙向超連結閱讀報告 `qa/report.html`；需更新專案內工具，再執行 render。
 1.3.0 新增方法／覆蓋項目、共用及推導判準欄位、探索任務與報告。新專案採用 `coverage-items-v1` 設計政策。
+1.4.0 在審查包新增 handoff 欄位，並將提示交給 `genai-test-review`；schema 1 與原基線要求不變。1.3.0 包仍可手動交接，審查端不另帶一份專案工具。
 但 AI 當輪回覆仍應遵守最新的編號解釋規則。
 請 AI 比較新舊工具，先保存 checkpoint，再明確安排升級與相容性檢查。
 
@@ -1469,5 +1500,5 @@ py -3 -m unittest discover -s scripts -p "test_qa_project.py" -v
 請保存本次成果，更新 session，說明剩餘風險，並告訴我下次接著做哪一件事。
 ```
 
-文件依據：此 Skill 目前安裝版本的 [SKILL.md](SKILL.md)、[local-versioning.md](references/local-versioning.md)、[git-server.md](references/git-server.md)、[report.md](references/report.md)、[records.md](references/records.md)、[review.md](references/review.md)、[templates.md](references/templates.md)、[domain-adaptation.md](references/domain-adaptation.md)、[identifiers.md](references/identifiers.md)，[test-design.md](references/test-design.md)、[oracles-exploration.md](references/oracles-exploration.md)，以及 `qa_project.py 1.3.0` 的實際命令與行為。
+文件依據：此 Skill 目前安裝版本的 [SKILL.md](SKILL.md)、[local-versioning.md](references/local-versioning.md)、[git-server.md](references/git-server.md)、[report.md](references/report.md)、[records.md](references/records.md)、[review.md](references/review.md)、[templates.md](references/templates.md)、[domain-adaptation.md](references/domain-adaptation.md)、[identifiers.md](references/identifiers.md)，[test-design.md](references/test-design.md)、[oracles-exploration.md](references/oracles-exploration.md)，以及 `qa_project.py 1.4.0` 的實際命令與行為。四輪審查的逐項準則由 [GenAI 測試審查](https://github.com/DQARM/genai-test-strategy/tree/dev/skills/genai-test-review) 維護。
 工具版本或專案格式變更時，請先核對 --version、--help 與更新內容，再調整本 SOP。

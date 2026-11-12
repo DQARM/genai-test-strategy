@@ -84,6 +84,8 @@ coverage_items、charters 在舊 schema 1 檔案可省略，不必為續作先�
 
 ## 審查／核可
 
+審查由 genai-test-review 接手，只新增 review；以下為兩個 Skill 共用的資料契約，不需要另一套 registry。規格、案例、scope、session 及基線的修改由設計端處理。
+
 `qa/reviews/REV-001.json`：
 
 ```json
@@ -100,7 +102,7 @@ coverage_items、charters 在舊 schema 1 檔案可省略，不必為續作先�
 }
 ```
 
-independence 僅可如實填 fresh-session、human、same-session；same-session 不滿足正式基線的獨立審查要求。沒有 findings 僅在實際審查後使用，不能預設填入以通過檢查。
+independence 僅可如實填 fresh-session、human、same-session；same-session 不滿足正式基線的獨立審查要求。rounds 只記真正完成的輪次，來源或範圍不足則保留未完成並在 limitations 說明。沒有 findings 僅在實際審查後使用，不能預設填入以通過檢查。
 
 Finding 欄位：id、round、case_ids、rule_refs、issue、evidence、proposal、status（open／fixed／dismissed／accepted-risk）、disposition（by／at／evidence_ref／reason）。accepted-risk 另附 residual_risk。修正造成內容改變，須對新 digest 重審；不是把舊 finding 的狀態改 fixed 就代表已重審。
 

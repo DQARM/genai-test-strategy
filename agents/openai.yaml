@@ -1,7 +1,7 @@
 interface:
   display_name: "GenAI 測試策略"
-  short_description: "先確認規格、選擇本機或遠端版控，逐題釐清並產生完整測試案例"
-  default_prompt: "請使用 $genai-test-strategy，先問我有沒有已知規格，再選定專案資料夾及本機或 Git server 版控；選 server 時協助登入，依本專案需求產生完整 Test Case。"
+  short_description: "釐清需求、選擇風險並設計完整案例，交給測試審查後接回修正"
+  default_prompt: "請使用 $genai-test-strategy，依本專案草稿釐清需求、選擇風險並設計完整 Test Case，再準備交給 genai-test-review。"
   icon_small: "assets/icon.svg"
   icon_large: "assets/icon.svg"
 policy:

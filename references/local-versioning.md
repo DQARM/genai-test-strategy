@@ -58,6 +58,8 @@ checkpoint 遇到既有 staged 內容會拒絕提交，不會把別人的變更�
 
 已知私密檔名、symlink、.git、虛擬環境及 qa/evidence/raw 被略過；這不是完整的機密偵測。提交前仍需檢查檔案清單與內容，明確選擇應保存的來源／證據。大型證據可保存受控副本與 hash，但只有 hash 無法重建遺失的檔案。已有 .gitignore 不覆寫。
 
+工具 1.4.0 在 review-pack 加入審查 Skill 與交接協定資訊，PROMPT 指向 genai-test-review；既有 1.3.0 包仍可手動交給該 Skill。schema 1、設計 digest 與基線要求不變。兩個 Skill 共用專案的 qa/tools/qa_project.py，審查端不安裝第二份工具或重新 init。
+
 ## 比較與復原
 
 工具 1.3.0 仍讀 schema 1，新增 coverage_items、charters、判準欄位及 test-design.md。升級專案內工具前保存 checkpoint、比較差異並執行檢查；重跑 init 不會替換副本或遷移資料。舊專案 draft 檢查與 render 可繼續；建立新基線前，按 [test-design.md](test-design.md#舊專案續作) 補齊當輪方法、覆蓋與斷言，設定 coverage-items-v1，對新 digest 重審核可。既有基線與執行快照不修改，不自動補人的決策。

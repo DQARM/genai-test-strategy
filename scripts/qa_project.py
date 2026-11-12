@@ -13,7 +13,7 @@ import sys
 from datetime import datetime, timezone
 from urllib.parse import quote
 
-VERSION = "1.3.0"
+VERSION = "1.4.0"
 DESIGN_POLICY = "coverage-items-v1"
 TECHNIQUES = {"equivalence", "boundary-2", "boundary-3", "decision-table",
               "state-transition", "pairwise", "scenario", "experience"}
@@ -1046,17 +1046,24 @@ def review_pack(args, root):
     filtered = json.loads(json.dumps(data))
     filtered["registry"]["sources"] = [s for s in reg["sources"] if s["id"] in permitted]
     packet = {"artifact_digest": digest(data), "created_at": now(), "review_input": filtered,
+              "handoff": {"protocol_version": 1, "target_skill": "genai-test-review",
+                          "design_tool_version": VERSION},
               "comparison_reference_ids": sorted(comparison_ids),
               "instruction": "Reload confirmed rules, decisions, bindings and coverage items. Experience sources suggest scenarios only. Comparison artifacts support only the explicitly confirmed relation; observed behavior is not automatically correct."}
     write(pack / "packet.json", packet, exclusive=True)
     (pack / "PROMPT.md").write_text(
-        "請在新工作階段依 packet.json 審查測試案例。重讀已確認規格、選定範圍、操作介面依據及審查準則。\n"
+        "請使用 genai-test-review，在新工作階段依 packet.json 審查測試案例。重讀已確認規格、選定範圍、操作介面依據及該 Skill 的審查準則。\n"
+        "沿用原專案與版本，不執行 init、不重問規格概況／版控、不重設釐清額度；四輪是檢查種類，不是四輪訪談。\n"
+        "只新增本次審查紀錄，不改來源、registry、案例、scope、session 或舊審查；產品決策缺口交回 genai-test-strategy。\n"
+        "artifact_digest 綁完整設計；review_input 可能過濾來源，不得用其子集重新計算並替換 digest。核對原始來源 hash 與目標版本。\n"
         "分四輪：traceability、executable、coverage、consistency。逐輪列 Finding：ID、case_ids、rule_refs、issue、evidence、proposal。\n"
         "覆蓋輪同時檢查已選 AC／風險／情境與保留 COV：分區、邊界、組合、初態及轉移是否完整；案例的輸入與斷言是否真的承接。暫緩項目查決策與剩餘風險。\n"
         "共用／推導判準須查人的採納、適用條件與限制；experience 僅供候選線索，comparison_reference_ids 僅供已確認的比較關係。EXP 是探索計畫，不算正式案例覆蓋。\n"
         "缺少產品規則則列待釐清，不得新增 Expected。不得從程式碼、產碼對話、目前 UI 行為推導 Expected。\n"
         "只處理選定範圍；記錄 reviewer、session、model（不知則 unknown）、at、independence 與 artifact_digest。\n"
-        "自查須標記 same-session。尚未執行產品測試，不可填 Actual 或 Pass。將 review 放在 qa/reviews/<新 ID>.json，交人確認 findings。\n",
+        "同對話換 Skill 仍標 same-session。尚未執行產品測試，不可填 Actual 或 Pass。只將真正完成的輪次寫入 rounds，讀不到來源或未檢完範圍則記 limitations。\n"
+        "將 review 放在 qa/reviews/<新 ID>.json，findings 保持 open 交人處置。返回設計端修正後須以新版本重審，不改舊 review 的 digest。\n"
+        "若審查 Skill 尚不可用，可把本包與完整來源交由人審查；不假稱已安裝或已完成四輪。\n",
         encoding="utf-8")
     print(str(pack))
 

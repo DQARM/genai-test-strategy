@@ -606,6 +606,47 @@ class WorkflowTests(unittest.TestCase):
         self.run_tool("render")
         self.assertIn("不是執行報告", (self.root / "qa/test-cases.md").read_text(encoding="utf-8"))
 
+    def test_review_handoff_preserves_design_and_question_budget(self):
+        self.fixture()
+        session = self.root / "qa/session.md"
+        session.write_text("Synthetic session: default budget 10; asked 5; active.\n", encoding="utf-8")
+        before = {p.relative_to(self.root): p.read_bytes() for p in self.root.rglob("*")
+                  if p.is_file() and ".git" not in p.relative_to(self.root).parts}
+        original_digest = self.run_tool("digest").stdout.strip()
+        self.run_tool("review-pack", "--id", "REV-HANDOFF")
+        packet = get(self.root / "qa/review-packs/REV-HANDOFF/packet.json")
+        self.assertEqual(packet["handoff"]["protocol_version"], 1)
+        self.assertEqual(packet["handoff"]["target_skill"], "genai-test-review")
+        self.assertEqual(packet["artifact_digest"], original_digest)
+        self.assertEqual(self.run_tool("digest").stdout.strip(), original_digest)
+        self.assertEqual(packet["review_input"]["cases"]["TC-001"], get(self.root / "qa/cases/TC-001.json"))
+        for relative, content in before.items():
+            self.assertEqual((self.root / relative).read_bytes(), content, str(relative))
+
+    def test_returned_review_cannot_approve_findings_or_follow_changed_design(self):
+        _, case = self.fixture()
+        self.run_tool("review-pack", "--id", "REV-HANDOFF")
+        packet = get(self.root / "qa/review-packs/REV-HANDOFF/packet.json")
+        # Synthetic returned review, not a real independent or product review.
+        returned = {"id": "REV-RETURNED", "artifact_digest": packet["artifact_digest"],
+                    "reviewer": "synthetic-reviewer", "session": "synthetic-fresh-session",
+                    "at": "2026-11-12T00:00:00Z", "independence": "fresh-session",
+                    "rounds": ["traceability", "executable", "coverage", "consistency"],
+                    "findings": [{"id": "F-001", "round": "executable", "case_ids": ["TC-001"],
+                                  "rule_refs": ["AC-001"], "issue": "Synthetic observation gap",
+                                  "evidence": "Synthetic fixture step 1", "proposal": "Design owner to resolve",
+                                  "status": "open", "disposition": None}]}
+        path = self.root / "qa/reviews/REV-RETURNED.json"
+        put(path, returned)
+        self.assertEqual(self.run_tool("digest").stdout.strip(), packet["artifact_digest"])
+        self.assertIn("F-001: unresolved finding", self.run_tool("check", "--gate", "baseline", ok=False).stdout)
+        case["title"] = "Revised synthetic design"
+        put(self.root / "qa/cases/TC-001.json", case)
+        self.assertNotEqual(self.run_tool("digest").stdout.strip(), packet["artifact_digest"])
+        self.assertIn("Missing current independent review rounds", self.run_tool("check", "--gate", "baseline", ok=False).stdout)
+        self.assertEqual(get(path), returned)
+        self.assertEqual(get(self.root / "qa/review-packs/REV-HANDOFF/packet.json"), packet)
+
     def test_run_no_fake_pass_or_changed_evidence(self):
         self.fixture()
         self.run_tool("start-run", "--id", "RUN-001", "--case", "TC-001", "--sut-version", "build1", "--environment", "lab1")
