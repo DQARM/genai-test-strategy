@@ -56,6 +56,7 @@ description: 通用的 GenAI 輔助需求釐清與測試設計流程。使用者
 - 建立／更新結構化記錄：讀 [records.md](references/records.md)。
 - 新增、引用或解釋資料編號：讀 [identifiers.md](references/identifiers.md)。
 - 產生完整案例：先讀 [templates.md](references/templates.md) 並填入本專案的已確認內容。
+- 逐筆需求評估風險、分級、選取或處理舊風險資料：讀 [risk-assessment.md](references/risk-assessment.md)。
 - 從規則選方法、列覆蓋項目或檢查覆蓋：讀 [test-design.md](references/test-design.md)。
 - 重用共用判準、使用推導判準或設計探索任務：讀 [oracles-exploration.md](references/oracles-exploration.md)。
 - 交付可點閱的來源／案例報告：讀 [report.md](references/report.md)；在保留既有產出的前提下生成 `qa/report.html`。
@@ -98,7 +99,7 @@ description: 通用的 GenAI 輔助需求釐清與測試設計流程。使用者
 
 ## 3. 先定測試策略，再選案例
 
-建立品質目標與失敗情境。用影響、發生可能性／曝露、變更程度、不確定性及現有證據排序，標明推估依據。優先選最有價值的少量項目；不要用沒有資料的精密分數假裝客觀。未定義的產品規則本身也可能是高優先缺口。
+依 risk-assessment.md，為每個已登錄需求保留未評估／已有初評／已確認狀態，以 risks.requirement_ids 直接連結失敗情境與後果，支援多對多。AI 先依文件批次初評，再集中確認會改變取捨的重要分歧，不逐需求增加訪談。分開記 severity（危害嚴重度）、likelihood（發生可能性）及 priority（測試優先序）與各自理由；沿用專案分級，沒有標準先提出建議，unknown 不等於低風險。已選先產出時保留初評／缺口，不重啟提問。未選需求可保持未評估；本輪相關風險須測試或有暫緩依據。優先選有價值的少量項目，不用無資料的精密分數假裝客觀。
 
 更新 `qa/strategy.md`：目標、範圍、風險優先序與理由、測試層級／類型、方法、適合自動化的部分、環境／資料、可觀測性、缺陷處理、進入／退出條件、放行需要的證據、剩餘風險。更新 `qa/plan.md`：本輪人力、時程、限制、build、工具與選定項目。
 

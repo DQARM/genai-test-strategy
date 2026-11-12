@@ -39,4 +39,8 @@ REV 取自 Review（審查），001 是這類紀錄的流水號；交接包與�
 
 新基線使用 coverage-items-v1：每個已選 AC（Acceptance Criterion，驗收條件）有保留 COV（取自 Coverage，覆蓋項目），全部保留項目有已選案例斷言；暫緩項目具有人決策與剩餘風險，同時保留 AC／風險／情境的檢查。舊專案依 test-design.md 補齊資料，新 digest 重審；舊基線與執行快照不改寫。
 
+工具 1.5.0 的新基線另依 [risk-assessment.md](risk-assessment.md) 採 requirement-risk-v1：本輪涉及需求的評估已確認、風險分級有依據、已選風險有案例，其他關聯風險有暫緩決策。全專案未選需求仍可未評估，不因此重啟訪談。
+
 工具只能驗證結構，不能證明規格、覆蓋模型及自由文字正確。核可記錄與 baseline 由設計端依 [records.md](records.md#審查核可) 及 [local-versioning.md](local-versioning.md) 建立；案例基線不是產品放行。
+
+工具 1.5.0 的 risk_evidence_source_ids 保留風險初評引用的觀察資料；這些資料只支持危害／可能性分析，不能取代已確認的產品 Expected。未引用的任意現況觀察仍不加入審查包。

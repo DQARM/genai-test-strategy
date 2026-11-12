@@ -13,8 +13,9 @@ import sys
 from datetime import datetime, timezone
 from urllib.parse import quote
 
-VERSION = "1.4.0"
+VERSION = "1.5.0"
 DESIGN_POLICY = "coverage-items-v1"
+RISK_POLICY = "requirement-risk-v1"
 TECHNIQUES = {"equivalence", "boundary-2", "boundary-3", "decision-table",
               "state-transition", "pairwise", "scenario", "experience"}
 ID_TERMS = {
@@ -167,6 +168,149 @@ def approval_ok(root, item):
     return safe(root, str(item["evidence_ref"]).split("#")[0]).is_file()
 
 
+def risk_scope(reg, cases):
+    """Only the chosen design and its explicit requirement/risk dependencies."""
+    scope = reg.get("scope", {})
+    ac_ids = set(scope.get("selected_ac_ids", []))
+    risk_ids = set(scope.get("selected_risk_ids", []))
+    for cid in scope.get("selected_case_ids", []):
+        ac_ids.update(cases.get(cid, {}).get("ac_ids", []))
+        risk_ids.update(cases.get(cid, {}).get("risk_ids", []))
+    req_ids = {rid for ac in reg.get("acceptance", []) if ac.get("id") in ac_ids
+               for rid in ac.get("requirement_ids", [])}
+    req_ids.update(rid for risk in reg.get("risks", []) if risk.get("id") in risk_ids
+                   for rid in ref_list(risk.get("requirement_ids")))
+    risk_ids.update(risk["id"] for risk in reg.get("risks", [])
+                    if req_ids.intersection(ref_list(risk.get("requirement_ids"))))
+    return req_ids, risk_ids
+
+
+def ref_list(value):
+    return value if isinstance(value, list) else []
+
+
+def risk_rows(reg, cases):
+    """One row per explicit requirement/risk pair, including gaps and orphans."""
+    rows, attached = [], set()
+    for req in reg.get("requirements", []):
+        assessment = req.get("risk_assessment")
+        assessment = assessment if isinstance(assessment, dict) else {}
+        status = assessment.get("status", "unassessed")
+        state = {"unassessed": "未評估", "proposed": "已有初評（待確認）", "confirmed": "已確認"}.get(status, "評估狀態無效")
+        if status != "unassessed" and assessment.get("requirement_revision") != req.get("revision"):
+            state = "評估版本過期／待更新"
+        if req.get("status") == "superseded":
+            state = "歷史需求／" + state
+        matched = [r for r in reg.get("risks", []) if req["id"] in ref_list(r.get("requirement_ids"))]
+        for risk in matched or [None]:
+            if risk:
+                attached.add(risk["id"])
+            related = [cid for cid, case in cases.items() if risk and risk["id"] in case.get("risk_ids", [])]
+            note = assessment.get("rationale") or "缺少評估依據；不能視為沒有風險"
+            if not risk:
+                note = ("未評估；未登錄對應風險" if status == "unassessed" else
+                        "本次未辨識風險（不等於零風險）") + "；" + note
+            rows.append((req, risk, state, note, related))
+    for risk in reg.get("risks", []):
+        if risk["id"] not in attached:
+            rows.append((None, risk, "未對應需求", "補 requirement_ids；不依文字相似度自動連結",
+                         [cid for cid, case in cases.items() if risk["id"] in case.get("risk_ids", [])]))
+    return rows
+
+
+def risk_rating(risk, field):
+    rating = (risk or {}).get(field)
+    return "待評估／資料不足" if rating in (None, "", "unknown") else str(rating)
+
+
+def inspect_risks(reg, cases, maps, gate, errors, warnings, refs):
+    """Validate explicit assessments, not the truth of risk estimates."""
+    project = reg.get("project", {})
+    policy = project.get("risk_policy")
+    if policy != RISK_POLICY:
+        if policy is not None:
+            errors.append("Unknown project.risk_policy")
+        warnings.append("Legacy risk assessment: missing requirement links/severity may remain unassessed.")
+        if gate == "baseline":
+            errors.append("New baseline requires project.risk_policy=requirement-risk-v1; preserve legacy snapshots.")
+    active_req, active_risk = risk_scope(reg, cases)
+
+    def gap(label, message, active=False):
+        (errors if gate == "baseline" and active else warnings).append(f"{label}: {message}")
+
+    def basis(obj, label, confirmed=False):
+        sources = refs(obj.get("source_refs", []), "sources", label)
+        decisions = refs(obj.get("decision_refs", []), "decisions", label)
+        if confirmed and not (decisions or any(s.get("kind") == "normative" and
+                                               s.get("status") == "confirmed" for s in sources)):
+            errors.append(f"{label}: confirmed assessment needs confirmed normative source or decision")
+
+    criteria = project.get("risk_criteria")
+    levels = {}
+    if criteria is not None and not isinstance(criteria, dict):
+        errors.append("project.risk_criteria: expected an object")
+        criteria = None
+    if criteria:
+        if criteria.get("status") not in ("proposed", "confirmed"):
+            errors.append("project.risk_criteria: invalid status")
+        basis(criteria, "project.risk_criteria", criteria.get("status") == "confirmed")
+        for dimension in ("severity", "likelihood", "priority"):
+            mapping = criteria.get(dimension)
+            if not isinstance(mapping, dict) or not mapping:
+                gap("project.risk_criteria", f"missing {dimension} level definitions", bool(active_risk))
+                continue
+            if any(not isinstance(k, str) or not meaningful(k) or not isinstance(v, str) or
+                   not meaningful(v) for k, v in mapping.items()):
+                errors.append(f"project.risk_criteria: invalid {dimension} definition; unknown is reserved")
+            levels[dimension] = mapping
+    if active_risk and (not criteria or criteria.get("status") != "confirmed"):
+        gap("project.risk_criteria", "risk grading criteria not confirmed", True)
+
+    for rid, req in maps["requirements"].items():
+        assessment = req.get("risk_assessment")
+        if assessment is not None and not isinstance(assessment, dict):
+            errors.append(f"{rid}.risk_assessment: expected an object")
+            continue
+        assessment = assessment or {}
+        status = assessment.get("status", "unassessed")
+        if status not in ("unassessed", "proposed", "confirmed"):
+            errors.append(f"{rid}.risk_assessment: invalid status")
+        basis(assessment, rid + ".risk_assessment", status == "confirmed")
+        if req.get("status") == "superseded" and rid not in active_req:
+            continue
+        if status != "confirmed":
+            gap(rid, "risk assessment " + status + "; not evidence of no risk", rid in active_req)
+        if status != "unassessed" and assessment.get("requirement_revision") != req.get("revision"):
+            gap(rid, "risk assessment requirement_revision is missing or stale", rid in active_req)
+        if status != "unassessed" and not meaningful(assessment.get("rationale")):
+            gap(rid, "risk assessment missing rationale (including when no risk identified)", rid in active_req)
+
+    for rid, risk in maps["risks"].items():
+        linked = refs(risk.get("requirement_ids", []), "requirements", rid)
+        basis(risk, rid)
+        if not linked:
+            gap(rid, "risk has no direct requirement_ids", rid in active_risk)
+        if policy != RISK_POLICY:
+            continue
+        for dimension, reason in (("severity", "severity_rationale"), ("likelihood", "likelihood_rationale"),
+                                  ("priority", "rationale")):
+            rating = risk.get(dimension)
+            if not isinstance(rating, str) or not rating.strip():
+                gap(rid, "missing " + dimension, rid in active_risk)
+            elif rating != "unknown" and dimension in levels and rating not in levels[dimension]:
+                errors.append(f"{rid}: {dimension} is not a defined project level or unknown")
+            if not meaningful(risk.get(reason)):
+                gap(rid, "missing " + reason, rid in active_risk)
+        if rid in active_risk and rid not in reg.get("scope", {}).get("selected_risk_ids", []):
+            # A linked but unselected risk must not silently disappear from the strategy.
+            decisions = refs(risk.get("decision_refs", []), "decisions", rid)
+            if (risk.get("disposition") != "defer" or not meaningful(risk.get("disposition_reason"))
+                    or not meaningful(risk.get("residual_risk")) or not decisions):
+                gap(rid, "unselected risk needs defer, disposition_reason, residual_risk and decision_refs", True)
+        elif rid in reg.get("scope", {}).get("selected_risk_ids", []) and risk.get("disposition") == "defer":
+            errors.append(f"{rid}: selected risk cannot also be deferred")
+
+
 def inspect(root, gate="draft"):
     reg, cases = load(root)
     errors, warnings = [], []
@@ -266,7 +410,11 @@ def inspect(root, gate="draft"):
                 error(f"{qid}: resolved question needs decision_refs")
             refs(question.get("decision_refs", []), "decisions", qid)
     for rid, risk in maps["risks"].items():
-        require(risk, ["failure", "impact", "likelihood", "uncertainty", "priority", "rationale"], rid)
+        keys = ["failure", "impact", "uncertainty", "rationale"]
+        if reg.get("project", {}).get("risk_policy") != RISK_POLICY:
+            keys += ["likelihood", "priority"]
+        require(risk, keys, rid)
+    inspect_risks(reg, cases, maps, gate, errors, warnings, refs)
     for sid, scenario in maps["scenarios"].items():
         require(scenario, ["description", "category", "selection", "reason"], sid)
         refs(scenario.get("ac_ids", []), "acceptance", sid)
@@ -511,7 +659,7 @@ def init(args, root):
     for folder in ("cases", "decisions", "reviews", "review-packs", "approvals", "baselines", "runs", "evidence", "tools"):
         safe(root, "qa/" + folder).mkdir(parents=True, exist_ok=True)
     reg = {"schema_version": 1, "project": {"name": args.name or root.name, "owner": "unassigned",
-                                         "design_policy": DESIGN_POLICY},
+                                         "design_policy": DESIGN_POLICY, "risk_policy": RISK_POLICY},
            "scope": {"objective": "", "in": [], "out": [], "selected_ac_ids": [], "selected_risk_ids": [],
                      "selected_scenario_ids": [], "selected_case_ids": [], "decision_ref": None}}
     reg.update({group: [] for group in GROUPS})
@@ -630,6 +778,22 @@ def render(root):
             matched = [c for c in cases.values() if c["id"] in reg["scope"].get("selected_case_ids", []) and rid in c.get(ck, [])]
             trace.append(f"| {cell(rid)} | {cell(', '.join(c['id'] for c in matched) or '缺口')} | {cell(', '.join(c.get('status', '') for c in matched))} |")
     save_view("qa/traceability.md", trace)
+    risks = ["# 需求風險評估", "", "由 registry.json 產生。評估狀態與需求確認狀態分開；未知不等於低風險，案例連結不是實測證據。", "",
+             "## 分級準則", "", "```json", json.dumps(reg.get("project", {}).get("risk_criteria"), ensure_ascii=False, indent=2), "```", "",
+             "| 需求 | 評估狀態 | 風險／失敗情境／後果 | 嚴重度 | 可能性 | 測試優先序 | 評估說明 | 關聯案例 |",
+             "|---|---|---|---|---|---|---|---|"]
+    for req, risk, state, note, related in risk_rows(reg, cases):
+        assessment = (req or {}).get("risk_assessment")
+        if isinstance(assessment, dict):
+            basis_ids = ref_list(assessment.get("source_refs")) + ref_list(assessment.get("decision_refs"))
+            note += "；依據：" + (", ".join(basis_ids) or "尚未登錄")
+        summary = " / ".join(str(risk.get(k, "")) for k in ("id", "failure", "impact")) if risk else "未列風險"
+        risks.append("| " + " | ".join(cell(x) for x in ((req or {}).get("id", "未對應"), state, summary,
+            *(risk_rating(risk, k) for k in ("severity", "likelihood", "priority")), note, ", ".join(related) or "無")) + " |")
+    risks += ["", "## 風險詳情與依據", ""]
+    for risk in reg.get("risks", []):
+        risks += ["### " + risk["id"], "", "```json", json.dumps(risk, ensure_ascii=False, indent=2), "```", ""]
+    save_view("qa/risks.md", risks)
     design = ["# 測試設計與探索任務", "", "由 registry.json 產生。斷言引用是設計追溯，仍需審查實際資料與步驟；不是已執行覆蓋率。", "",
               "## 覆蓋項目", "", "| 項目 | 驗收條件 | 方法／內容 | 已選案例斷言 | 狀態／取捨 |",
               "|---|---|---|---|---|"]
@@ -695,6 +859,9 @@ def render_html(root, reg, cases):
         "reference_refs": "比較參考資料（不是自動採納的正確答案）", "mission": "探索目的",
         "timebox_minutes": "探索時間上限（分鐘）", "actions": "探索操作與觀察", "scope": "範圍",
         "stop_conditions": "停止條件", "question_ids": "待釐清問題",
+        "risk_assessment": "需求風險評估", "risk_criteria": "風險分級準則",
+        "severity": "危害嚴重度", "severity_rationale": "嚴重度依據",
+        "likelihood_rationale": "可能性依據", "disposition": "取捨", "disposition_reason": "取捨理由",
     }
     ref_groups = {"source_refs": "sources", "binding_refs": "sources", "decision_refs": "decisions",
                   "decision_ref": "decisions", "requirement_ids": "requirements", "ac_ids": "acceptance",
@@ -823,6 +990,9 @@ def render_html(root, reg, cases):
         for field, group in (("risk_ids", "risks"), ("scenario_ids", "scenarios"), ("blockers", "questions")):
             for rid in ids(case.get(field)):
                 touch(cid, group, rid)
+                if group == "risks":
+                    for sid in ids(maps[group].get(rid, {}).get("source_refs")):
+                        source(cid, sid, "風險評估線索；不是產品判準", base + [(group, rid)])
 
     def case_links(group, rid):
         linked = sorted(backlinks.get((group, rid), set()))
@@ -885,7 +1055,7 @@ def render_html(root, reg, cases):
            '<p>' + e(prefix_note) + '。點選編號查看完整內容，再由來源反查相關案例。</p>',
            '<div class="meta">產生時間：' + e(now()) + ' · 工具版本：' + VERSION + '</div></header>',
            '<nav aria-label="報告章節"><a href="#sources">來源清單</a><a href="#cases">案例清單</a>',
-           '<a href="#coverage">設計覆蓋</a><a href="#exploration">探索任務</a>',
+           '<a href="#risk-assessment">需求風險評估</a><a href="#coverage">設計覆蓋</a><a href="#exploration">探索任務</a>',
            '<a href="#rules">需求與驗收</a><a href="#other">風險與待確認</a><a href="#glossary">編號說明</a><a href="#documents">其他成果</a></nav><main>',
            '<div class="notice">這是設計資料的閱讀快照。連結表示已登錄的引用，不代表已覆蓋、已核可或已執行；本頁不產生實際測試結果。</div>',
            '<div class="stats">' + ''.join('<div class="stat"><b>' + str(n) + '</b>' + label + '</div>' for n, label in
@@ -941,6 +1111,24 @@ def render_html(root, reg, cases):
             out.append('<p class="gap">引用缺口：' + '、'.join(link(g, r) for g, r in sorted(gaps[cid])) + '</p>')
         out += ['<p class="back"><a href="#cases">返回案例清單</a> · <a href="#sources">查看全部來源</a></p></article>']
     out.append('</section>')
+    out += ['<section id="risk-assessment"><h2>需求風險評估</h2>',
+            '<p class="notice">需求確認與風險評估是不同狀態。未評估不代表沒有風險；嚴重度、可能性與測試優先序分開判斷。案例連結只代表設計關係，不代表風險已消除。</p>',
+            '<details><summary>分級準則與確認依據</summary>' + value(project.get("risk_criteria")) + '</details>']
+    if project.get("risk_policy") != RISK_POLICY:
+        out.append('<p class="gap">舊版風險資料：未補需求關聯／嚴重度的部分仍為未評估。</p>')
+    out.append('<div class="scroll"><table><thead><tr>' + ''.join('<th>' + x + '</th>' for x in
+               ("需求", "評估狀態", "風險／後果", "嚴重度", "可能性", "測試優先序", "說明／依據", "關聯案例")) + '</tr></thead><tbody>')
+    for req, risk, state, note, related in risk_rows(reg, cases):
+        assessment = (req or {}).get("risk_assessment") or {}
+        assessment = assessment if isinstance(assessment, dict) else {}
+        assessment_refs = {k: assessment[k] for k in ("source_refs", "decision_refs") if assessment.get(k)}
+        basis = value(assessment_refs) if assessment_refs else ""
+        risk_text = (link("risks", risk["id"]) + '<br>' + e(risk.get("failure", "")) + '<br>' + e(risk.get("impact", ""))) if risk else "未列風險"
+        cells = [link("requirements", req["id"]) if req else "未對應需求", e(state), risk_text,
+                 *(e(risk_rating(risk, k)) for k in ("severity", "likelihood", "priority")), e(note) + basis,
+                 '、'.join(link("cases", cid) for cid in related) or "無"]
+        out.append('<tr>' + ''.join('<td>' + x + '</td>' for x in cells) + '</tr>')
+    out.append('</tbody></table></div></section>')
     out += ['<section id="coverage"><h2>設計覆蓋與剩餘風險</h2>',
             '<p class="notice">此表只顯示已選案例是否引用覆蓋項目，需審查輸入、初態與斷言是否真正承接。不是實際執行覆蓋率；執行結果與證據另見 runs。</p>']
     if project.get("design_policy") != DESIGN_POLICY:
@@ -970,7 +1158,7 @@ def render_html(root, reg, cases):
         if p.is_file():
             out += ['<details class="record"><summary>' + label + '</summary><pre class="document">' + e(p.read_text(encoding="utf-8")) + '</pre></details>']
     out += ['<p>原有文件仍保留：' + ' · '.join(file_link("qa/" + f) for f in
-            ("spec.md", "test-design.md", "test-cases.md", "traceability.md", "id-glossary.md", "registry.json")) + '</p></section>',
+            ("spec.md", "risks.md", "test-design.md", "test-cases.md", "traceability.md", "id-glossary.md", "registry.json")) + '</p></section>',
             '<footer>本頁由專案記錄產生，請修改原始記錄後重新 render，不直接編輯本頁。可離線閱讀；以瀏覽器尋找功能搜尋編號或文字。來源原檔連結需保留專案相對目錄；僅分享此 HTML 仍可使用頁內雙向連結。<a href="#top">回到頂端</a></footer></main></body></html>']
     safe(root, "qa/report.html").write_text(''.join(out), encoding="utf-8")
 
@@ -1041,15 +1229,21 @@ def review_pack(args, root):
     comparison_ids = {sid for ac in reg.get("acceptance", []) if ac.get("status") == "confirmed"
                       and ac.get("decision_refs") and (ac.get("oracle") or {}).get("kind") == "derived"
                       for sid in ac["oracle"].get("reference_refs", [])}
+    assessments = [reg.get("project", {}).get("risk_criteria") or {}]
+    assessments += [r.get("risk_assessment") or {} for r in reg.get("requirements", [])]
+    assessments += reg.get("risks", [])
+    risk_evidence_ids = {sid for assessment in assessments if isinstance(assessment, dict)
+                         for sid in ref_list(assessment.get("source_refs"))}
     permitted = {s["id"] for s in reg["sources"] if s.get("kind") in ("normative", "harness", "experience")
-                 or s["id"] in comparison_ids}
+                 or s["id"] in comparison_ids or s["id"] in risk_evidence_ids}
     filtered = json.loads(json.dumps(data))
     filtered["registry"]["sources"] = [s for s in reg["sources"] if s["id"] in permitted]
     packet = {"artifact_digest": digest(data), "created_at": now(), "review_input": filtered,
               "handoff": {"protocol_version": 1, "target_skill": "genai-test-review",
                           "design_tool_version": VERSION},
               "comparison_reference_ids": sorted(comparison_ids),
-              "instruction": "Reload confirmed rules, decisions, bindings and coverage items. Experience sources suggest scenarios only. Comparison artifacts support only the explicitly confirmed relation; observed behavior is not automatically correct."}
+              "risk_evidence_source_ids": sorted(risk_evidence_ids),
+              "instruction": "Reload confirmed rules, decisions, bindings, risk assessments and coverage items. Experience sources suggest scenarios only. Risk evidence supports assessment, not product Expected. Comparison artifacts support only the explicitly confirmed relation; observed behavior is not automatically correct."}
     write(pack / "packet.json", packet, exclusive=True)
     (pack / "PROMPT.md").write_text(
         "請使用 genai-test-review，在新工作階段依 packet.json 審查測試案例。重讀已確認規格、選定範圍、操作介面依據及該 Skill 的審查準則。\n"
@@ -1058,6 +1252,7 @@ def review_pack(args, root):
         "artifact_digest 綁完整設計；review_input 可能過濾來源，不得用其子集重新計算並替換 digest。核對原始來源 hash 與目標版本。\n"
         "分四輪：traceability、executable、coverage、consistency。逐輪列 Finding：ID、case_ids、rule_refs、issue、evidence、proposal。\n"
         "覆蓋輪同時檢查已選 AC／風險／情境與保留 COV：分區、邊界、組合、初態及轉移是否完整；案例的輸入與斷言是否真的承接。暫緩項目查決策與剩餘風險。\n"
+        "檢查本輪需求的 risk_assessment 狀態／版次、直接 requirement_ids、severity／likelihood／priority 準則及各自理由；未評估或 unknown 不當低風險。risk_evidence_source_ids 僅供風險評估，不提供產品 Expected。\n"
         "共用／推導判準須查人的採納、適用條件與限制；experience 僅供候選線索，comparison_reference_ids 僅供已確認的比較關係。EXP 是探索計畫，不算正式案例覆蓋。\n"
         "缺少產品規則則列待釐清，不得新增 Expected。不得從程式碼、產碼對話、目前 UI 行為推導 Expected。\n"
         "只處理選定範圍；記錄 reviewer、session、model（不知則 unknown）、at、independence 與 artifact_digest。\n"

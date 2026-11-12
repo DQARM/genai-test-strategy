@@ -2,10 +2,10 @@
 
 | 項目 | 內容 |
 | --- | --- |
-| 文件版本 | 1.15.0 |
+| 文件版本 | 1.16.0 |
 | 更新日期 | 2026-11-12（Asia/Taipei） |
 | 適用 Skill | GenAI 測試策略 / genai-test-strategy |
-| 適用專案工具 | `qa_project.py` 1.4.0 |
+| 適用專案工具 | `qa_project.py` 1.5.0 |
 | 文字編碼 | UTF-8 |
 | Skill 頁面 | [GenAI 測試策略](https://chatgpt.com/skills?skill_id=6af1747b432881919448466eb247e9c9) |
 
@@ -522,10 +522,30 @@ Q-002 暫時不知道，責任人是產品負責人，需在案例核可前確�
 你可以說：
 
 ```text
-請依目前規格找出最值得優先測試的風險。
-說明每項的失敗情境、影響、可能性／曝露、不確定性與排序理由。
+請逐筆盤點已登錄需求的風險評估狀態，再聚焦本輪範圍。
+連結每項需求的失敗情境與後果，分開說明危害嚴重度、發生可能性與測試優先序及依據。
+先依文件完成初評，只詢問會改變本輪取捨的重要分歧；未知明列，不逐需求重問。
 提出一批最小但有價值的候選情境，讓我決定保留、合併、暫緩或待澄清。
 ```
+
+REQ 來自 Requirement（需求），RISK 是 Risk（風險）；如 REQ-001／RISK-001，001 是各類流水號。需求與風險採多對多關聯，不要求每個需求都硬湊一個風險。
+
+| 項目 | 你會看到什麼 |
+| --- | --- |
+| 需求評估狀態 | 未評估／已有初評（待確認）／已確認；需求已確認不自動確認其風險評估。 |
+| 危害嚴重度 | 失敗發生後的後果，含影響對象、範圍與恢復難度。 |
+| 發生可能性 | 在使用條件下多容易發生，以及資料不足之處。 |
+| 測試優先序 | 這次先測哪些項目及理由，不與嚴重度混用。 |
+| 評估依據 | 分級定義、文件／決策、推論與待確認事項。 |
+| 版本與追溯 | 需求版次、對應風險、相關案例與暫緩處置。 |
+
+有公司分級標準便沿用；沒有時 AI 先提出精簡建議，取得適用確認依據前保留初評。unknown 表示資料不足，不是低風險。若暫未辨識風險，仍保留檢視範圍與理由，不宣稱零風險。
+
+AI 先批次整理，再集中確認重要分歧；已有有效決策直接沿用。風險問題仍計入五題批次，選「先產出」後交付初評與缺口，不重啟訪談。未選需求可以保留未評估，先完成本輪能交付的案例。
+
+工具 1.5.0 的 `check` 會提示缺評估、缺嚴重度／理由、缺需求關聯或評估版次過期。`render` 產生 `qa/risks.md` 與 HTML「需求風險評估」表，點需求、風險與案例可互相查閱。
+
+舊專案先保存版本並明確升級專案內工具；缺新欄位仍可整理草稿和閱讀。建立新基線前補齊本輪需求評估與真實確認依據；舊 priority 不會自動變成 severity，既有基線及實測紀錄不改寫。詳細規則見 [需求風險評估](references/risk-assessment.md)。
 
 你的取捨可以直接記錄：
 
@@ -616,6 +636,7 @@ Q-002 暫時不知道，責任人是產品負責人，需在案例核可前確�
 | `qa/cases/TC-*.json` | 案例的結構化來源。 |
 | `qa/test-cases.md` | 方便人閱讀的完整案例視圖。 |
 | `qa/traceability.md` | 已選 AC／風險／情境與案例的對照。 |
+| `qa/risks.md` | 每筆需求的風險評估狀態、嚴重度、可能性、優先序與依據。 |
 | `qa/report.html` | 可離線開啟的閱讀報告；來源清單、完整案例與規則可互相點閱。 |
 
 請修改 JSON 來源後重新 render；直接修改生成的 Markdown 或 HTML，內容會在下次
@@ -1001,6 +1022,7 @@ AC＝Acceptance Criterion（驗收條件），REQ＝Requirement（需求）；�
 | 想看什麼 | 點閱方式 |
 | --- | --- |
 | 有哪些來源 | 「來源清單」列出編號、檔名／名稱、版本、類型與確認狀態。 |
+| 每個需求有哪些風險 | 1.5.0 的「需求風險評估」列出狀態、風險、後果、三種評等與案例；可點回需求／風險詳情。 |
 | 有哪些案例 | 「案例清單」列出標題、設計狀態、本輪是否選取，以及引用來源。 |
 | 選定項目有沒有案例承接 | 1.3.0 的「設計覆蓋」列出 COV、AC、方法與已選案例斷言；詳情保留暫緩原因、剩餘風險與決策。 |
 | 規則不完整時能做什麼 | 「探索任務」列出有時間上限的計畫、操作與觀察；這不是實測結果。 |
@@ -1320,6 +1342,8 @@ symlink、常見私密檔名、虛擬環境、`.git` 內容及 raw 證據目錄�
 1.1.0 新增文件中的編號說明與 `qa/id-glossary.md`；舊版不會自動產生。
 1.2.0 新增雙向超連結閱讀報告 `qa/report.html`；需更新專案內工具，再執行 render。
 1.3.0 新增方法／覆蓋項目、共用及推導判準欄位、探索任務與報告。新專案採用 `coverage-items-v1` 設計政策。
+1.5.0 新增需求風險評估與 severity 等欄位、risks.md 與網頁風險表；舊專案新基線須依 [需求風險評估](references/risk-assessment.md#檢查與舊專案) 補本輪資料，舊快照不改寫。
+
 1.4.0 在審查包新增 handoff 欄位，並將提示交給 `genai-test-review`；schema 1 與原基線要求不變。1.3.0 包仍可手動交接，審查端不另帶一份專案工具。
 但 AI 當輪回覆仍應遵守最新的編號解釋規則。
 請 AI 比較新舊工具，先保存 checkpoint，再明確安排升級與相容性檢查。
@@ -1468,7 +1492,8 @@ py -3 -m unittest discover -s scripts -p "test_qa_project.py" -v
 - [ ] 已確認規則有來源或真實決策支持。
 - [ ] 未決事項有 Q ID、責任人或 unassigned、確認時點與影響。
 - [ ] AC 可觀測、可判定；邊界、時機與容差沒有偷偷補假設。
-- [ ] 本輪風險排序、範圍與暫緩項目已記錄。
+- [ ] 每筆已登錄需求有風險評估狀態；本輪評估、需求關聯、嚴重度／可能性／優先序與理由可追溯，未評估不當成無風險。
+- [ ] 本輪風險排序、範圍與暫緩項目已記錄；已選有案例，其他關聯風險有取捨、剩餘風險與決策。
 - [ ] 每批最多五題後統整並等待續問／先產出選擇，未自動追加產品問題；選先產出就交付並保留缺口，足夠交付時提早產出；累計、本批狀態與使用者明訂總限制均沿用。
 - [ ] 到限已收尾，未決事項按實際影響保留阻塞；未把逾時、沉默或延長當產品決策。
 
@@ -1484,6 +1509,7 @@ py -3 -m unittest discover -s scripts -p "test_qa_project.py" -v
 
 **建立正式案例基線：**
 
+- [ ] 新基線採 requirement-risk-v1，本輪需求評估已確認，分級有依據，關聯風險有案例或暫緩決策；未選需求可保留未評估。
 - [ ] 本輪已選 AC／風險／情境有案例及具體斷言承接。
 - [ ] 新基線採 coverage-items-v1；已選 AC 至少各有保留覆蓋項目，全部保留項目由已選案例斷言承接，暫緩項目有決策與剩餘風險。
 - [ ] 目前 digest 的四輪獨立審查已完成，Findings 已有真實處置。
@@ -1504,5 +1530,5 @@ py -3 -m unittest discover -s scripts -p "test_qa_project.py" -v
 請保存本次成果，更新 session，說明剩餘風險，並告訴我下次接著做哪一件事。
 ```
 
-文件依據：此 Skill 目前安裝版本的 [SKILL.md](SKILL.md)、[local-versioning.md](references/local-versioning.md)、[git-server.md](references/git-server.md)、[report.md](references/report.md)、[records.md](references/records.md)、[review.md](references/review.md)、[templates.md](references/templates.md)、[domain-adaptation.md](references/domain-adaptation.md)、[identifiers.md](references/identifiers.md)，[test-design.md](references/test-design.md)、[oracles-exploration.md](references/oracles-exploration.md)，以及 `qa_project.py 1.4.0` 的實際命令與行為。四輪審查的逐項準則由 [GenAI 測試審查](https://github.com/DQARM/genai-test-strategy/tree/dev/skills/genai-test-review) 維護。
+文件依據：此 Skill 目前安裝版本的 [SKILL.md](SKILL.md)、[local-versioning.md](references/local-versioning.md)、[git-server.md](references/git-server.md)、[report.md](references/report.md)、[records.md](references/records.md)、[review.md](references/review.md)、[templates.md](references/templates.md)、[domain-adaptation.md](references/domain-adaptation.md)、[identifiers.md](references/identifiers.md)，[test-design.md](references/test-design.md)、[oracles-exploration.md](references/oracles-exploration.md)，以及 `qa_project.py 1.5.0` 的實際命令與行為。四輪審查的逐項準則由 [GenAI 測試審查](https://github.com/DQARM/genai-test-strategy/tree/dev/skills/genai-test-review) 維護。
 工具版本或專案格式變更時，請先核對 --version、--help 與更新內容，再調整本 SOP。

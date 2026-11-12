@@ -101,8 +101,17 @@ class WorkflowTests(unittest.TestCase):
         reg["requirements"] = [rule]
         reg["acceptance"] = [{**rule, "id": "AC-001", "requirement_ids": ["REQ-001"],
                               "oracle": {"observe": "output", "when": "after evaluate", "tolerance": "exact"}}]
+        reg["project"]["risk_criteria"] = {"status": "confirmed", "decision_refs": ["DEC-001"],
+            "severity": {"high": "Synthetic main function lost", "low": "Synthetic cosmetic effect"},
+            "likelihood": {"high": "Observed often in synthetic fixture", "low": "Rare in synthetic fixture"},
+            "priority": {"P1": "Selected synthetic scope", "P2": "Later synthetic scope"}}
+        rule["risk_assessment"] = {"status": "confirmed", "requirement_revision": 1,
+            "rationale": "Synthetic assessment of missing control", "decision_refs": ["DEC-001"]}
         reg["risks"] = [{"id": "RISK-001", "failure": "OFF after evaluate", "impact": "control lost",
-                         "likelihood": "unknown, no field data", "uncertainty": "high", "priority": "P1", "rationale": "selected promise"}]
+                         "requirement_ids": ["REQ-001"], "severity": "high", "severity_rationale": "Main output unavailable",
+                         "likelihood": "unknown", "likelihood_rationale": "No field data",
+                         "uncertainty": "high", "priority": "P1", "rationale": "selected promise",
+                         "source_refs": ["SRC-SPEC"]}]
         reg["scenarios"] = [{"id": "SC-001", "description": "Evaluate from OFF", "category": "state",
                              "ac_ids": ["AC-001"], "risk_ids": ["RISK-001"], "selection": "keep", "reason": "risk selected"}]
         reg["coverage_items"] = [{"id": "COV-001", "ac_ids": ["AC-001"], "technique": "state-transition",
@@ -145,6 +154,171 @@ class WorkflowTests(unittest.TestCase):
                 "actions": [{"action": "evaluate twice", "observe": "two outputs", "evidence": "record actual JSON"}],
                 "stop_conditions": ["timebox ends", "fixture becomes unavailable"],
                 "cleanup": [{"action": "close fixture", "verify": "process terminated"}]}
+
+    def test_risk_requirement_gaps_warn_in_draft_and_block_scoped_baseline(self):
+        reg, _ = self.fixture()
+        reg["requirements"][0].pop("risk_assessment")
+        put(self.root / "qa/registry.json", reg)
+        self.assertIn("risk assessment unassessed", self.run_tool("check").stdout)
+        self.refresh_review()
+        self.assertIn("risk assessment unassessed", self.run_tool("check", "--gate", "baseline", ok=False).stdout)
+        self.run_tool("render")
+        self.assertIn("未評估", (self.root / "qa/risks.md").read_text(encoding="utf-8"))
+
+    def test_risk_unknown_is_not_low_and_grades_need_project_definitions(self):
+        reg, _ = self.fixture()
+        self.run_tool("check", "--gate", "baseline")
+        self.run_tool("render")
+        report = (self.root / "qa/report.html").read_text(encoding="utf-8")
+        self.assertIn("待評估／資料不足", report)
+        reg["risks"][0]["severity"] = "P1"
+        put(self.root / "qa/registry.json", reg)
+        self.assertIn("severity is not a defined", self.run_tool("check", ok=False).stdout)
+
+    def test_risk_confirmation_and_stale_requirement_version(self):
+        reg, _ = self.fixture()
+        assessment = reg["requirements"][0]["risk_assessment"]
+        assessment["decision_refs"] = []
+        put(self.root / "qa/registry.json", reg)
+        self.assertIn("confirmed assessment needs", self.run_tool("check", ok=False).stdout)
+        assessment["decision_refs"] = ["DEC-001"]
+        reg["requirements"][0]["revision"] = 2
+        put(self.root / "qa/registry.json", reg)
+        self.assertIn("requirement_revision is missing or stale", self.run_tool("check").stdout)
+        self.run_tool("render")
+        self.assertIn("評估版本過期", (self.root / "qa/report.html").read_text(encoding="utf-8"))
+        self.refresh_review()
+        self.assertIn("requirement_revision is missing or stale", self.run_tool("check", "--gate", "baseline", ok=False).stdout)
+
+    def test_shared_risk_many_to_many_and_unselected_requirement(self):
+        reg, _ = self.fixture()
+        other = copy.deepcopy(reg["requirements"][0])
+        other.update(id="REQ-002", text="Synthetic second consequence")
+        reg["requirements"].append(other)
+        unrelated = {"id": "REQ-003", "revision": 1, "text": "Outside this scope", "status": "proposed"}
+        reg["requirements"].append(unrelated)
+        reg["risks"][0]["requirement_ids"].append("REQ-002")
+        extra = {**copy.deepcopy(reg["risks"][0]), "id": "RISK-002", "requirement_ids": ["REQ-001"],
+                 "failure": "Synthetic intermittent output", "disposition": "defer", "disposition_reason": "Synthetic scope decision",
+                 "residual_risk": "Intermittent behavior remains untested", "decision_refs": ["DEC-001"]}
+        reg["risks"].append(extra)
+        put(self.root / "qa/registry.json", reg)
+        self.refresh_review()
+        self.assertIn("REQ-003: risk assessment unassessed", self.run_tool("check", "--gate", "baseline").stdout)
+        self.run_tool("render")
+        report = ReportParser((self.root / "qa/report.html").read_text(encoding="utf-8"))
+        for req_id in ("REQ-001", "REQ-002"):
+            self.assertIn('#' + report.records[req_id]['anchor'], report.records['RISK-001']['links'])
+            self.assertIn('#' + report.records['RISK-001']['anchor'], report.records[req_id]['links'])
+        self.assertIn('#' + report.records['RISK-002']['anchor'], report.records['REQ-001']['links'])
+        self.assertTrue(all(link[1:] in report.ids for link in report.links if link.startswith('#')))
+
+    def test_unselected_linked_risk_needs_explicit_disposition(self):
+        reg, _ = self.fixture()
+        reg["risks"].append({**copy.deepcopy(reg["risks"][0]), "id": "RISK-002", "failure": "Other failure"})
+        put(self.root / "qa/registry.json", reg)
+        self.refresh_review()
+        self.assertIn("unselected risk needs defer", self.run_tool("check", "--gate", "baseline", ok=False).stdout)
+
+    def test_no_identified_risk_requires_assessment_reason_and_basis(self):
+        reg, case = self.fixture()
+        reg["risks"] = []
+        reg["scope"]["selected_risk_ids"] = []
+        reg["scenarios"][0]["risk_ids"] = []
+        case["risk_ids"] = []
+        assessment = reg["requirements"][0]["risk_assessment"]
+        assessment["rationale"] = "Reviewed isolated cosmetic scope; no additional failure scenario identified"
+        put(self.root / "qa/registry.json", reg)
+        put(self.root / "qa/cases/TC-001.json", case)
+        self.refresh_review()
+        self.run_tool("check", "--gate", "baseline")
+        self.run_tool("render")
+        self.assertIn("本次未辨識風險（不等於零風險）", (self.root / "qa/report.html").read_text(encoding="utf-8"))
+        assessment["rationale"] = ""
+        put(self.root / "qa/registry.json", reg)
+        self.refresh_review()
+        self.assertIn("risk assessment missing rationale", self.run_tool("check", "--gate", "baseline", ok=False).stdout)
+
+    def test_legacy_risk_render_and_read_do_not_rewrite_history(self):
+        reg, _ = self.fixture()
+        reg["project"].pop("risk_policy")
+        reg["project"].pop("risk_criteria")
+        reg["requirements"][0].pop("risk_assessment")
+        for key in ("requirement_ids", "severity", "severity_rationale", "likelihood_rationale"):
+            reg["risks"][0].pop(key)
+        reg["risks"][0]["likelihood"] = "unknown, no field data"
+        put(self.root / "qa/registry.json", reg)
+        historical = self.root / "qa/baselines/BL-OLD.json"
+        historical.write_text('{"synthetic_old_risk_snapshot":true}', encoding="utf-8")
+        before = (historical.read_bytes(), (self.root / "qa/registry.json").read_bytes())
+        self.assertIn("Legacy risk assessment", self.run_tool("check").stdout)
+        self.run_tool("render")
+        html = (self.root / "qa/report.html").read_text(encoding="utf-8")
+        self.assertIn("未對應需求", html)
+        self.assertIn("未評估", html)
+        self.assertEqual(before, (historical.read_bytes(), (self.root / "qa/registry.json").read_bytes()))
+        self.refresh_review()
+        self.assertIn("New baseline requires project.risk_policy", self.run_tool("check", "--gate", "baseline", ok=False).stdout)
+
+    def test_risk_invalid_refs_missing_dimensions_and_unconfirmed_criteria(self):
+        reg, _ = self.fixture()
+        reg["risks"][0]["requirement_ids"] = ["REQ-MISSING"]
+        put(self.root / "qa/registry.json", reg)
+        self.assertIn("unknown requirements reference", self.run_tool("check", ok=False).stdout)
+        reg["risks"][0]["requirement_ids"] = ["REQ-001"]
+        reg["risks"][0].pop("severity")
+        reg["risks"][0].pop("severity_rationale")
+        reg["project"]["risk_criteria"]["status"] = "proposed"
+        put(self.root / "qa/registry.json", reg)
+        draft = self.run_tool("check").stdout
+        self.assertIn("missing severity", draft)
+        self.refresh_review()
+        result = self.run_tool("check", "--gate", "baseline", ok=False).stdout
+        self.assertIn("risk grading criteria not confirmed", result)
+        self.assertIn("missing severity_rationale", result)
+
+    def test_risk_change_invalidates_prior_review_and_is_in_review_pack(self):
+        reg, _ = self.fixture()
+        reg["risks"][0]["severity"] = "low"
+        reg["risks"][0]["severity_rationale"] = "Synthetic changed consequence"
+        put(self.root / "qa/registry.json", reg)
+        self.assertIn("Missing current independent review", self.run_tool("check", "--gate", "baseline", ok=False).stdout)
+        self.run_tool("review-pack", "--id", "REV-RISK")
+        packet = get(self.root / "qa/review-packs/REV-RISK/packet.json")
+        self.assertEqual(packet["review_input"]["registry"]["risks"][0]["severity"], "low")
+        self.assertIn("risk_criteria", packet["review_input"]["registry"]["project"])
+
+    def test_risk_observation_evidence_survives_review_without_becoming_oracle(self):
+        reg, _ = self.fixture()
+        path = self.root / "inputs/history.md"
+        path.write_text("Synthetic incident observations, not a product promise", encoding="utf-8")
+        reg["sources"].append({"id": "SRC-HISTORY", "path": "inputs/history.md", "sha256": sha(path),
+                               "locator": "whole file", "kind": "observation", "status": "confirmed"})
+        reg["risks"][0]["source_refs"].append("SRC-HISTORY")
+        put(self.root / "qa/registry.json", reg)
+        self.run_tool("review-pack", "--id", "REV-HISTORY")
+        packet = get(self.root / "qa/review-packs/REV-HISTORY/packet.json")
+        self.assertIn("SRC-HISTORY", packet["risk_evidence_source_ids"])
+        self.assertIn("SRC-HISTORY", [s["id"] for s in packet["review_input"]["registry"]["sources"]])
+        self.run_tool("render")
+        html = (self.root / "qa/report.html").read_text(encoding="utf-8")
+        self.assertIn("風險評估線索；不是產品判準", html)
+        report = ReportParser(html)
+        self.assertIn('#' + report.records['TC-001']['anchor'], report.records['SRC-HISTORY']['links'])
+        reg["acceptance"][0]["source_refs"] = ["SRC-HISTORY"]
+        put(self.root / "qa/registry.json", reg)
+        self.assertIn("not a confirmed normative source", self.run_tool("check", ok=False).stdout)
+
+    def test_risk_orphan_and_missing_criteria_dimension_block_new_baseline(self):
+        reg, _ = self.fixture()
+        reg["risks"][0]["requirement_ids"] = []
+        reg["project"]["risk_criteria"].pop("severity")
+        put(self.root / "qa/registry.json", reg)
+        self.assertIn("risk has no direct requirement_ids", self.run_tool("check").stdout)
+        self.refresh_review()
+        result = self.run_tool("check", "--gate", "baseline", ok=False).stdout
+        self.assertIn("risk has no direct requirement_ids", result)
+        self.assertIn("missing severity level definitions", result)
 
     def test_legacy_draft_reads_but_new_baseline_requires_design_migration(self):
         reg, case = self.fixture()

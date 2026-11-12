@@ -19,6 +19,8 @@
 
 工具 1.4.0 的 packet 加入 handoff（protocol_version=1、target_skill=genai-test-review、design_tool_version）。沒有這個欄位的 1.3.0／更舊交接包仍可讀，不必重新初始化；以現有欄位及本指引判讀。未知協定不自行宣稱相容，先檢查差異、列明限制，不改原包。
 
+工具 1.5.0 的 registry 可含 project.risk_policy=requirement-risk-v1、risk_criteria、requirements.risk_assessment 及 risks.requirement_ids／severity／理由欄位。依 criteria.md 核對本輪評估、版本與取捨；欄位缺少時列未評估／限制，不將舊 priority 轉成嚴重度。新基線條件由設計端處理，審查端不升級工具或修改資料。
+
 packet 的 artifact_digest 綁原始完整設計；review_input 可能過濾來源種類，不能對過濾後資料另算 digest 冒充原設計版本。pack 不是完整來源備份，原始文件與決策證據通常仍在專案；跨環境須一併提供對應版本的必要檔案。
 
 既有專案可唯讀執行（路徑含空白時加引號，Windows 可用 py -3）：
@@ -85,3 +87,5 @@ F 取自 Finding（審查發現），TC＝Test Case（測試案例），AC＝Acc
 沒有初始化標記或工具時，不建立 qa/ 來假裝工具可用；交付對話或使用者指定位置的審查報告，標明版本識別限制。需要納入正式基線時，由設計端把報告與對應資料接入既有專案。
 
 交回設計端時包含實際審查版本、完成輪次、Finding 檔案與需處理項目；原焦點／題數不重設。設計端記錄人的取捨、修正案例、更新進度與閱讀網頁後，建立新的交接包。審查端不會因訪談的五題批次或明訂總上限而跳過必要的四輪檢查，也不對每五項發現增加續問選擇。設計端接回時保留原續問狀態；已選先產出或總上限已到就只列缺口，不藉修正重啟產品訪談。
+
+工具 1.5.0 的 risk_evidence_source_ids 保留風險初評引用的觀察資料；這些資料只支持危害／可能性分析，不能取代已確認的產品 Expected。未引用的任意現況觀察仍不加入審查包。
