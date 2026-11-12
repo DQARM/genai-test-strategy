@@ -60,6 +60,86 @@
 
 本段刻意沒有虛構某個產品的匯入命令或資料庫查詢。若實際資料未提供第 1、3、4 步的操作映射，這只是待補足的案例草稿，必須標 blocked；補齊真實方式後才能宣稱完整可執行。
 
+## D. 完整演練：項目數量門檻告警
+
+本節附可在本機操作的 [demo_counter.py](../scripts/demo_counter.py)，只有 Python 標準函式庫、不連網、不控制設備。它是教學受測程式，不是使用者產品；以下規則及取捨均為教學前提，不代表任何真實專案的核可。
+
+編號圖例：SRC＝Source（來源）；REQ＝Requirement（需求）；AC＝Acceptance Criterion（驗收條件）；DEC＝Decision（決策）；RISK＝Risk（風險）；COV 取自 Coverage（覆蓋項目）；TC＝Test Case（案例）。DEMO 為本節教學標籤，其他數字是流水號；49／50 在案例名稱中表示輸入值。
+
+### 已知條件與依據
+
+| 項目 | 本節已給定內容 | 依據 |
+|---|---|---|
+| 需求 REQ-DEMO-01 | 單次評估輸入的項目數，輸出是否告警 | SRC-DEMO-RULE：本節規則文字，revision 1 |
+| 驗收 AC-DEMO-01 | count 為 0～100 的整數、單位「筆」、步距 1；count ≥50 時 alarm=true，count <50 時 alarm=false；每次呼叫獨立，回傳後判定、布林值須完全相等 | SRC-DEMO-RULE；不是從程式輸出反推 |
+| 操作 | `--count` 接收數值、`--record` 指定新 JSON 檔；不覆寫既有檔案。每次命令是新程序、沒有持久控制狀態 | SRC-DEMO-OPS：腳本的 `--help` 及本節操作說明；script 版本 counter-demo 1.0，另記實際 hash |
+| 風險 RISK-DEMO-01 | 門檻等號寫錯，造成應告警的 50 沒有告警 | 由已給定規則分析 |
+| 範圍 DEC-DEMO-01 | 本次只選告警交界的二值邊界，人工輸入命令與判讀；其他資料格式、上下限端點與跨次行為不列本輪驗收 | 教學取捨，未測部分列剩餘風險 |
+| 未決 | 不合法資料的產品錯誤回應未定義；不從 argparse 的現行訊息建立 Expected | 待釐清或探索 |
+
+### 由方法列出項目
+
+規則有有序整數及明確門檻，選 `boundary-2`（二值邊界分析）。交界的兩個邊界值是 49、50；去重後只需這兩個輸入。若選三值邊界，則為 48、49、50、51，不把 49、50、51 誤稱完整三值集合。
+
+| COV | AC | 方法／具體項目 | 選取理由 | 承接案例 |
+|---|---|---|---|---|
+| COV-DEMO-01 | AC-DEMO-01 | boundary-2；未告警分區的上邊界，count=49，預期 false | keep；驗證門檻前一值 | TC-DEMO-49 |
+| COV-DEMO-02 | AC-DEMO-01 | boundary-2；告警分區的下邊界，count=50，預期 true | keep；驗證包含等於 | TC-DEMO-50 |
+
+這兩項只承接所選的告警交界，不宣稱整個輸入域、所有異常或真實產品已被完整測試。增加情境時先沿用或更新範圍取捨。
+
+記錄對應示意：
+
+```json
+{
+  "coverage_ids": ["COV-DEMO-02"],
+  "checks": [{
+    "expected": "alarm 為布林值 true",
+    "rule_refs": ["AC-DEMO-01"],
+    "coverage_ids": ["COV-DEMO-02"]
+  }]
+}
+```
+
+這是欄位片段；coverage_ids 放案例頂層，checks 放觀測步驟內。所引用記錄須先存在，不是可獨立匯入的 registry。
+
+### TC-DEMO-49：門檻前一值不告警
+
+- revision 1；層級 unit；執行方式 manual。目的：檢查 COV-DEMO-01；判準 AC-DEMO-01、風險 RISK-DEMO-01。這是教學案例設計，Actual 與結果尚未填寫。
+- 環境：Python 3.10+ 的本機終端；複製腳本至一個全新練習資料夾，在該資料夾開終端。Windows 若沒有 python 別名，以 `py -3` 替代每個命令的 python；Linux 可用 python3。
+- 獨立前置：執行 `python --version` 與 `python demo_counter.py --version`，記下實際版本，確認後者為 counter-demo 1.0。執行 `python -c "import hashlib,pathlib; print(hashlib.sha256(pathlib.Path('demo_counter.py').read_bytes()).hexdigest())"` 保存 hash。確認該資料夾沒有 demo-49.json；有舊紀錄就換新練習資料夾，不刪改舊證據。無其他初態，每次都是新程序。
+- 測試資料：count=49，單位筆，依 AC-DEMO-01 的步距及 COV-DEMO-01；不需要外部帳號、資料庫或設備。
+
+| 步驟 | 操作／輸入 | 觀察與時機 | Expected／依據 | 證據 |
+|---|---|---|---|---|
+| 1 | 執行 `python demo_counter.py --count 49 --record demo-49.json` | 命令返回後，開啟生成的 JSON；核對 fixture_version、count 與本次輸入 | 版本與 count 是本案環境／輸入確認，不代替告警判準 | 命令、終端輸出／錯誤、demo-49.json |
+| 2 | 在同一 JSON 讀取 alarm 欄位 | 步驟 1 返回後立即判讀本次檔案 | alarm 為布林值 false；AC-DEMO-01、COV-DEMO-01 | 記錄實際值、時間及檔案 hash |
+
+- 判定：前置與輸入有效，alarm=false 才符合本案；有效執行卻為 true 是不符合；工具不可用、檔案不屬於本次或無法取得觀測時記 BLOCKED／INCONCLUSIVE，不把預期填成實際。
+- 清理：確認命令已返回、沒有持續程序；保留本次 JSON 與版本證據。程式沒有背景服務或持久控制狀態，無須重置產品。下次在新的練習資料夾重新複製腳本、驗版本與 hash；不依賴 TC-DEMO-50。
+
+### TC-DEMO-50：等於門檻會告警
+
+- revision 1；層級 unit；執行方式 manual。目的：檢查 COV-DEMO-02 的等號；判準 AC-DEMO-01、風險 RISK-DEMO-01。Actual 與結果尚未填寫。
+- 環境：本機 Python 3.10+、獨立的全新練習資料夾及腳本副本。自行執行 `python --version`、`python demo_counter.py --version` 與 `python -c "import hashlib,pathlib; print(hashlib.sha256(pathlib.Path('demo_counter.py').read_bytes()).hexdigest())"`；確認 counter-demo 1.0 並記實際 hash，不沿用前一案例結果。
+- 前置：確認本資料夾沒有 demo-50.json；有舊檔即換新資料夾。每次新程序、無持久初態。測試資料 count=50、單位筆，來源 AC-DEMO-01 與 COV-DEMO-02。
+
+| 步驟 | 操作／輸入 | 觀察與時機 | Expected／依據 | 證據 |
+|---|---|---|---|---|
+| 1 | 執行 `python demo_counter.py --count 50 --record demo-50.json` | 命令返回後開啟本次 JSON，核對 fixture_version 及 count=50 | 版本與 count 是環境／輸入確認 | 命令、終端輸出／錯誤、demo-50.json |
+| 2 | 讀取本次 JSON 的 alarm | 步驟 1 返回後判讀 | alarm 為布林值 true；AC-DEMO-01、COV-DEMO-02 | 實際值、時間及檔案 hash |
+
+- 判定：有效前置／執行且 alarm=true 才符合；有效執行卻為 false 是不符合；版本、輸入或觀測無法確認時記 BLOCKED／INCONCLUSIVE。
+- 清理：確認命令已結束、保留本次證據；沒有背景服務或持久控制狀態。再次執行另用新資料夾與新紀錄，不依賴其他 TC。
+
+這裡的共同命令是操作文件，不是另一案例的執行結果；兩案都自行完成準備。執行人依實際輸出填 Actual，文件中的 Expected 不自動變成 PASS。即使示範全部符合，也不能據此判定使用者的產品。
+
+### 同一範圍的探索與審查
+
+若想了解未定義的輸入錯誤回應，可另擬有時間上限的探索任務，沿用腳本已知的輸入介面，記下實際命令、錯誤與證據；先不把某個錯誤訊息列為產品判準。這份任務不填補上述正式案例的 COV，也不擴張已選驗收範圍。
+
+四輪審查核對規則來源、兩案的獨立步驟、49／50 的實際承接與一致性。工具可發現 COV-DEMO-02 沒有任何已選案例斷言，卻不能只看文字發現有人把 60 錯標成門檻 50；後者需要語意審查。正式專案仍需真實審查與人的核可，不能把本節的教學 DEC 當成核可記錄。
+
 ## 從範例回到使用者專案
 
 選擇思考方式，不複製範例規則。每次輸出都能回答：這個操作在哪份本專案文件中？這個 Expected 由哪個已確認 AC 支持？這份證據能證明哪一層承諾？答不出來就列缺口。
