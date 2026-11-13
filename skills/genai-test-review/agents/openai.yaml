@@ -1,0 +1,4 @@
+interface:
+  display_name: "GenAI 測試審查"
+  short_description: "依指定規格與案例進行四輪審查，留下可追溯發現並交回設計端修正"
+  default_prompt: "請使用 $genai-test-review，依我提供的專案資料夾或審查交接包審查 Test Case，留下具體發現與依據。"

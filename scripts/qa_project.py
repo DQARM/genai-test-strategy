@@ -13,15 +13,22 @@ import sys
 from datetime import datetime, timezone
 from urllib.parse import quote
 
-VERSION = "1.2.0"
+VERSION = "1.6.0"
+DESIGN_POLICY = "coverage-items-v1"
+RISK_POLICY = "requirement-risk-v1"
+TECHNIQUES = {"equivalence", "boundary-2", "boundary-3", "decision-table",
+              "state-transition", "pairwise", "scenario", "experience"}
 ID_TERMS = {
     "SRC": ("Source", "資料來源", "追蹤文件、操作指南或其他依據"),
     "REQ": ("Requirement", "需求", "追蹤單一產品需求"),
     "AC": ("Acceptance Criterion", "驗收條件", "定義可觀測且可判定的產品條件"),
+    "QA": ("Question and Answer", "問答紀錄", "成對保存提問、選項、原始回答與獨立的 AI 解讀"),
     "Q": ("Question", "待釐清問題", "追蹤未決事項、責任人與確認時點"),
     "DEC": ("Decision", "決策", "記錄人的決定與依據"),
     "RISK": ("Risk", "風險", "追蹤失敗情境、影響與取捨"),
     "SC": ("Scenario", "測試情境", "表示待選或已選的測試情境"),
+    "COV": ("Coverage", "覆蓋項目", "表示測試方法導出的分區、邊界、組合或轉移；COV 取自 Coverage"),
+    "EXP": ("Exploration", "探索任務", "限定探索目的、時間與觀察；EXP 取自 Exploration"),
     "TC": ("Test Case", "測試案例", "保存完整前置、步驟、判準與證據要求"),
     "REV": ("Review", "審查紀錄", "記錄特定版本的案例審查"),
     "F": ("Finding", "審查發現", "追蹤具體問題與處置"),
@@ -31,6 +38,8 @@ ID_TERMS = {
 }
 ROUNDS = ["traceability", "executable", "coverage", "consistency"]
 GROUPS = ["sources", "decisions", "questions", "requirements", "acceptance", "risks", "scenarios"]
+OPTIONAL_GROUPS = ["coverage_items", "charters", "interactions"]
+GROUPS += OPTIONAL_GROUPS
 SKIP_DIRS = {".git", ".venv", "venv", "node_modules", "__pycache__", ".pytest_cache"}
 PRIVATE = re.compile(r"(^\.env($|\.)|\.(pem|key|p12|pfx)$|^id_(rsa|ed25519)$|^credentials($|\.))", re.I)
 PLACEHOLDERS = {"", "tbd", "todo", "unknown", "待確認", "待填", "待補", "未確認", "..."}
@@ -160,6 +169,303 @@ def approval_ok(root, item):
     return safe(root, str(item["evidence_ref"]).split("#")[0]).is_file()
 
 
+def risk_scope(reg, cases):
+    """Only the chosen design and its explicit requirement/risk dependencies."""
+    scope = reg.get("scope", {})
+    ac_ids = set(scope.get("selected_ac_ids", []))
+    risk_ids = set(scope.get("selected_risk_ids", []))
+    for cid in scope.get("selected_case_ids", []):
+        ac_ids.update(cases.get(cid, {}).get("ac_ids", []))
+        risk_ids.update(cases.get(cid, {}).get("risk_ids", []))
+    req_ids = {rid for ac in reg.get("acceptance", []) if ac.get("id") in ac_ids
+               for rid in ac.get("requirement_ids", [])}
+    req_ids.update(rid for risk in reg.get("risks", []) if risk.get("id") in risk_ids
+                   for rid in ref_list(risk.get("requirement_ids")))
+    risk_ids.update(risk["id"] for risk in reg.get("risks", [])
+                    if req_ids.intersection(ref_list(risk.get("requirement_ids"))))
+    return req_ids, risk_ids
+
+
+def ref_list(value):
+    return value if isinstance(value, list) else []
+
+
+def risk_rows(reg, cases):
+    """One row per explicit requirement/risk pair, including gaps and orphans."""
+    rows, attached = [], set()
+    for req in reg.get("requirements", []):
+        assessment = req.get("risk_assessment")
+        assessment = assessment if isinstance(assessment, dict) else {}
+        status = assessment.get("status", "unassessed")
+        state = {"unassessed": "未評估", "proposed": "已有初評（待確認）", "confirmed": "已確認"}.get(status, "評估狀態無效")
+        if status != "unassessed" and assessment.get("requirement_revision") != req.get("revision"):
+            state = "評估版本過期／待更新"
+        if req.get("status") == "superseded":
+            state = "歷史需求／" + state
+        matched = [r for r in reg.get("risks", []) if req["id"] in ref_list(r.get("requirement_ids"))]
+        for risk in matched or [None]:
+            if risk:
+                attached.add(risk["id"])
+            related = [cid for cid, case in cases.items() if risk and risk["id"] in case.get("risk_ids", [])]
+            note = assessment.get("rationale") or "缺少評估依據；不能視為沒有風險"
+            if not risk:
+                note = ("未評估；未登錄對應風險" if status == "unassessed" else
+                        "本次未辨識風險（不等於零風險）") + "；" + note
+            rows.append((req, risk, state, note, related))
+    for risk in reg.get("risks", []):
+        if risk["id"] not in attached:
+            rows.append((None, risk, "未對應需求", "補 requirement_ids；不依文字相似度自動連結",
+                         [cid for cid, case in cases.items() if risk["id"] in case.get("risk_ids", [])]))
+    return rows
+
+
+def risk_rating(risk, field):
+    rating = (risk or {}).get(field)
+    return "待評估／資料不足" if rating in (None, "", "unknown") else str(rating)
+
+
+def inspect_risks(reg, cases, maps, gate, errors, warnings, refs):
+    """Validate explicit assessments, not the truth of risk estimates."""
+    project = reg.get("project", {})
+    policy = project.get("risk_policy")
+    if policy != RISK_POLICY:
+        if policy is not None:
+            errors.append("Unknown project.risk_policy")
+        warnings.append("Legacy risk assessment: missing requirement links/severity may remain unassessed.")
+        if gate == "baseline":
+            errors.append("New baseline requires project.risk_policy=requirement-risk-v1; preserve legacy snapshots.")
+    active_req, active_risk = risk_scope(reg, cases)
+
+    def gap(label, message, active=False):
+        (errors if gate == "baseline" and active else warnings).append(f"{label}: {message}")
+
+    def basis(obj, label, confirmed=False):
+        sources = refs(obj.get("source_refs", []), "sources", label)
+        decisions = refs(obj.get("decision_refs", []), "decisions", label)
+        if confirmed and not (decisions or any(s.get("kind") == "normative" and
+                                               s.get("status") == "confirmed" for s in sources)):
+            errors.append(f"{label}: confirmed assessment needs confirmed normative source or decision")
+
+    criteria = project.get("risk_criteria")
+    levels = {}
+    if criteria is not None and not isinstance(criteria, dict):
+        errors.append("project.risk_criteria: expected an object")
+        criteria = None
+    if criteria:
+        if criteria.get("status") not in ("proposed", "confirmed"):
+            errors.append("project.risk_criteria: invalid status")
+        basis(criteria, "project.risk_criteria", criteria.get("status") == "confirmed")
+        for dimension in ("severity", "likelihood", "priority"):
+            mapping = criteria.get(dimension)
+            if not isinstance(mapping, dict) or not mapping:
+                gap("project.risk_criteria", f"missing {dimension} level definitions", bool(active_risk))
+                continue
+            if any(not isinstance(k, str) or not meaningful(k) or not isinstance(v, str) or
+                   not meaningful(v) for k, v in mapping.items()):
+                errors.append(f"project.risk_criteria: invalid {dimension} definition; unknown is reserved")
+            levels[dimension] = mapping
+    if active_risk and (not criteria or criteria.get("status") != "confirmed"):
+        gap("project.risk_criteria", "risk grading criteria not confirmed", True)
+
+    for rid, req in maps["requirements"].items():
+        assessment = req.get("risk_assessment")
+        if assessment is not None and not isinstance(assessment, dict):
+            errors.append(f"{rid}.risk_assessment: expected an object")
+            continue
+        assessment = assessment or {}
+        status = assessment.get("status", "unassessed")
+        if status not in ("unassessed", "proposed", "confirmed"):
+            errors.append(f"{rid}.risk_assessment: invalid status")
+        basis(assessment, rid + ".risk_assessment", status == "confirmed")
+        if req.get("status") == "superseded" and rid not in active_req:
+            continue
+        if status != "confirmed":
+            gap(rid, "risk assessment " + status + "; not evidence of no risk", rid in active_req)
+        if status != "unassessed" and assessment.get("requirement_revision") != req.get("revision"):
+            gap(rid, "risk assessment requirement_revision is missing or stale", rid in active_req)
+        if status != "unassessed" and not meaningful(assessment.get("rationale")):
+            gap(rid, "risk assessment missing rationale (including when no risk identified)", rid in active_req)
+
+    for rid, risk in maps["risks"].items():
+        linked = refs(risk.get("requirement_ids", []), "requirements", rid)
+        basis(risk, rid)
+        if not linked:
+            gap(rid, "risk has no direct requirement_ids", rid in active_risk)
+        if policy != RISK_POLICY:
+            continue
+        for dimension, reason in (("severity", "severity_rationale"), ("likelihood", "likelihood_rationale"),
+                                  ("priority", "rationale")):
+            rating = risk.get(dimension)
+            if not isinstance(rating, str) or not rating.strip():
+                gap(rid, "missing " + dimension, rid in active_risk)
+            elif rating != "unknown" and dimension in levels and rating not in levels[dimension]:
+                errors.append(f"{rid}: {dimension} is not a defined project level or unknown")
+            if not meaningful(risk.get(reason)):
+                gap(rid, "missing " + reason, rid in active_risk)
+        if rid in active_risk and rid not in reg.get("scope", {}).get("selected_risk_ids", []):
+            # A linked but unselected risk must not silently disappear from the strategy.
+            decisions = refs(risk.get("decision_refs", []), "decisions", rid)
+            if (risk.get("disposition") != "defer" or not meaningful(risk.get("disposition_reason"))
+                    or not meaningful(risk.get("residual_risk")) or not decisions):
+                gap(rid, "unselected risk needs defer, disposition_reason, residual_risk and decision_refs", True)
+        elif rid in reg.get("scope", {}).get("selected_risk_ids", []) and risk.get("disposition") == "defer":
+            errors.append(f"{rid}: selected risk cannot also be deferred")
+
+
+def inspect_interactions(reg, cases, errors, warnings):
+    """Validate recorded pairs, not their truth or completeness against a host chat."""
+    rows = reg.get("interactions", [])
+    if not isinstance(rows, list):
+        errors.append("registry.interactions must be a list")
+        return
+    known = {r.get("id") for g in GROUPS for r in reg.get(g, []) if isinstance(r, dict)} | set(cases)
+    questions = {r["id"]: r for r in reg.get("questions", [])}
+    pairs, superseded = {}, set()
+    statuses = {"pending", "answered", "partial", "unknown", "deferred", "unavailable"}
+    def text_present(v):
+        return isinstance(v, str) and bool(v.strip())
+    for row in rows:
+        if not isinstance(row, dict):
+            errors.append("interactions: expected an object")
+            continue
+        rid = row.get("id", "")
+        if not isinstance(rid, str) or not re.fullmatch(r"QA-[A-Za-z0-9_-]+", rid) or rid in pairs:
+            errors.append(f"Invalid or duplicate QA ID: {rid}")
+        status, capture = row.get("answer_status"), row.get("capture")
+        if row.get("kind") not in ("setup", "clarification", "checkpoint", "correction"):
+            errors.append(f"{rid}: invalid interaction kind")
+        if status not in statuses:
+            errors.append(f"{rid}: invalid answer_status")
+        if capture not in ("verbatim", "partial", "summary_only"):
+            errors.append(f"{rid}: invalid capture")
+        options = row.get("options")
+        if not isinstance(options, list) or any(not text_present(x) for x in options):
+            errors.append(f"{rid}: options must be a list of the original option texts")
+        for key in ("question_text", "answer_text", "interpretation", "answered_by", "missing_reason"):
+            if row.get(key) is not None and not isinstance(row[key], str):
+                errors.append(f"{rid}: {key} must be text or null")
+        if capture == "verbatim" and not text_present(row.get("question_text")):
+            errors.append(f"{rid}: verbatim capture needs the original question_text")
+        if capture in ("partial", "summary_only") and not text_present(row.get("missing_reason")):
+            errors.append(f"{rid}: incomplete capture needs missing_reason")
+        if capture == "summary_only" and (row.get("question_text") is not None or row.get("answer_text") is not None or options):
+            errors.append(f"{rid}: summary_only must not invent raw question, options or answer")
+        if status == "pending":
+            if row.get("answer_text") is not None or row.get("answered_at") is not None or row.get("answered_by") is not None or row.get("answer_recorded_at") is not None:
+                errors.append(f"{rid}: pending must not contain an answer or answer metadata")
+        else:
+            if status == "unavailable":
+                if capture == "verbatim" or row.get("answer_text") is not None or not text_present(row.get("missing_reason")):
+                    errors.append(f"{rid}: unavailable answer must be null with missing_reason")
+            elif capture == "verbatim" and not text_present(row.get("answer_text")):
+                errors.append(f"{rid}: verbatim capture needs the original answer_text")
+            if not text_present(row.get("interpretation")):
+                errors.append(f"{rid}: non-pending answer needs a separate interpretation")
+            if not row.get("answer_recorded_at"):
+                errors.append(f"{rid}: missing answer_recorded_at")
+        if not row.get("recorded_at"):
+            errors.append(f"{rid}: missing recorded_at")
+        for key in ("recorded_at", "answer_recorded_at", "asked_at", "answered_at"):
+            stamp = row.get(key)
+            if stamp is not None:
+                try:
+                    parsed = datetime.fromisoformat(stamp.replace("Z", "+00:00"))
+                    if parsed.utcoffset() is None:
+                        raise ValueError("timezone missing")
+                except (ValueError, AttributeError, TypeError):
+                    errors.append(f"{rid}: {key} must be an ISO 8601 timestamp with timezone or null")
+        qid = row.get("question_id")
+        if qid is not None and (not isinstance(qid, str) or qid not in questions):
+            errors.append(f"{rid}: unknown question_id {qid}")
+        related = row.get("related_ids", [])
+        if not isinstance(related, list) or any(not isinstance(x, str) or x not in known for x in related):
+            errors.append(f"{rid}: related_ids must reference existing records or cases")
+        old = row.get("supersedes")
+        if old is not None:
+            if not isinstance(old, str) or old not in pairs:
+                errors.append(f"{rid}: supersedes must reference an earlier QA record")
+            elif old in superseded:
+                errors.append(f"{rid}: supersedes must target the current end of a correction chain")
+            else:
+                superseded.add(old)
+            if not text_present(row.get("change_reason")):
+                errors.append(f"{rid}: correction needs change_reason")
+        pairs[rid] = row
+        if capture != "verbatim":
+            warnings.append(f"{rid}: incomplete original Q&A ({capture}); do not treat a summary as a transcript")
+    for did in reg.get("decisions", []):
+        linked = did.get("interaction_refs", [])
+        if not isinstance(linked, list):
+            errors.append(f"{did['id']}: interaction_refs must be a list")
+            continue
+        for rid in linked:
+            row = pairs.get(rid) if isinstance(rid, str) else None
+            if row is None:
+                errors.append(f"{did['id']}: unknown interaction reference {rid}")
+            elif row.get("answer_status") in ("pending", "unknown", "deferred", "unavailable"):
+                errors.append(f"{did['id']}: unresolved answer {rid} cannot support a confirmed decision")
+            elif rid in superseded:
+                warnings.append(f"{did['id']}: superseded answer {rid}; assess affected rules, risks and cases")
+    for rid, row in pairs.items():
+        if rid not in superseded and row.get("question_id") in questions:
+            question = questions[row["question_id"]]
+            if question.get("status") == "resolved" and row.get("answer_status") in ("pending", "unknown", "deferred", "unavailable"):
+                errors.append(f"{question['id']}: unresolved current answer {rid} conflicts with resolved question")
+
+
+def record_qa(args, root):
+    """Persist a supplied pair. Only an unanswered pair may be completed in place."""
+    reg, cases = load(root)
+    incoming = json.load(sys.stdin) if args.input == "-" else read(safe(root, args.input))
+    if not isinstance(incoming, dict):
+        fail("Q&A input must be one JSON object")
+    rows = reg.setdefault("interactions", [])
+    old = next((r for r in rows if r.get("id") == incoming.get("id")), None)
+    incoming.setdefault("recorded_at", old.get("recorded_at") if old else now())
+    if incoming.get("answer_status") != "pending":
+        incoming.setdefault("answer_recorded_at", (old or {}).get("answer_recorded_at") or now())
+    if old:
+        if incoming == old:
+            print("Q&A already recorded; unchanged.")
+            return
+        changed = {k for k in set(old) | set(incoming) if old.get(k) != incoming.get(k)}
+        completing = old.get("answer_status") == "pending" and incoming.get("answer_status") != "pending"
+        allowed = {"answer_text", "answer_status", "answered_at", "answered_by", "answer_recorded_at", "interpretation", "related_ids"}
+        if not completing:
+            allowed = {"related_ids"}
+        if changed - allowed:
+            fail("Recorded question/answer cannot be overwritten. Use a new QA ID with supersedes and change_reason.")
+        old_links, new_links = old.get("related_ids", []), incoming.get("related_ids", [])
+        if not isinstance(new_links, list) or any(x not in new_links for x in old_links):
+            fail("Existing related_ids cannot be silently removed.")
+        rows[rows.index(old)] = incoming
+    else:
+        rows.append(incoming)
+    errors, warnings = [], []
+    inspect_interactions(reg, cases, errors, warnings)
+    ids = [r.get("id") for g in GROUPS for r in reg.get(g, [])] + list(cases)
+    if len(ids) != len(set(ids)):
+        errors.append("Record IDs must be unique across groups and cases")
+    if errors:
+        fail("; ".join(errors))
+    write(safe(root, "qa/registry.json"), reg)
+    print(json.dumps({"recorded": incoming["id"], "warnings": warnings,
+                      "note": "Only Q&A recorded; no product decision, question count, approval or test result created."}, ensure_ascii=False))
+
+
+def show_qa(args, root):
+    reg, _ = load(root)
+    rows = reg.get("interactions", [])
+    if args.id:
+        row = next((r for r in rows if r.get("id") == args.id), None)
+        if row is None:
+            fail("Q&A ID not found")
+        print(json.dumps(row, ensure_ascii=False, indent=2))
+    else:
+        print(json.dumps([{k: row.get(k) for k in ("id", "kind", "question_id", "answer_status", "capture", "related_ids", "supersedes")}
+                          for row in rows], ensure_ascii=False, indent=2))
+
+
 def inspect(root, gate="draft"):
     reg, cases = load(root)
     errors, warnings = [], []
@@ -175,7 +481,7 @@ def inspect(root, gate="draft"):
     maps = {}
     all_ids = set()
     for group in GROUPS:
-        rows = reg.get(group)
+        rows = reg.get(group, [] if group in OPTIONAL_GROUPS else None)
         if not isinstance(rows, list):
             error(f"registry.{group} must be a list")
             rows = []
@@ -197,10 +503,11 @@ def inspect(root, gate="draft"):
             else:
                 out.append(maps[group][rid])
         return out
+    inspect_interactions(reg, cases, errors, warnings)
     stale = set()
     for sid, source in maps["sources"].items():
         require(source, ["path", "sha256", "locator", "kind", "status"], sid)
-        if source.get("kind") not in ("normative", "harness", "observation"):
+        if source.get("kind") not in ("normative", "harness", "observation", "experience"):
             error(f"{sid}: invalid source kind")
         try:
             path = safe(root, source.get("path", ""))
@@ -231,11 +538,25 @@ def inspect(root, gate="draft"):
                         error(f"{rid}: {source['id']} is not a confirmed normative source")
             if group == "acceptance":
                 parents = refs(rule.get("requirement_ids", []), "requirements", rid)
+                oracle = rule.get("oracle") or {}
+                kind = oracle.get("kind", "specified")
+                if kind not in ("specified", "derived", "implicit"):
+                    error(f"{rid}: invalid oracle kind")
+                comparison_refs = refs(oracle.get("reference_refs", []), "sources", rid + ".oracle")
                 if rule.get("status") == "confirmed":
                     if not parents or any(p.get("status") != "confirmed" for p in parents):
                         error(f"{rid}: confirmed AC needs confirmed parent requirement")
                     require(rule, ["oracle"], rid)
                     require(rule.get("oracle", {}), ["observe", "when", "tolerance"], rid)
+                    if kind in ("derived", "implicit"):
+                        require(oracle, ["applies_when", "limitations"], rid + ".oracle")
+                        if not dr:
+                            error(f"{rid}: derived/implicit oracle needs human decision_refs")
+                    if kind == "derived":
+                        require(oracle, ["relation"], rid + ".oracle")
+                        for source in comparison_refs:
+                            if source.get("status") != "confirmed" or source.get("kind") == "experience":
+                                error(f"{rid}: comparison reference must be a confirmed artifact, not an experience checklist")
     for qid, question in maps["questions"].items():
         require(question, ["text", "status", "owner", "due_or_trigger"], qid)
         if question.get("status") not in ("open", "resolved", "deferred"):
@@ -245,11 +566,18 @@ def inspect(root, gate="draft"):
                 error(f"{qid}: resolved question needs decision_refs")
             refs(question.get("decision_refs", []), "decisions", qid)
     for rid, risk in maps["risks"].items():
-        require(risk, ["failure", "impact", "likelihood", "uncertainty", "priority", "rationale"], rid)
+        keys = ["failure", "impact", "uncertainty", "rationale"]
+        if reg.get("project", {}).get("risk_policy") != RISK_POLICY:
+            keys += ["likelihood", "priority"]
+        require(risk, keys, rid)
+    inspect_risks(reg, cases, maps, gate, errors, warnings, refs)
     for sid, scenario in maps["scenarios"].items():
         require(scenario, ["description", "category", "selection", "reason"], sid)
         refs(scenario.get("ac_ids", []), "acceptance", sid)
         refs(scenario.get("risk_ids", []), "risks", sid)
+        refs(scenario.get("source_refs", []), "sources", sid)
+        if scenario.get("origin", "specification") not in ("specification", "experience", "mixed"):
+            error(f"{sid}: invalid scenario origin")
         if scenario.get("selection") not in ("keep", "merge", "defer", "clarify"):
             error(f"{sid}: invalid selection")
         if scenario.get("selection") == "merge":
@@ -257,6 +585,50 @@ def inspect(root, gate="draft"):
             if not targets or targets[0].get("selection") != "keep":
                 error(f"{sid}: merged_into must target a retained scenario")
     scope = reg.get("scope", {})
+    policy = reg.get("project", {}).get("design_policy")
+    if policy not in (None, DESIGN_POLICY):
+        error("Unsupported project.design_policy")
+    if policy is None:
+        warnings.append("Legacy design: coverage items not adopted; draft editing/render remain available.")
+    for cov_id, cov in maps["coverage_items"].items():
+        require(cov, ["ac_ids", "technique", "description", "selection", "reason"], cov_id)
+        refs(cov.get("ac_ids", []), "acceptance", cov_id)
+        refs(cov.get("risk_ids", []), "risks", cov_id)
+        refs(cov.get("scenario_ids", []), "scenarios", cov_id)
+        refs(cov.get("decision_refs", []), "decisions", cov_id)
+        if cov.get("technique") not in TECHNIQUES:
+            error(f"{cov_id}: invalid test design technique")
+        if cov.get("selection") not in ("keep", "defer"):
+            error(f"{cov_id}: invalid coverage selection")
+        if cov.get("selection") == "defer":
+            require(cov, ["residual_risk"], cov_id)
+    for exp_id, charter in maps["charters"].items():
+        require(charter, ["title", "status"], exp_id)
+        if charter.get("status") not in ("draft", "ready", "retired"):
+            error(f"{exp_id}: invalid charter status")
+        acs = refs(charter.get("ac_ids", []), "acceptance", exp_id)
+        refs(charter.get("source_refs", []), "sources", exp_id)
+        refs(charter.get("question_ids", []), "questions", exp_id)
+        bindings = refs(charter.get("binding_refs", []), "sources", exp_id)
+        if any(k in charter for k in ("actual", "result", "findings")):
+            error(f"{exp_id}: exploration observations belong in separate session evidence")
+        if charter.get("status") == "ready":
+            require(charter, ["mission", "scope", "timebox_minutes", "preconditions", "actions",
+                              "stop_conditions", "cleanup", "binding_refs"], exp_id)
+            minutes = charter.get("timebox_minutes")
+            if type(minutes) is not int or minutes <= 0:
+                error(f"{exp_id}: timebox_minutes must be a positive integer")
+            for ac in acs:
+                if ac.get("status") != "confirmed":
+                    error(f"{exp_id}: judging an exploration requires confirmed AC")
+            for binding in bindings:
+                if binding.get("kind") not in ("normative", "harness") or binding.get("status") != "confirmed":
+                    error(f"{exp_id}: exploration operations need confirmed bindings")
+            for step in charter.get("actions", []):
+                require(step, ["action", "observe", "evidence"], exp_id + ".actions")
+            for key in ("preconditions", "cleanup"):
+                for step in charter.get(key, []):
+                    require(step, ["action", "verify"], exp_id + "." + key)
     selected = scope.get("selected_case_ids", [])
     for key, group in (("selected_ac_ids", "acceptance"), ("selected_risk_ids", "risks"),
                        ("selected_scenario_ids", "scenarios")):
@@ -273,6 +645,10 @@ def inspect(root, gate="draft"):
         refs(case.get("risk_ids", []), "risks", cid)
         refs(case.get("scenario_ids", []), "scenarios", cid)
         refs(case.get("blockers", []), "questions", cid)
+        claimed_cov = refs(case.get("coverage_ids", []), "coverage_items", cid)
+        for cov in claimed_cov:
+            if not set(cov.get("ac_ids", [])) <= set(case.get("ac_ids", [])):
+                error(f"{cid}: coverage item AC must be linked by the case")
         if "actual" in case or "result" in case:
             error(f"{cid}: Actual/result belongs in runs, not case design")
         complete = status == "ready" or (gate == "baseline" and cid in selected)
@@ -302,6 +678,7 @@ def inspect(root, gate="draft"):
                 require(step, ["action", "verify"], f"{cid}.{key}[{i}]")
         assertions = 0
         asserted_ac = set()
+        asserted_cov = set()
         for i, step in enumerate(case.get("steps", []), 1):
             label = f"{cid}.step[{i}]"
             if step.get("n") != i:
@@ -315,31 +692,44 @@ def inspect(root, gate="draft"):
                 for ac in ar:
                     if ac.get("status") != "confirmed" or ac["id"] not in case.get("ac_ids", []):
                         error(f"{label}: assertion must cite a confirmed linked AC")
+                for cov in refs(assertion.get("coverage_ids", []), "coverage_items", label):
+                    if cov["id"] not in case.get("coverage_ids", []):
+                        error(f"{label}: assertion coverage item must be linked by the case")
+                    if not set(cov.get("ac_ids", [])) <= set(assertion.get("rule_refs", [])):
+                        error(f"{label}: coverage assertion lacks its AC basis")
+                    asserted_cov.add(cov["id"])
         if not assertions:
             error(f"{cid}: no product assertion with rule basis")
         if set(case.get("ac_ids", [])) - asserted_ac:
             error(f"{cid}: claimed AC coverage lacks an assertion")
+        if set(case.get("coverage_ids", [])) - asserted_cov:
+            error(f"{cid}: claimed coverage item lacks an assertion")
         require(case.get("verdict_rules", {}), ["pass", "fail", "inconclusive"], cid)
         if case.get("type") == "automated":
             require(case.get("automation", {}), ["command", "binding_refs"], cid + ".automation")
     if gate == "baseline":
+        if policy != DESIGN_POLICY:
+            error("New baseline requires project.design_policy=coverage-items-v1 and reviewed coverage items; legacy snapshots remain valid historical records.")
         require(scope, ["objective", "in", "out", "selected_ac_ids", "selected_case_ids", "decision_ref"], "scope")
         refs([scope.get("decision_ref")], "decisions", "scope")
         if stale:
             error("Sources changed/missing: " + ", ".join(sorted(stale)))
         active_ids = set(selected + scope.get("selected_ac_ids", []) + scope.get("selected_risk_ids", [])
                          + scope.get("selected_scenario_ids", []))
+        active_cov = [c for c in maps["coverage_items"].values()
+                      if set(c.get("ac_ids", [])) & set(scope.get("selected_ac_ids", []))]
+        active_ids.update(c["id"] for c in active_cov)
         # Blockers on parent requirements, decisions or source documents also affect selected cases.
         for cid in selected:
             case = cases.get(cid, {})
-            for key in ("ac_ids", "risk_ids", "scenario_ids"):
+            for key in ("ac_ids", "risk_ids", "scenario_ids", "coverage_ids"):
                 active_ids.update(case.get(key, []))
             active_ids.update(case.get("environment", {}).get("binding_refs", []))
         pending = list(active_ids)
         flat = {rid: row for group in maps.values() for rid, row in group.items()}
         while pending:
             row = flat.get(pending.pop(), {})
-            for key in ("requirement_ids", "source_refs", "decision_refs", "ac_ids", "risk_ids"):
+            for key in ("requirement_ids", "source_refs", "decision_refs", "ac_ids", "risk_ids", "coverage_ids"):
                 for rid in row.get(key, []):
                     if rid not in active_ids:
                         active_ids.add(rid)
@@ -350,6 +740,19 @@ def inspect(root, gate="draft"):
                 if not affected or affected & active_ids or "ALL" in affected:
                     error(f"{qid}: unresolved blocker for this baseline")
         selected_cases = [cases[c] for c in selected if c in cases]
+        for aid in scope.get("selected_ac_ids", []):
+            if not any(aid in c.get("ac_ids", []) and c.get("selection") == "keep" for c in active_cov):
+                error(f"{aid}: selected AC has no retained coverage item")
+        assertion_cov = {x for c in selected_cases for s in c.get("steps", [])
+                         for check in s.get("checks", []) for x in check.get("coverage_ids", [])}
+        for cov in active_cov:
+            if cov.get("selection") == "keep" and cov["id"] not in assertion_cov:
+                error(f"{cov['id']}: retained coverage item has no selected case assertion")
+            if cov.get("selection") == "defer" and not cov.get("decision_refs"):
+                error(f"{cov['id']}: deferred coverage needs a human decision and residual risk")
+        for cid in assertion_cov:
+            if maps["coverage_items"].get(cid, {}).get("selection") == "defer":
+                error(f"{cid}: selected case assertion claims deferred coverage")
         for sk, ck in (("selected_ac_ids", "ac_ids"), ("selected_risk_ids", "risk_ids"),
                        ("selected_scenario_ids", "scenario_ids")):
             covered = {v for c in selected_cases for v in c.get(ck, [])}
@@ -411,7 +814,8 @@ def init(args, root):
         fail("Existing nonempty qa/ without project marker; choose/resolve the layout before initialization.")
     for folder in ("cases", "decisions", "reviews", "review-packs", "approvals", "baselines", "runs", "evidence", "tools"):
         safe(root, "qa/" + folder).mkdir(parents=True, exist_ok=True)
-    reg = {"schema_version": 1, "project": {"name": args.name or root.name, "owner": "unassigned"},
+    reg = {"schema_version": 1, "project": {"name": args.name or root.name, "owner": "unassigned",
+                                         "design_policy": DESIGN_POLICY, "risk_policy": RISK_POLICY},
            "scope": {"objective": "", "in": [], "out": [], "selected_ac_ids": [], "selected_risk_ids": [],
                      "selected_scenario_ids": [], "selected_case_ids": [], "decision_ref": None}}
     reg.update({group: [] for group in GROUPS})
@@ -471,6 +875,22 @@ def inventory(root):
     print(json.dumps({k: v for k, v in result.items() if k != "files"}, ensure_ascii=False, indent=2))
 
 
+def coverage_rows(reg, cases):
+    """Explicit assertion links only: design references, never executed coverage."""
+    selected = set(reg.get("scope", {}).get("selected_case_ids", []))
+    selected_ac = set(reg.get("scope", {}).get("selected_ac_ids", []))
+    rows = []
+    for cov in reg.get("coverage_items", []):
+        linked = [cid for cid, case in cases.items() if cid in selected and any(
+            cov["id"] in check.get("coverage_ids", [])
+            for step in case.get("steps", []) for check in step.get("checks", []))]
+        active = bool(selected_ac & set(cov.get("ac_ids", [])))
+        state = ("本輪未選" if not active else "暫緩／剩餘風險" if cov.get("selection") == "defer"
+                 else "已選案例有斷言引用（待審）" if linked else "缺少已選案例斷言")
+        rows.append((cov, linked, state))
+    return rows
+
+
 def render(root):
     reg, cases = load(root)
     def cell(value):
@@ -508,20 +928,60 @@ def render(root):
             spec.append(f"| {cell(row['id'])} | {cell(row.get('status'))} | {cell(row.get('text'))} | {cell(basis)} |")
         spec.append("")
     save_view("qa/spec.md", spec)
+    interview = ["# 問答過程紀錄", "", "由 registry.interactions 產生；修改來源記錄後重新 render。原始問答與 AI 解讀分開；回答不自動等於產品決策或核可。", ""]
+    replacements = {row["supersedes"]: row["id"] for row in reg.get("interactions", []) if row.get("supersedes")}
+    if not reg.get("interactions"):
+        interview += ["尚未登錄成對問答；既有摘要不代表完整逐字紀錄。", ""]
+    for row in reg.get("interactions", []):
+        state = "已由 " + replacements[row["id"]] + " 更新" if row["id"] in replacements else "目前紀錄"
+        payload = json.dumps(row, ensure_ascii=False, indent=2)
+        fence = "`" * max(3, 1 + max((len(x) for x in re.findall(r"`+", payload)), default=0))
+        interview += ["## " + row["id"] + " — " + state, "", fence + "json", payload, fence, ""]
+    save_view("qa/interview.md", interview)
     trace = ["# 已選範圍追溯", "", "案例連結不代表已執行或已通過。", "", "| 已選項目 | 案例 | 狀態 |", "|---|---|---|"]
     for sk, ck in (("selected_ac_ids", "ac_ids"), ("selected_risk_ids", "risk_ids"), ("selected_scenario_ids", "scenario_ids")):
         for rid in reg["scope"].get(sk, []):
             matched = [c for c in cases.values() if c["id"] in reg["scope"].get("selected_case_ids", []) and rid in c.get(ck, [])]
             trace.append(f"| {cell(rid)} | {cell(', '.join(c['id'] for c in matched) or '缺口')} | {cell(', '.join(c.get('status', '') for c in matched))} |")
     save_view("qa/traceability.md", trace)
+    risks = ["# 需求風險評估", "", "由 registry.json 產生。評估狀態與需求確認狀態分開；未知不等於低風險，案例連結不是實測證據。", "",
+             "## 分級準則", "", "```json", json.dumps(reg.get("project", {}).get("risk_criteria"), ensure_ascii=False, indent=2), "```", "",
+             "| 需求 | 評估狀態 | 風險／失敗情境／後果 | 嚴重度 | 可能性 | 測試優先序 | 評估說明 | 關聯案例 |",
+             "|---|---|---|---|---|---|---|---|"]
+    for req, risk, state, note, related in risk_rows(reg, cases):
+        assessment = (req or {}).get("risk_assessment")
+        if isinstance(assessment, dict):
+            basis_ids = ref_list(assessment.get("source_refs")) + ref_list(assessment.get("decision_refs"))
+            note += "；依據：" + (", ".join(basis_ids) or "尚未登錄")
+        summary = " / ".join(str(risk.get(k, "")) for k in ("id", "failure", "impact")) if risk else "未列風險"
+        risks.append("| " + " | ".join(cell(x) for x in ((req or {}).get("id", "未對應"), state, summary,
+            *(risk_rating(risk, k) for k in ("severity", "likelihood", "priority")), note, ", ".join(related) or "無")) + " |")
+    risks += ["", "## 風險詳情與依據", ""]
+    for risk in reg.get("risks", []):
+        risks += ["### " + risk["id"], "", "```json", json.dumps(risk, ensure_ascii=False, indent=2), "```", ""]
+    save_view("qa/risks.md", risks)
+    design = ["# 測試設計與探索任務", "", "由 registry.json 產生。斷言引用是設計追溯，仍需審查實際資料與步驟；不是已執行覆蓋率。", "",
+              "## 覆蓋項目", "", "| 項目 | 驗收條件 | 方法／內容 | 已選案例斷言 | 狀態／取捨 |",
+              "|---|---|---|---|---|"]
+    if reg.get("project", {}).get("design_policy") != DESIGN_POLICY:
+        design += ["舊版專案尚未採用覆蓋項目；保留草稿編輯，建立新基線前須補齊。", ""]
+    for cov, linked, state in coverage_rows(reg, cases):
+        design.append("| " + " | ".join(cell(x) for x in (cov["id"], ", ".join(cov.get("ac_ids", [])),
+            str(cov.get("technique")) + " / " + str(cov.get("description")), ", ".join(linked) or "無",
+            state + " / " + str(cov.get("reason")) + " / " + str(cov.get("residual_risk", "")))) + " |")
+    design += ["", "## 探索任務", "", "以下是任務設計；探索紀錄另存 qa/evidence/EXP-*/，不計入正式案例覆蓋或通過率。", ""]
+    for charter in reg.get("charters", []):
+        design += ["### " + charter["id"] + " — " + charter.get("title", ""), "", "```json",
+                   json.dumps(charter, ensure_ascii=False, indent=2), "```", ""]
+    save_view("qa/test-design.md", design)
     doc = ["# 測試案例設計", "", "由 cases/*.json 產生。Actual 與執行判定另存 runs；本檔不是執行報告。", ""]
     for cid, case in cases.items():
         doc += [f"## {cid} — {case.get('title', '')}", "", f"狀態：{case.get('status')}；revision：{case.get('revision')}", ""]
-        for key in ("purpose", "ac_ids", "risk_ids", "scenario_ids", "environment", "preconditions", "data"):
+        for key in ("purpose", "ac_ids", "risk_ids", "scenario_ids", "coverage_ids", "environment", "preconditions", "data"):
             doc += [f"**{key}**", "", "```json", json.dumps(case.get(key), ensure_ascii=False, indent=2), "```", ""]
         doc += ["| 步驟 | 操作／輸入 | 觀測／時機 | Expected／依據 | 證據 |", "|---|---|---|---|---|"]
         for step in case.get("steps", []):
-            expected = "; ".join(f"{c.get('expected')} [{', '.join(c.get('rule_refs', []))}]" for c in step.get("checks", []))
+            expected = "; ".join(f"{c.get('expected')} [{', '.join(c.get('rule_refs', []) + c.get('coverage_ids', []))}]" for c in step.get("checks", []))
             doc.append(f"| {step.get('n')} | {cell(str(step.get('action')) + ' / ' + str(step.get('input')))} | {cell(str(step.get('observe')) + ' / ' + str(step.get('when')))} | {cell(expected)} | {cell(step.get('evidence'))} |")
         for key in ("cleanup", "independence", "verdict_rules", "blockers", "automation"):
             doc += ["", f"**{key}**", "", "```json", json.dumps(case.get(key), ensure_ascii=False, indent=2), "```"]
@@ -540,7 +1000,7 @@ def render_html(root, reg, cases):
     labels = {
         "id": "編號", "title": "名稱", "text": "內容", "path": "專案內原始檔",
         "version": "來源版本", "revision": "修訂版次", "sha256": "登錄檔案指紋（SHA-256）",
-        "locator": "頁碼／段落", "kind": "來源類型", "status": "狀態", "note": "備註",
+        "locator": "頁碼／段落", "kind": "類型", "status": "狀態", "note": "備註",
         "excerpt": "來源摘錄（依登錄內容）", "source_refs": "來源資料", "decision_refs": "決策依據",
         "requirement_ids": "對應需求", "confirmation": "確認紀錄", "oracle": "驗收判準",
         "purpose": "測試目的", "level": "測試層級", "type": "執行方式", "ac_ids": "關聯驗收條件",
@@ -560,14 +1020,49 @@ def render_html(root, reg, cases):
         "likelihood": "發生可能性", "uncertainty": "不確定性", "residual_risk": "剩餘風險",
         "description": "情境描述", "category": "類型", "selection": "選取結果", "reason": "理由",
         "tolerance": "容差", "supersedes": "替代舊項目", "merged_into": "合併目標",
+        "coverage_ids": "覆蓋項目", "technique": "測試設計方法", "origin": "候選情境產生方式",
+        "applies_when": "判準適用條件", "limitations": "判準限制", "relation": "已確認的比較關係",
+        "reference_refs": "比較參考資料（不是自動採納的正確答案）", "mission": "探索目的",
+        "timebox_minutes": "探索時間上限（分鐘）", "actions": "探索操作與觀察", "scope": "範圍",
+        "stop_conditions": "停止條件", "question_ids": "待釐清問題",
+        "risk_assessment": "需求風險評估", "risk_criteria": "風險分級準則",
+        "question_id": "對應待釐清問題", "question_text": "原始提問（含必要情境）", "options": "當時提供的選項",
+        "answer_text": "使用者原始回答", "answer_status": "回答狀態（不是規則確認狀態）",
+        "capture": "原文保存完整度", "missing_reason": "缺失原文與原因", "interpretation": "AI 解讀（不是原話）",
+        "asked_at": "實際提問時間", "answered_at": "實際回答時間", "answered_by": "回答者",
+        "recorded_at": "問答登錄時間", "answer_recorded_at": "回答登錄時間", "related_ids": "相關項目（不代表已採納）",
+        "interaction_refs": "原始問答依據", "change_reason": "更正原因",
+        "severity": "危害嚴重度", "severity_rationale": "嚴重度依據",
+        "likelihood_rationale": "可能性依據", "disposition": "取捨", "disposition_reason": "取捨理由",
     }
     ref_groups = {"source_refs": "sources", "binding_refs": "sources", "decision_refs": "decisions",
                   "decision_ref": "decisions", "requirement_ids": "requirements", "ac_ids": "acceptance",
                   "rule_refs": "acceptance", "risk_ids": "risks", "scenario_ids": "scenarios",
-                  "case_ids": "cases", "blockers": "questions", "merged_into": "scenarios"}
+                  "case_ids": "cases", "blockers": "questions", "merged_into": "scenarios",
+                  "coverage_ids": "coverage_items", "question_ids": "questions", "reference_refs": "sources",
+                  "question_id": "questions", "interaction_refs": "interactions"}
     for key in ("ac", "risk", "scenario", "case"):
         ref_groups["selected_" + key + "_ids"] = ref_groups[key + "_ids"]
     backlinks, routes, gaps = {}, {}, {}
+    direct_backlinks = {}
+    def collect_refs(v, key=""):
+        if isinstance(v, dict):
+            for k, x in v.items():
+                yield from collect_refs(x, k)
+        elif isinstance(v, list):
+            for x in v:
+                yield from collect_refs(x, key)
+        elif key in ref_groups and isinstance(v, str):
+            yield ref_groups[key], v
+        elif key in ("related_ids", "supersedes") and isinstance(v, str):
+            for group in maps:
+                if v in maps[group]:
+                    yield group, v
+                    break
+    for group, records in maps.items():
+        for rid, record in records.items():
+            for target in collect_refs(record):
+                direct_backlinks.setdefault(target, set()).add((group, rid))
 
     def ids(value):
         return value if isinstance(value, list) else []
@@ -613,7 +1108,7 @@ def render_html(root, reg, cases):
                                    for k, x in v.items()) + '</dl>' if v else '尚未提供'
         if key in ref_groups:
             return link(ref_groups[key], str(v))
-        if key in ("impact_ids", "affected_ids", "supersedes", "basis"):
+        if key in ("impact_ids", "affected_ids", "related_ids", "supersedes", "basis"):
             return auto_link(str(v))
         if key in ("path", "evidence_ref"):
             return file_link(v, allow_fragment=key == "evidence_ref")
@@ -638,6 +1133,8 @@ def render_html(root, reg, cases):
             source(cid, sid, role, chain)
         for did in ids(row.get("decision_refs")):
             touch(cid, "decisions", did)
+        for sid in ids((row.get("oracle") or {}).get("reference_refs")):
+            source(cid, sid, "比較參考資料；判準以已確認關係為準", chain)
         if group == "acceptance":
             for req in ids(row.get("requirement_ids")):
                 rule(cid, "requirements", req, role, chain)
@@ -651,6 +1148,16 @@ def render_html(root, reg, cases):
             for check in step.get("checks", []):
                 for aid in ids(check.get("rule_refs")):
                     rule(cid, "acceptance", aid, "預期結果依據：步驟 " + str(step.get("n", "?")), base)
+        cov_ids = set(ids(case.get("coverage_ids")))
+        cov_ids.update(x for step in case.get("steps", []) for check in step.get("checks", [])
+                       for x in ids(check.get("coverage_ids")))
+        for cov_id in sorted(cov_ids):
+            touch(cid, "coverage_items", cov_id)
+            for aid in ids(maps["coverage_items"].get(cov_id, {}).get("ac_ids")):
+                rule(cid, "acceptance", aid, "覆蓋項目的規則依據", base + [("coverage_items", cov_id)])
+        for sid in ids(case.get("scenario_ids")):
+            for src in ids(maps["scenarios"].get(sid, {}).get("source_refs")):
+                source(cid, src, "候選情境線索；不是產品判準", base + [("scenarios", sid)])
         for field, role in (("environment", "操作／觀測依據"), ("automation", "自動化操作依據")):
             for sid in ids((case.get(field) or {}).get("binding_refs")):
                 source(cid, sid, role, base)
@@ -661,10 +1168,46 @@ def render_html(root, reg, cases):
         for field, group in (("risk_ids", "risks"), ("scenario_ids", "scenarios"), ("blockers", "questions")):
             for rid in ids(case.get(field)):
                 touch(cid, group, rid)
+                if group == "risks":
+                    for did in ids(maps[group].get(rid, {}).get("decision_refs")):
+                        touch(cid, "decisions", did)
+                    for sid in ids(maps[group].get(rid, {}).get("source_refs")):
+                        source(cid, sid, "風險評估線索；不是產品判準", base + [(group, rid)])
+
+    # Follow explicit Q/A, decision and related-record links; never infer textual agreement.
+    for qaid, pair in maps["interactions"].items():
+        connected = set()
+        for did, decision in maps["decisions"].items():
+            if qaid in ids(decision.get("interaction_refs")):
+                connected.update(backlinks.get(("decisions", did), set()))
+        refs_for_pair = ids(pair.get("related_ids")) + ([pair["question_id"]] if pair.get("question_id") else [])
+        for rid in refs_for_pair:
+            for group, records in maps.items():
+                if rid in records:
+                    connected.update({rid} if group == "cases" else backlinks.get((group, rid), set()))
+        for cid in connected:
+            touch(cid, "interactions", qaid)
+
+    # Keep corrections discoverable even when an existing rule still cites the old answer.
+    changed = True
+    while changed:
+        changed = False
+        for rid, pair in maps["interactions"].items():
+            previous = pair.get("supersedes")
+            if previous in maps["interactions"]:
+                linked = backlinks.get(("interactions", rid), set()) | backlinks.get(("interactions", previous), set())
+                for key in (("interactions", rid), ("interactions", previous)):
+                    if linked - backlinks.get(key, set()):
+                        backlinks.setdefault(key, set()).update(linked)
+                        changed = True
 
     def case_links(group, rid):
         linked = sorted(backlinks.get((group, rid), set()))
         return '、'.join(link("cases", c) for c in linked) if linked else '<span class="muted">目前沒有案例引用</span>'
+
+    def related_links(group, rid):
+        related = sorted(direct_backlinks.get((group, rid), set()))
+        return ('<h4>反查直接引用記錄</h4><p>' + '、'.join(link(g, r) for g, r in related) + '</p>') if related else ''
 
     def source_links(cid):
         return '、'.join(link("sources", sid) for sid in sorted({r[0] for r in routes[cid]})) or '未連結來源文件'
@@ -719,7 +1262,8 @@ def render_html(root, reg, cases):
            '<p>' + e(prefix_note) + '。點選編號查看完整內容，再由來源反查相關案例。</p>',
            '<div class="meta">產生時間：' + e(now()) + ' · 工具版本：' + VERSION + '</div></header>',
            '<nav aria-label="報告章節"><a href="#sources">來源清單</a><a href="#cases">案例清單</a>',
-           '<a href="#rules">需求與驗收</a><a href="#other">風險與待確認</a><a href="#glossary">編號說明</a><a href="#documents">其他成果</a></nav><main>',
+           '<a href="#risk-assessment">需求風險評估</a><a href="#coverage">設計覆蓋</a><a href="#exploration">探索任務</a>',
+           '<a href="#interview">問答紀錄</a><a href="#rules">需求與驗收</a><a href="#other">風險與待確認</a><a href="#glossary">編號說明</a><a href="#documents">其他成果</a></nav><main>',
            '<div class="notice">這是設計資料的閱讀快照。連結表示已登錄的引用，不代表已覆蓋、已核可或已執行；本頁不產生實際測試結果。</div>',
            '<div class="stats">' + ''.join('<div class="stat"><b>' + str(n) + '</b>' + label + '</div>' for n, label in
                                            ((len(maps["sources"]), "來源資料"), (len(cases), "測試案例"),
@@ -731,7 +1275,7 @@ def render_html(root, reg, cases):
         terms = terms_for(prefix)
         out.append('<tr>' + ''.join('<td>' + e(x) + '</td>' for x in (prefix, *terms)) + '</tr>')
     out += ['</tbody></table></details></section>', '<section id="sources"><h2>來源清單</h2>',
-            '<p>normative＝規格依據；harness＝操作／觀測指南；observation＝現況觀察。指紋相符僅表示檔案未改變，不代表內容已確認。</p>',
+            '<p>normative＝規格依據；harness＝操作／觀測指南；observation＝現況觀察；experience＝經驗線索（不提供 Expected）。指紋相符僅表示檔案未改變，不代表內容已確認。</p>',
             '<div class="scroll"><table><thead><tr><th>來源編號</th><th>名稱／檔案</th><th>類型／版本／狀態</th><th>引用案例</th></tr></thead><tbody>']
     for sid, src in maps["sources"].items():
         out.append('<tr><td>' + link("sources", sid) + '</td><td>' + e(src.get("title") or src.get("path", "尚未提供")) +
@@ -742,7 +1286,7 @@ def render_html(root, reg, cases):
         out += ['<article class="record" id="' + anchor("sources", sid) + '" data-record-id="' + e(sid) + '"><h3>' + e(sid) + ' · ' + e(src.get("title") or src.get("path", "來源")) + '</h3>',
                 value({k: v for k, v in src.items() if k not in ("id", "title")}),
                 '<p class="notice">檔案檢查：' + e(health[sid][0]) + '</p>',
-                '<h4>反查引用案例</h4><p>' + case_links("sources", sid) + '</p><p class="back"><a href="#sources">返回來源清單</a></p></article>']
+                '<h4>反查引用案例</h4><p>' + case_links("sources", sid) + '</p>' + related_links("sources", sid) + '<p class="back"><a href="#sources">返回來源清單</a></p></article>']
     selected = set(reg.get("scope", {}).get("selected_case_ids", []))
     out += ['</section><section id="cases"><h2>測試案例清單</h2><p>draft＝草稿；blocked＝有阻塞；ready＝設計就緒；retired＝停用。人工執行的完整步驟列在各案例內。</p>',
             '<div class="scroll"><table><thead><tr><th>案例編號</th><th>標題</th><th>狀態／本輪範圍</th><th>參考來源</th></tr></thead><tbody>']
@@ -770,18 +1314,65 @@ def render_html(root, reg, cases):
             out.append('</ul>')
         else:
             out.append('<p class="notice">未連結來源文件；請檢視規則／決策依據，不能自行補推來源。</p>')
+        paired = sorted(rid for rid in maps["interactions"] if cid in backlinks.get(("interactions", rid), set()))
+        if paired:
+            out.append('<h4>相關問答（含歷史；連結不表示已採納）</h4><p>' + '、'.join(link("interactions", rid) for rid in paired) + '</p>')
         if gaps[cid]:
             out.append('<p class="gap">引用缺口：' + '、'.join(link(g, r) for g, r in sorted(gaps[cid])) + '</p>')
         out += ['<p class="back"><a href="#cases">返回案例清單</a> · <a href="#sources">查看全部來源</a></p></article>']
     out.append('</section>')
+    out += ['<section id="risk-assessment"><h2>需求風險評估</h2>',
+            '<p class="notice">需求確認與風險評估是不同狀態。未評估不代表沒有風險；嚴重度、可能性與測試優先序分開判斷。案例連結只代表設計關係，不代表風險已消除。</p>',
+            '<details><summary>分級準則與確認依據</summary>' + value(project.get("risk_criteria")) + '</details>']
+    if project.get("risk_policy") != RISK_POLICY:
+        out.append('<p class="gap">舊版風險資料：未補需求關聯／嚴重度的部分仍為未評估。</p>')
+    out.append('<div class="scroll"><table><thead><tr>' + ''.join('<th>' + x + '</th>' for x in
+               ("需求", "評估狀態", "風險／後果", "嚴重度", "可能性", "測試優先序", "說明／依據", "關聯案例")) + '</tr></thead><tbody>')
+    for req, risk, state, note, related in risk_rows(reg, cases):
+        assessment = (req or {}).get("risk_assessment") or {}
+        assessment = assessment if isinstance(assessment, dict) else {}
+        assessment_refs = {k: assessment[k] for k in ("source_refs", "decision_refs") if assessment.get(k)}
+        basis = value(assessment_refs) if assessment_refs else ""
+        risk_text = (link("risks", risk["id"]) + '<br>' + e(risk.get("failure", "")) + '<br>' + e(risk.get("impact", ""))) if risk else "未列風險"
+        cells = [link("requirements", req["id"]) if req else "未對應需求", e(state), risk_text,
+                 *(e(risk_rating(risk, k)) for k in ("severity", "likelihood", "priority")), e(note) + basis,
+                 '、'.join(link("cases", cid) for cid in related) or "無"]
+        out.append('<tr>' + ''.join('<td>' + x + '</td>' for x in cells) + '</tr>')
+    out.append('</tbody></table></div></section>')
+    out += ['<section id="coverage"><h2>設計覆蓋與剩餘風險</h2>',
+            '<p class="notice">此表只顯示已選案例是否引用覆蓋項目，需審查輸入、初態與斷言是否真正承接。不是實際執行覆蓋率；執行結果與證據另見 runs。</p>']
+    if project.get("design_policy") != DESIGN_POLICY:
+        out.append('<p class="gap">舊版專案尚未採用覆蓋項目；建立新基線前須補齊。</p>')
+    out.append('<div class="scroll"><table><thead><tr><th>覆蓋項目</th><th>驗收條件</th><th>方法／內容</th><th>已選案例斷言</th><th>狀態</th></tr></thead><tbody>')
+    for cov, linked, state in coverage_rows(reg, cases):
+        out.append('<tr><td>' + link("coverage_items", cov["id"]) + '</td><td>' + value(cov.get("ac_ids"), "ac_ids") +
+                   '</td><td>' + e(str(cov.get("technique")) + ' / ' + str(cov.get("description"))) + '</td><td>' +
+                   ('、'.join(link("cases", cid) for cid in linked) or '無') + '</td><td>' + e(state) + '</td></tr>')
+    out.append('</tbody></table></div></section>')
+    out += ['<section id="interview"><h2>問答過程紀錄</h2>',
+            '<p class="notice">原始問題、選項與回答分開保存，AI 解讀不是使用者原話。answered 只表示已回答，不表示規則已確認；pending／unknown／deferred／unavailable 仍有缺口。時間未知時留空，登錄時間不冒充原始對話時間。</p>',
+            '<p>capture：verbatim＝保留原文；partial＝部分原文缺失；summary_only＝只剩摘要。下列紀錄以登錄順序排列；舊紀錄保留更正連結。</p>']
+    replacements = {row["supersedes"]: row["id"] for row in reg.get("interactions", []) if row.get("supersedes")}
+    if not maps["interactions"]:
+        out.append('<p>尚未登錄成對問答；不代表過去沒有訪談，也不代表已完整保存。</p>')
+    for rid, row in maps["interactions"].items():
+        state = '已由 ' + link("interactions", replacements[rid]) + ' 更新' if rid in replacements else '目前紀錄'
+        out += ['<article class="record" id="' + anchor("interactions", rid) + '" data-record-id="' + e(rid) + '"><h3>' + e(rid) + '</h3><p class="badge">' + state + '</p>',
+                value({k: v for k, v in row.items() if k != "id"}), '<h4>相關案例（不是執行證據）</h4><p>' + case_links("interactions", rid) + '</p>',
+                related_links("interactions", rid), '<p class="back"><a href="#interview">返回問答紀錄</a></p></article>']
+    out.append('</section>')
     for section, heading, groups in (("rules", "需求、驗收條件與決策", ("requirements", "acceptance", "decisions")),
-                                    ("other", "風險、候選情境與待確認事項", ("risks", "scenarios", "questions"))):
+                                    ("other", "風險、候選情境與待確認事項", ("risks", "scenarios", "questions")),
+                                    ("coverage-details", "覆蓋項目詳情", ("coverage_items",)),
+                                    ("exploration", "探索任務設計（非執行結果）", ("charters",))):
         out.append('<section id="' + section + '"><h2>' + heading + '</h2>')
+        if section == "exploration":
+            out.append('<p>任務可在缺少部分產品判準時先設計；操作與環境仍需有依據。探索紀錄另存 qa/evidence/EXP-*/，不取代正式案例及其驗證結果。</p>')
         for group in groups:
             for rid, row in maps[group].items():
                 out += ['<article class="record" id="' + anchor(group, rid) + '" data-record-id="' + e(rid) + '"><h3>' + e(rid) + '</h3>',
                         value({k: v for k, v in row.items() if k != "id"}), '<h4>相關案例</h4><p>' + case_links(group, rid) +
-                        '</p><p class="back"><a href="#cases">返回案例清單</a></p></article>']
+                        '</p>' + related_links(group, rid) + '<p class="back"><a href="#cases">返回案例清單</a></p></article>']
         out.append('</section>')
     out += ['<section id="documents"><h2>其他成果與本輪範圍</h2>', value(reg.get("scope", {}))]
     for filename, label in (("strategy.md", "測試策略"), ("plan.md", "本輪計畫"), ("session.md", "工作進度")):
@@ -789,7 +1380,7 @@ def render_html(root, reg, cases):
         if p.is_file():
             out += ['<details class="record"><summary>' + label + '</summary><pre class="document">' + e(p.read_text(encoding="utf-8")) + '</pre></details>']
     out += ['<p>原有文件仍保留：' + ' · '.join(file_link("qa/" + f) for f in
-            ("spec.md", "test-cases.md", "traceability.md", "id-glossary.md", "registry.json")) + '</p></section>',
+            ("spec.md", "interview.md", "risks.md", "test-design.md", "test-cases.md", "traceability.md", "id-glossary.md", "registry.json")) + '</p></section>',
             '<footer>本頁由專案記錄產生，請修改原始記錄後重新 render，不直接編輯本頁。可離線閱讀；以瀏覽器尋找功能搜尋編號或文字。來源原檔連結需保留專案相對目錄；僅分享此 HTML 仍可使用頁內雙向連結。<a href="#top">回到頂端</a></footer></main></body></html>']
     safe(root, "qa/report.html").write_text(''.join(out), encoding="utf-8")
 
@@ -855,19 +1446,66 @@ def review_pack(args, root):
     if pack.exists():
         fail("Review pack already exists; use a new ID.")
     reg = data["registry"]
-    # Deliberately do not carry implementation, observations or generation dialogue into reviewer context.
-    permitted = {s["id"] for s in reg["sources"] if s.get("kind") in ("normative", "harness")}
+    # Experience supplies candidate ideas, never Expected. Only explicitly adopted comparison
+    # references accompany derived oracles; arbitrary observed behavior stays out.
+    comparison_ids = {sid for ac in reg.get("acceptance", []) if ac.get("status") == "confirmed"
+                      and ac.get("decision_refs") and (ac.get("oracle") or {}).get("kind") == "derived"
+                      for sid in ac["oracle"].get("reference_refs", [])}
+    assessments = [reg.get("project", {}).get("risk_criteria") or {}]
+    assessments += [r.get("risk_assessment") or {} for r in reg.get("requirements", [])]
+    assessments += reg.get("risks", [])
+    risk_evidence_ids = {sid for assessment in assessments if isinstance(assessment, dict)
+                         for sid in ref_list(assessment.get("source_refs"))}
+    permitted = {s["id"] for s in reg["sources"] if s.get("kind") in ("normative", "harness", "experience")
+                 or s["id"] in comparison_ids or s["id"] in risk_evidence_ids}
     filtered = json.loads(json.dumps(data))
     filtered["registry"]["sources"] = [s for s in reg["sources"] if s["id"] in permitted]
+    # Only related interview evidence accompanies a review, not an entire setup/chat transcript.
+    pairs = {row["id"]: row for row in reg.get("interactions", [])}
+    interview_ids = {rid for decision in reg.get("decisions", []) for rid in decision.get("interaction_refs", [])}
+    in_scope = set(cases_id for cases_id in data["cases"] if cases_id in reg.get("scope", {}).get("selected_case_ids", []))
+    in_scope.update(x for key, values in reg.get("scope", {}).items() if key.startswith("selected_") and isinstance(values, list) for x in values)
+    req_ids, risk_ids = risk_scope(reg, data["cases"])
+    in_scope.update(req_ids | risk_ids)
+    selected_questions = {qid for cid, case in data["cases"].items() if cid in in_scope for qid in case.get("blockers", [])}
+    selected_questions.update(q["id"] for q in reg.get("questions", [])
+                              if "ALL" in q.get("impact_ids", []) or set(q.get("impact_ids", [])) & in_scope)
+    interview_ids.update(rid for rid, row in pairs.items() if row.get("kind") in ("clarification", "correction")
+                         and (row.get("question_id") in selected_questions or set(row.get("related_ids", [])) & in_scope))
+    changed = True
+    while changed:
+        changed = False
+        for rid, row in pairs.items():
+            previous = row.get("supersedes")
+            if previous and (rid in interview_ids or previous in interview_ids):
+                new_ids = {rid, previous} - interview_ids
+                if new_ids:
+                    interview_ids.update(new_ids)
+                    changed = True
+    filtered["registry"]["interactions"] = [row for row in reg.get("interactions", []) if row["id"] in interview_ids]
     packet = {"artifact_digest": digest(data), "created_at": now(), "review_input": filtered,
-              "instruction": "Reload cited normative and harness sources. Do not infer Expected from code or observed product behavior."}
+              "handoff": {"protocol_version": 1, "target_skill": "genai-test-review",
+                          "design_tool_version": VERSION},
+              "comparison_reference_ids": sorted(comparison_ids),
+              "risk_evidence_source_ids": sorted(risk_evidence_ids),
+              "interview_evidence_ids": sorted(interview_ids),
+              "instruction": "Reload confirmed rules, decisions, bindings, risk assessments and coverage items. Experience sources suggest scenarios only. Risk evidence supports assessment, not product Expected. Comparison artifacts support only the explicitly confirmed relation; observed behavior is not automatically correct."}
     write(pack / "packet.json", packet, exclusive=True)
     (pack / "PROMPT.md").write_text(
-        "請在新工作階段依 packet.json 審查測試案例。重讀已確認規格、選定範圍、操作介面依據及審查準則。\n"
+        "請使用 genai-test-review，在新工作階段依 packet.json 審查測試案例。重讀已確認規格、選定範圍、操作介面依據及該 Skill 的審查準則。\n"
+        "沿用原專案與版本，不執行 init、不重問規格概況／版控、不重設釐清額度；四輪是檢查種類，不是四輪訪談。\n"
+        "只新增本次審查紀錄，不改來源、registry、案例、scope、session 或舊審查；產品決策缺口交回 genai-test-strategy。\n"
+        "artifact_digest 綁完整設計；review_input 可能過濾來源，不得用其子集重新計算並替換 digest。核對原始來源 hash 與目標版本。\n"
         "分四輪：traceability、executable、coverage、consistency。逐輪列 Finding：ID、case_ids、rule_refs、issue、evidence、proposal。\n"
+        "覆蓋輪同時檢查已選 AC／風險／情境與保留 COV：分區、邊界、組合、初態及轉移是否完整；案例的輸入與斷言是否真的承接。暫緩項目查決策與剩餘風險。\n"
+        "以 interview_evidence_ids 的原始提問、選項及回答核對決策是否保留限制；AI interpretation 不是原話，摘要／缺失原文與已被更正的答案須標示限制。問答存在不等於規則核可。\n"
+        "檢查本輪需求的 risk_assessment 狀態／版次、直接 requirement_ids、severity／likelihood／priority 準則及各自理由；未評估或 unknown 不當低風險。risk_evidence_source_ids 僅供風險評估，不提供產品 Expected。\n"
+        "共用／推導判準須查人的採納、適用條件與限制；experience 僅供候選線索，comparison_reference_ids 僅供已確認的比較關係。EXP 是探索計畫，不算正式案例覆蓋。\n"
         "缺少產品規則則列待釐清，不得新增 Expected。不得從程式碼、產碼對話、目前 UI 行為推導 Expected。\n"
         "只處理選定範圍；記錄 reviewer、session、model（不知則 unknown）、at、independence 與 artifact_digest。\n"
-        "自查須標記 same-session。尚未執行產品測試，不可填 Actual 或 Pass。將 review 放在 qa/reviews/<新 ID>.json，交人確認 findings。\n",
+        "同對話換 Skill 仍標 same-session。尚未執行產品測試，不可填 Actual 或 Pass。只將真正完成的輪次寫入 rounds，讀不到來源或未檢完範圍則記 limitations。\n"
+        "將 review 放在 qa/reviews/<新 ID>.json，findings 保持 open 交人處置。返回設計端修正後須以新版本重審，不改舊 review 的 digest。\n"
+        "若審查 Skill 尚不可用，可把本包與完整來源交由人審查；不假稱已安裝或已完成四輪。\n",
         encoding="utf-8")
     print(str(pack))
 
@@ -969,9 +1607,13 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--version", action="version", version=VERSION)
     sub = parser.add_subparsers(dest="cmd", required=True)
-    for name in ("init", "inventory", "check", "render", "digest", "checkpoint", "review-pack", "baseline", "start-run", "check-run"):
+    for name in ("init", "inventory", "check", "render", "digest", "checkpoint", "review-pack", "baseline", "start-run", "check-run", "record-qa", "show-qa"):
         p = sub.add_parser(name)
         p.add_argument("root", help="Accessible local project root (quote paths containing spaces)")
+        if name == "record-qa":
+            p.add_argument("--input", required=True, help="Project-relative JSON file, or - for standard input")
+        if name == "show-qa":
+            p.add_argument("--id", help="Read one original pair; omit for a compact index")
         if name == "init":
             p.add_argument("--name")
             p.add_argument("--standalone", action="store_true")
@@ -993,6 +1635,8 @@ def main():
     root = Path(args.root).expanduser().resolve()
     try:
         if args.cmd == "init": init(args, root)
+        elif args.cmd == "record-qa": record_qa(args, root)
+        elif args.cmd == "show-qa": show_qa(args, root)
         elif args.cmd == "inventory": inventory(root)
         elif args.cmd == "render": render(root)
         elif args.cmd == "digest": print(snapshot_digest(root))
