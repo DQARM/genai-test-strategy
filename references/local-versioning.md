@@ -28,6 +28,7 @@ Python 3.10+ 與 Git 是唯一執行依賴。Windows 可用 `py -3` 取代下例
 | qa/report.html | 離線閱讀網頁；來源與完整案例雙向連結，保留規則引用路徑 |
 | qa/decisions/、approvals/、reviews/ | 真實決策、核可、四輪審查 |
 | qa/review-packs/、baselines/ | 交接包與不可重名的案例快照 |
+| qa/review-handoff.json、review-focus.md | 最近驗證交接的索引、選填的特殊審查重點；索引不能代替重新驗證 |
 | qa/runs/、evidence/ | 實際結果與證據 |
 | qa/tools/qa_project.py | 專案自帶工具，可離線使用 |
 
@@ -41,7 +42,7 @@ python qa/tools/qa_project.py check .
 python qa/tools/qa_project.py render .
 python qa/tools/qa_project.py checkpoint . -m "釐清首次啟動規則並更新 AC" --include inputs
 python qa/tools/qa_project.py digest .
-python qa/tools/qa_project.py review-pack . --id REV-001
+python qa/tools/qa_project.py prepare-review .
 python qa/tools/qa_project.py check . --gate baseline
 python qa/tools/qa_project.py baseline . --id BL-001 --approval qa/approvals/APP-001.json
 python qa/tools/qa_project.py checkpoint . -m "核可 BL-001" --tag qa-baseline-BL-001
@@ -78,6 +79,10 @@ checkpoint 遇到既有 staged 內容會拒絕提交，不會把別人的變更�
 複製專案時要包含 `.git` 才有歷史；一般只傳目前文件的 ZIP 可能遺失它。視需要另用 `git bundle create <outside-project-path>/project-history.bundle --all` 離線備份已提交歷史；bundle 不含尚未提交檔案與被忽略的大型證據。把工作目錄、Git 歷史與必需證據都納入合適的備份；本機歷史不等於異地備份。
 
 ## 版本綁定
+
+工具 1.8.0 加入 prepare-review、resolve-review、check-review-pack；交接協定升為 2，專案 schema 仍為 1。先 checkpoint、比較並替換專案內工具再使用新命令；init 不會升級舊工具。prepare-review 預設只保存來源參照，--portable 複製明列來源／決策／閱讀證據並產生 ZIP；不整包複製專案，也不執行產品測試。既有包不覆寫，變更後建立新包；只在原檔及版本、審查重點、模式都吻合且包／ZIP 完整時才重用。
+
+新包、manifest、回傳模板及交接索引屬審查交接產物，不改原完整設計 digest；review_focus 以獨立 hash 綁定包，變更後須新包。checkpoint 預設包含 qa，故會保存包與 portable 副本；打包前檢查來源清單及上傳範圍。大量二進位來源可採 reference 模式並維持原檔備份；可攜包不是整個專案的備份。新環境只檢包時不能重算原專案完整 digest，不能把 review_input_digest 當成原設計 digest。
 
 artifact_digest 對應設計內容；baseline 凍結那一版內容及審查／核可；checkpoint commit 對應專案文件版本；RUN 另記 SUT build、環境與案例快照。這些不能互相冒充。
 

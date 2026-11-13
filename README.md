@@ -2,10 +2,10 @@
 
 | 項目 | 內容 |
 | --- | --- |
-| 文件版本 | 1.18.0 |
+| 文件版本 | 1.19.0 |
 | 更新日期 | 2026-11-13（Asia/Taipei） |
 | 適用 Skill | GenAI 測試策略 / genai-test-strategy |
-| 適用專案工具 | `qa_project.py` 1.7.0 |
+| 適用專案工具 | `qa_project.py` 1.8.0 |
 | 文字編碼 | UTF-8 |
 | Skill 頁面 | [GenAI 測試策略](https://chatgpt.com/skills?skill_id=6af1747b432881919448466eb247e9c9) |
 
@@ -65,7 +65,7 @@ AI 再依規則選擇測試方法，列出要涵蓋的邊界、條件組合或�
 日常使用：
 
 1. 用 `genai-test-strategy` 讀稿、釐清、選重點並產生案例；每五題統整一次，再由你選擇「繼續釐清」或「先產出」，足夠就提早交付。
-2. 要審查時，由設計端產生 `review-pack`；在新工作階段用 `genai-test-review`，提供同一專案與指定交接包。
+2. 交付案例時，設計端自動準備並驗證交接包；在新工作階段用 `genai-test-review` 接手。換模型／平台時使用自帶準則、來源副本與回傳格式的可攜 ZIP，接手者不必安裝 Skill。
 3. 審查端只新增發現紀錄，規格／案例不改；回到設計端依人的處置修正，對新版本再審查。原焦點、已問數及有效答案沿用。
 
 同一對話換 Skill 仍是 same-session（同工作階段自查）；真實新工作階段重新載入依據才是 fresh-session（新工作階段審查）。四輪審查是四種檢查，可一次交付，不是要求你再回答四輪問題。
@@ -416,7 +416,7 @@ python qa/tools/qa_project.py render .
 
 ### 4.2 舊專案如何使用新功能
 
-先保存既有版本、比較差異，再將專案內 `qa/tools/qa_project.py` 更新至 1.7.0。
+先保存既有版本、比較差異，再將專案內 `qa/tools/qa_project.py` 更新至 1.8.0（含來源閱讀功能）。
 重新 init 不會升級工具，也不會補造閱讀歷史。舊規則、編號、基線及實測快照都保留。
 AI 先補本輪相關來源的實際閱讀與引用；確認完成後設定 `project.source_reading_policy` 為 `source-reading-v1`。
 舊資料可以先閱讀、檢查及修改草稿；建立新基線前才必須完成政策移轉。
@@ -513,7 +513,7 @@ AI 不能換到案例設計後又繼續問同一批產品問題，也不能為�
 
 這次只是流程與文件更新，不增加工具必填欄位；既有專案不需升級 qa_project.py 或重新初始化。
 AI 在原 qa/session.md 記錄累計題數、本批起算點與已問／可問數、明訂總上限、最近統整、續問狀態與選擇依據；換對話或 Skill 都沿用。
-審查 Skill 的四輪是四項檢查，不套用五題批次，也不因交回修正就重啟訪談。工具 1.4.0 與舊交接包的用法不變，工具升級方式見 Q15。
+審查 Skill 的四輪是四項檢查，不套用五題批次，也不因交回修正就重啟訪談。舊交接包仍可人工核對；新版自動交接需工具 1.8.0，工具升級方式見 Q15。
 提問設計參考 [GOV.UK Question pages](https://design-system.service.gov.uk/patterns/question-pages/) 的必要性、說明目的與避免重問原則；五題批次及續問選擇是本 Skill 的設計選擇。
 
 ### 5.2 一次確認一個產品分歧
@@ -781,14 +781,16 @@ AI 將任務記在 `registry.charters`，可於 `qa/test-design.md` 及網頁「
 
 ## 08. 四輪審查與新工作階段交接
 
-### 8.1 先建立待審版本
+### 8.1 設計端自動準備交接
 
-你可以說：
+完成一批案例或修正後，AI 會執行 prepare-review，讀回驗證結果，再交付實際的交接位置。相同版本、來源、審查重點與模式未變會重用已驗證包；變更後建立新包，保留舊歷史。不在每題重建，也不把草稿包稱為已核可或已實測。
+
+需要換另一個 AI 模型時，你可以說：
 
 ```text
-請使用 genai-test-strategy，先完成結構檢查，固定本輪範圍與案例內容，取得目前 digest。
-產生一份供新工作階段使用的 review-pack，列出需要一併提供的來源。
-本階段的自查請如實標記 same-session，不代替獨立審查。
+請準備可交給另一個 AI 模型獨立審查的可攜包。
+保存特殊審查重點，包含必要的原始來源、四輪準則與回傳格式，驗證後提供實際 ZIP 與交接指令。
+不執行產品測試，也不把本對話自查當作獨立審查。
 ```
 
 四輪分別檢查：
@@ -802,30 +804,33 @@ AI 將任務記在 `registry.charters`，可於 `qa/test-design.md` 及網頁「
 
 ### 8.2 在新工作階段審查
 
-開啟新的對話／工作階段，或由另一位人員審查。
-讓審查者讀取相同專案版本，並貼上：
+同一工作區可開新對話，貼上實際產生的 HANDOFF.md 內容；也可以只指定可存取的專案：
 
 ```text
-請使用 genai-test-review，讀取這個專案的
-qa/review-packs/REV-001/packet.json 與 PROMPT.md。
-重新閱讀已確認規格、已選範圍、操作介面依據與四輪準則。
-不得從程式碼、產碼對話或目前 UI 行為推導 Expected。
-每個 Finding 請列案例 ID、規則 ID、具體差異、證據及修正建議。
-本次只新增審查記錄，不改寫規格、案例或進度；不重新初始化或重設已問題數。
+請使用 genai-test-review，審查「填入可存取的專案根目錄」目前的案例。
+自動確認有沒有適用的交接包；沒有就直接審目前專案，說明實際版本與限制。
+重新閱讀規格、已選範圍與操作依據，只新增審查紀錄，不改設計、不重新初始化。
 ```
 
-請將 `REV-001` 換成實際交接包 ID。
-同一對話重新讀一遍只能算 same-session；真實新工作階段才標 fresh-session。
-換工作階段可減少上下文污染，但同模型仍可能延續相同偏誤，仍需檢查依據。
+若你明確指定某個包或歷史版本，AI 必須審該版；找不到就列阻塞，不能偷偷改成目前版本。交接包在 `qa/review-packs/`，完成的審查在 `qa/reviews/`；後者存在不表示前者已建立。不要把範例流水號當成實際檔案。
 
-工具 1.4.0 的 review-pack 產生 `packet.json` 與 `PROMPT.md`，附 handoff 協定及審查 Skill 名稱。
-既有包即使沒有 handoff 欄位，也可以手動指定審查 Skill，核對版本後使用。
-packet 包含結構化規格／範圍／案例及來源資訊，不會自動複製所有原始檔，
-也不保證自動產生 ZIP。審查者必須能讀取被引用的規格、介面文件、決策證據
-與測試審查 Skill 的準則；若換到另一環境，請另外提供所需來源副本與版本資訊。
-packet 的 artifact_digest 綁完整設計；review_input 可能過濾來源，不能對該子集重算 digest。
-審查紀錄初始 Finding 為 open，讀不到資料或未檢完範圍時，對應輪次不列完成並記 limitations。
-審查端只提交自己新增的審查檔，不直接執行會納入整個 qa 的 checkpoint，避免混入尚未交付的設計修改。
+**換模型／平台的 SOP：**
+
+1. 設計端產生並驗證 portable ZIP，提供實際檔案；需要額外檢查的內容先存 `qa/review-focus.md`，會一起固定到包內。
+2. 在另一模型開全新對話，提供 ZIP 或解壓後全部內容，請它「從 PROMPT.md 開始，依 REVIEW_GUIDE.md 審查，按 REVIEW_TEMPLATE.json 回傳結果」。不需要貼整段設計對話或先安裝 Skill。
+3. 接手者依 manifest.json 的路徑對應閱讀 payload 裡的原始來源副本，核對版本、內容與特殊重點。無法解壓／讀圖片／執行驗證器時如實列限制，不把四輪全部填完成。
+4. 帶回結果 JSON 與摘要，交設計端核對包、版本與編號，再依人的處置修正；修改後產生新包重審。
+
+| 交接方式 | 原始來源在哪裡 | 適用情境 |
+| --- | --- | --- |
+| reference，預設 | 原專案；包保存路徑與 hash | 同一可讀工作區的新對話 |
+| portable，`--portable` | 包內 payload 副本；另有 ZIP | 換模型／平台、離線交接 |
+
+兩者都有 packet.json、manifest.json、PROMPT.md、HANDOFF.md、REVIEW_GUIDE.md、REVIEW_TEMPLATE.json 與 verify_pack.py。portable 只複製明列依據，不是整個專案備份；missing／changed／excluded 原檔會列出。`verified-with-gaps` 表示交接檔已驗證但設計或依據有缺口，不代表可以執行或已通過審查。
+
+同一對話換模型仍是 same-session；真實新工作階段才可標 fresh-session。新模型也可能有共同偏誤，仍要讀原文、由人核可。artifact_digest 綁原專案完整設計；review_input_digest 只驗證包內過濾輸入，兩者不能替換。只有可攜包時不能獨立重算完整原專案版本，需記這項限制。
+
+Finding 初始為 open，未檢完的輪次不列完成。審查端只提交自己新增的審查檔，不執行會納入整個 qa 的 checkpoint。舊工具產生的包可人工核對，不能當作已通過新版驗證；升級不會覆寫舊包。
 
 ### 8.3 處理發現並重審
 
@@ -1056,6 +1061,8 @@ inputs/requirements/ 中的規格已更新。
 | `qa/decisions/` | 真實規格／範圍決策的原文或摘要。 |
 | `qa/reviews/` | 審查者、工作階段、digest、輪次與 Findings。 |
 | `qa/review-packs/` | 供另一工作階段讀取的審查交接內容。 |
+| `qa/review-handoff.json` | 最近成功驗證的交接位置及限制；接手仍需重新驗證。 |
+| `qa/review-focus.md` | 選填的特殊審查重點；隨交接包固定。 |
 | `qa/approvals/` | 人工核可記錄與核可回覆依據。 |
 | `qa/baselines/` | 凍結的案例基線；使用新 ID 建立新版本。 |
 | `qa/runs/` | 每次執行的快照、Actual、結果與證據引用。 |
@@ -1299,8 +1306,12 @@ py -3 qa/tools/qa_project.py checkpoint . -m "保存來源資料" --include inpu
 
 ```powershell
 py -3 qa/tools/qa_project.py digest .
-py -3 qa/tools/qa_project.py review-pack . --id REV-001
+py -3 qa/tools/qa_project.py prepare-review .
+py -3 qa/tools/qa_project.py prepare-review . --portable
+py -3 qa/tools/qa_project.py resolve-review .
 ```
+
+prepare-review 會列出實際包／ZIP／HANDOFF.md 位置，不需手填示例 ID。切換至解壓後包內，可執行 `py -3 verify_pack.py check-review-pack .`；reference 包另加 `--project "可讀專案根目錄"`。舊 `review-pack . --id <實際新編號>` 仍支援明確指定名稱，不能覆寫已存在的包。
 
 問答紀錄（工具 1.6.0；通常由 AI 代為操作）：
 
@@ -1356,7 +1367,10 @@ py -3 qa/tools/qa_project.py checkpoint . -m "保存 RUN-001 與執行證據"
 | render | 從 registry 與 cases 產生原有 Markdown 視圖、編號字典與可點閱的 report.html。 |
 | digest | 列出目前設計內容的識別值。 |
 | checkpoint | 對符合範圍及條件的檔案建立本機 Git commit。 |
-| review-pack | 建立審查輸入與提示；不替你完成獨立審查。 |
+| prepare-review | 自動配號或重用已驗證包，交付實際路徑；--portable 另含來源副本及 ZIP。 |
+| resolve-review | 唯讀選擇適用包；無包時回報 direct-project；指定歷史版本不擅自替換。 |
+| check-review-pack | 核對包內檔案與來源指紋；--project 同時核對目前完整設計。 |
+| review-pack | 明確指定新 ID 建立交接包；不替你完成獨立審查。 |
 | baseline | 核對現有記錄後凍結案例基線；不核准產品放行。 |
 | start-run | 建立一次執行的快照與空白結果欄位；不呼叫 SUT。 |
 | check-run | 檢查 RUN 記錄與證據 hash；不取代證據內容的判讀。 |
@@ -1438,6 +1452,8 @@ symlink、常見私密檔名、虛擬環境、`.git` 內容及 raw 證據目錄�
 這些規則不是完整機密偵測；提交前仍需確認實際清單及應保存的內容。
 
 ### Q15：Skill 更新後，專案內工具仍是舊版，沒有網頁報告。
+
+工具 1.8.0 增加自動配號、驗證交接及可攜包。既有專案先保存 checkpoint、比較差異，再明確更新 qa/tools/qa_project.py；重新 init 不會升級。審查端沿用版本，不擅自改工具；舊包保留並人工核對。
 
 專案工具是初始化時的副本；重跑 init 不會升級它。
 1.1.0 新增文件中的編號說明與 `qa/id-glossary.md`；舊版不會自動產生。
@@ -1631,5 +1647,5 @@ py -3 -m unittest discover -s scripts -p "test_qa_project.py" -v
 請保存本次成果，更新 session，說明剩餘風險，並告訴我下次接著做哪一件事。
 ```
 
-文件依據：此 Skill 目前安裝版本的 [SKILL.md](SKILL.md)、[local-versioning.md](references/local-versioning.md)、[git-server.md](references/git-server.md)、[report.md](references/report.md)、[records.md](references/records.md)、[review.md](references/review.md)、[templates.md](references/templates.md)、[domain-adaptation.md](references/domain-adaptation.md)、[identifiers.md](references/identifiers.md)，[test-design.md](references/test-design.md)、[oracles-exploration.md](references/oracles-exploration.md)，以及 `qa_project.py 1.5.0` 的實際命令與行為。四輪審查的逐項準則由 [GenAI 測試審查](https://github.com/DQARM/genai-test-strategy/tree/dev/skills/genai-test-review) 維護。
+文件依據：此 Skill 目前安裝版本的 [SKILL.md](SKILL.md)、[local-versioning.md](references/local-versioning.md)、[git-server.md](references/git-server.md)、[report.md](references/report.md)、[records.md](references/records.md)、[review.md](references/review.md)、[templates.md](references/templates.md)、[domain-adaptation.md](references/domain-adaptation.md)、[identifiers.md](references/identifiers.md)，[test-design.md](references/test-design.md)、[oracles-exploration.md](references/oracles-exploration.md)，以及 `qa_project.py 1.8.0` 的實際命令與行為。四輪審查的逐項準則見 [GenAI 測試審查](https://github.com/DQARM/genai-test-strategy/tree/dev/skills/genai-test-review)，可攜包另附可獨立使用的準則。
 工具版本或專案格式變更時，請先核對 --version、--help 與更新內容，再調整本 SOP。

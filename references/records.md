@@ -109,6 +109,8 @@ coverage_items、charters 在舊 schema 1 檔案可省略，不必為續作先�
 
 independence 僅可如實填 fresh-session、human、same-session；same-session 不滿足正式基線的獨立審查要求。rounds 只記真正完成的輪次，來源或範圍不足則保留未完成並在 limitations 說明。沒有 findings 僅在實際審查後使用，不能預設填入以通過檢查。
 
+工具 1.8.0 交接另保留 `input_mode`（review-pack／direct-project）、`review_pack_id`（直接審專案填 null）、`review_input_digest`（包內過濾輸入的 hash，不能代替 artifact_digest）、`checked_case_ids`、`read_sources`（source_id／path、sha256、locator、read_scope、limitations）、`review_focus_checked` 及 `limitations`。舊結果可讀，不補造過往閱讀紀錄；新增審查依實際情形填。可攜包的 REVIEW_TEMPLATE.json 是空白結構，不能直接存進 reviews 冒充已審。僅驗證包時不能宣稱重算原專案完整 digest；審查結果須保留此限制。
+
 Finding 欄位：id、round、case_ids、rule_refs、issue、evidence、proposal、status（open／fixed／dismissed／accepted-risk）、disposition（by／at／evidence_ref／reason）。accepted-risk 另附 residual_risk。修正造成內容改變，須對新 digest 重審；不是把舊 finding 的狀態改 fixed 就代表已重審。
 
 `qa/approvals/APP-001.json`：by、at、evidence_ref、artifact_digest、case_ids。這份記錄只在使用者明確核可本次內容後產生。若人在同一回覆已確認規則、選取範圍並核可案例，可一次記錄各項授權；但未做獨立審查不能假造審查證據。

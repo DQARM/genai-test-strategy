@@ -5,10 +5,12 @@ from html.parser import HTMLParser
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tempfile
 import unittest
+import zipfile
 from urllib.parse import unquote, urlsplit
 
 TOOL = Path(__file__).with_name("qa_project.py")
@@ -1207,13 +1209,220 @@ class WorkflowTests(unittest.TestCase):
         original_digest = self.run_tool("digest").stdout.strip()
         self.run_tool("review-pack", "--id", "REV-HANDOFF")
         packet = get(self.root / "qa/review-packs/REV-HANDOFF/packet.json")
-        self.assertEqual(packet["handoff"]["protocol_version"], 1)
+        self.assertEqual(packet["handoff"]["protocol_version"], 2)
         self.assertEqual(packet["handoff"]["target_skill"], "genai-test-review")
         self.assertEqual(packet["artifact_digest"], original_digest)
         self.assertEqual(self.run_tool("digest").stdout.strip(), original_digest)
         self.assertEqual(packet["review_input"]["cases"]["TC-001"], get(self.root / "qa/cases/TC-001.json"))
         for relative, content in before.items():
             self.assertEqual((self.root / relative).read_bytes(), content, str(relative))
+
+    def prepared(self, *args):
+        result = json.loads(self.run_tool("prepare-review", *args).stdout)
+        return result, Path(result["pack_absolute_path"])
+
+    def test_prepare_review_delivers_real_paths_without_changing_design(self):
+        self.fixture()
+        session = self.root / "qa/session.md"
+        session.write_text("asked 5; awaiting continue choice", encoding="utf-8")
+        before = self.run_tool("digest").stdout
+        result, pack = self.prepared()
+        self.assertEqual(result["pack_id"], "REV-002")  # Existing result already uses REV-001.
+        self.assertTrue(Path(result["handoff_path"]).is_file())
+        self.assertIn(str(pack / "PROMPT.md"), (pack / "HANDOFF.md").read_text(encoding="utf-8"))
+        self.assertEqual(get(self.root / "qa/review-handoff.json"), result)
+        self.assertEqual(session.read_text(encoding="utf-8"), "asked 5; awaiting continue choice")
+        self.assertEqual(self.run_tool("digest").stdout, before)
+        template = get(pack / "REVIEW_TEMPLATE.json")
+        self.assertEqual(template["rounds"], [])
+        self.assertIsNone(template["independence"])
+        self.assertIsNone(template["reviewer"])
+
+    def test_prepare_review_reuses_verified_pack_and_preserves_old_versions(self):
+        _, case = self.fixture()
+        first, pack = self.prepared("--portable")
+        frozen = {p.relative_to(pack): p.read_bytes() for p in pack.rglob("*") if p.is_file()}
+        again, _ = self.prepared("--portable")
+        self.assertTrue(again["reused"])
+        self.assertEqual(again["pack_id"], first["pack_id"])
+        case["title"] = "Updated design"
+        put(self.root / "qa/cases/TC-001.json", case)
+        changed, _ = self.prepared("--portable")
+        self.assertNotEqual(changed["pack_id"], first["pack_id"])
+        self.assertFalse(changed["reused"])
+        for rel, data in frozen.items():
+            self.assertEqual((pack / rel).read_bytes(), data)
+        self.run_tool("check-review-pack", "--project", str(self.root), root=pack, ok=False)
+
+    def test_review_focus_is_frozen_and_resolver_rejects_outdated_focus(self):
+        self.fixture()
+        focus = self.root / "qa/review-focus.md"
+        focus.write_text("請查時間界線與等號。\n另查硬體觀測點。", encoding="utf-8")
+        first, pack = self.prepared()
+        self.assertEqual(get(pack / "packet.json")["review_focus"], focus.read_text(encoding="utf-8"))
+        focus.write_text("新增重點：斷電恢復", encoding="utf-8")
+        resolved = json.loads(self.run_tool("resolve-review").stdout)
+        self.assertEqual(resolved["input_mode"], "direct-project")
+        self.assertEqual(resolved["review_focus"], focus.read_text(encoding="utf-8"))
+        second, _ = self.prepared()
+        self.assertEqual(first["artifact_digest"], second["artifact_digest"])
+        self.assertNotEqual(first["pack_id"], second["pack_id"])
+        self.assertEqual(json.loads(self.run_tool("resolve-review").stdout)["pack_id"], second["pack_id"])
+
+    def test_missing_prompt_is_not_silently_repaired_in_historical_pack(self):
+        self.fixture()
+        first, pack = self.prepared()
+        (pack / "PROMPT.md").unlink()
+        self.run_tool("check-review-pack", "--project", str(self.root), root=pack, ok=False)
+        second, _ = self.prepared()
+        self.assertNotEqual(first["pack_id"], second["pack_id"])
+        self.assertFalse((pack / "PROMPT.md").exists())
+
+    def test_portable_pack_verifies_after_move_without_original_project_or_skill(self):
+        self.fixture()
+        result, pack = self.prepared("--portable")
+        moved = Path(self.temp.name) / "另一模型"
+        with zipfile.ZipFile(result["archive_path"]) as archive:
+            archive.extractall(moved)
+        shutil.rmtree(self.root)
+        p = subprocess.run([sys.executable, str(moved / "verify_pack.py"), "check-review-pack", str(moved)],
+                           capture_output=True, text=True, encoding="utf-8")
+        self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
+        self.assertEqual(json.loads(p.stdout)["artifact_digest"], result["artifact_digest"])
+        manifest = get(moved / "manifest.json")
+        for row in manifest["inputs"]:
+            self.assertEqual(sha(moved / row["bundle_path"]), row["expected_sha256"])
+        self.assertIn("規格追溯", (moved / "REVIEW_GUIDE.md").read_text(encoding="utf-8"))
+
+    def test_portable_manifest_and_copied_sources_are_verified(self):
+        self.fixture()
+        _, pack = self.prepared("--portable")
+        manifest = get(pack / "manifest.json")
+        payload = pack / manifest["inputs"][0]["bundle_path"]
+        payload.write_text("replaced source", encoding="utf-8")
+        result = self.run_tool("check-review-pack", root=pack, ok=False)
+        self.assertIn("Package file missing/changed", result.stdout)
+
+    def test_manifest_cannot_omit_dependency_or_relabel_changed_source(self):
+        self.fixture()
+        _, pack = self.prepared("--portable")
+        original = get(pack / "manifest.json")
+        missing = copy.deepcopy(original)
+        missing["inputs"].pop()
+        put(pack / "manifest.json", missing)
+        self.assertIn("does not cover", self.run_tool("check-review-pack", root=pack, ok=False).stdout)
+        wrong = copy.deepcopy(original)
+        wrong["inputs"][0]["actual_sha256"] = "0" * 64
+        put(pack / "manifest.json", wrong)
+        self.assertIn("Inconsistent", self.run_tool("check-review-pack", root=pack, ok=False).stdout)
+
+    def test_source_changes_invalidate_reference_and_current_portable_pack(self):
+        self.fixture()
+        first, pack = self.prepared("--portable")
+        (self.root / "inputs/spec.md").write_text("Updated raw content without adoption", encoding="utf-8")
+        self.assertIn("Project input changed", self.run_tool("check-review-pack", "--project", str(self.root), root=pack, ok=False).stdout)
+        self.run_tool("check-review-pack", root=pack)  # Frozen copy itself remains intact.
+        frozen = json.loads(self.run_tool("resolve-review", "--pack", first["pack_id"]).stdout)
+        self.assertEqual(frozen["version_check"], "supplied-snapshot")
+        self.assertTrue(any("not independently recomputed" in x for x in frozen["limitations"]))
+        second, newer = self.prepared("--portable")
+        self.assertNotEqual(first["pack_id"], second["pack_id"])
+        self.assertEqual(second["status"], "verified-with-gaps")
+        self.assertEqual(get(newer / "manifest.json")["inputs"][0]["status"], "changed")
+
+    def test_missing_source_is_explicit_gap_not_fake_copy(self):
+        self.fixture()
+        (self.root / "inputs/spec.md").unlink()
+        result, pack = self.prepared("--portable")
+        self.assertEqual(result["status"], "verified-with-gaps")
+        row = get(pack / "manifest.json")["inputs"][0]
+        self.assertEqual(row["status"], "missing")
+        self.assertIsNone(row["bundle_path"])
+        self.assertIn("inputs/spec.md: missing", result["limitations"])
+
+    def test_reference_pack_requires_project_even_when_files_exist_nearby(self):
+        self.fixture()
+        _, pack = self.prepared()
+        self.assertIn("requires --project", self.run_tool("check-review-pack", root=pack, ok=False).stdout)
+        self.run_tool("check-review-pack", "--project", str(self.root), root=pack)
+
+    def test_resolve_no_pack_is_read_only_direct_project(self):
+        self.fixture()
+        shutil.rmtree(self.root / "qa/review-packs")
+        before = {p.relative_to(self.root): p.read_bytes() for p in self.root.rglob("*") if p.is_file()}
+        result = json.loads(self.run_tool("resolve-review").stdout)
+        self.assertEqual(result["input_mode"], "direct-project")
+        self.assertIsNone(result["review_pack_id"])
+        self.assertEqual(before, {p.relative_to(self.root): p.read_bytes() for p in self.root.rglob("*") if p.is_file()})
+
+    def test_explicit_missing_or_historical_target_cannot_fall_back_to_current(self):
+        self.fixture()
+        self.run_tool("resolve-review", "--pack", "REV-MISSING", ok=False)
+        result = self.run_tool("resolve-review", "--artifact-digest", "0" * 64, ok=False)
+        self.assertIn("do not substitute", result.stderr)
+        self.assertNotIn('"input_mode": "direct-project"', result.stdout)
+
+    def test_explicit_portable_historical_version_uses_frozen_sources(self):
+        reg, _ = self.fixture()
+        first, pack = self.prepared("--portable")
+        (self.root / "inputs/spec.md").write_text("new adopted specification", encoding="utf-8")
+        reg["sources"][0]["sha256"] = sha(self.root / "inputs/spec.md")
+        put(self.root / "qa/registry.json", reg)
+        default = json.loads(self.run_tool("resolve-review").stdout)
+        self.assertEqual(default["input_mode"], "direct-project")
+        historical = json.loads(self.run_tool("resolve-review", "--pack", first["pack_id"]).stdout)
+        self.assertEqual(historical["artifact_digest"], first["artifact_digest"])
+        self.assertEqual(Path(historical["pack_path"]), pack)
+        self.assertEqual(json.loads(self.run_tool("resolve-review", "--artifact-digest", first["artifact_digest"]).stdout)["pack_id"], first["pack_id"])
+
+    def test_old_unverified_pack_is_preserved_with_direct_fallback(self):
+        self.fixture()
+        old = self.root / "qa/review-packs/REV-002"
+        put(old / "packet.json", {"artifact_digest": self.run_tool("digest").stdout.strip(), "handoff": {"protocol_version": 1}})
+        self.assertEqual(json.loads(self.run_tool("resolve-review").stdout)["input_mode"], "direct-project")
+        result, _ = self.prepared()
+        self.assertEqual(result["pack_id"], "REV-003")
+        self.assertFalse((old / "manifest.json").exists())
+
+    def test_corrupt_zip_is_preserved_and_prepare_allocates_new_pack(self):
+        self.fixture()
+        first, _ = self.prepared("--portable")
+        archive = Path(first["archive_path"])
+        archive.write_bytes(b"invalid zip")
+        second, _ = self.prepared("--portable")
+        self.assertNotEqual(first["pack_id"], second["pack_id"])
+        self.assertEqual(archive.read_bytes(), b"invalid zip")
+
+    def test_private_source_is_not_copied_and_payload_names_are_portable(self):
+        reg, _ = self.fixture()
+        source = self.root / "inputs/規格 #1 中文.md"
+        source.write_text("Synthetic additional reference", encoding="utf-8")
+        private = self.root / "inputs/credentials.json"
+        private.write_text("Synthetic secret placeholder", encoding="utf-8")
+        for sid, p in (("SRC-NAME", source), ("SRC-PRIVATE", private)):
+            reg["sources"].append({"id": sid, "path": p.relative_to(self.root).as_posix(), "sha256": sha(p), "kind": "normative", "status": "unconfirmed"})
+        put(self.root / "qa/registry.json", reg)
+        result, pack = self.prepared("--portable")
+        rows = get(pack / "manifest.json")["inputs"]
+        secret = next(r for r in rows if r.get("source_id") == "SRC-PRIVATE")
+        self.assertEqual(secret["status"], "excluded")
+        self.assertIsNone(secret["bundle_path"])
+        name = next(r for r in rows if r.get("source_id") == "SRC-NAME")
+        self.assertTrue(name["bundle_path"].isascii())
+        self.assertEqual((pack / name["bundle_path"]).read_bytes(), source.read_bytes())
+        with zipfile.ZipFile(result["archive_path"]) as archive:
+            self.assertNotIn(private.read_bytes(), [archive.read(n) for n in archive.namelist()])
+
+    def test_pack_paths_reject_traversal_and_preserve_external_file(self):
+        self.fixture()
+        _, pack = self.prepared("--portable")
+        external = Path(self.temp.name) / "external.txt"
+        external.write_text("keep", encoding="utf-8")
+        manifest = get(pack / "manifest.json")
+        manifest["files"].append({"path": "../../external.txt", "sha256": sha(external)})
+        put(pack / "manifest.json", manifest)
+        self.assertIn("traversal", self.run_tool("check-review-pack", root=pack, ok=False).stdout)
+        self.assertEqual(external.read_text(encoding="utf-8"), "keep")
 
     def test_returned_review_cannot_approve_findings_or_follow_changed_design(self):
         _, case = self.fixture()
