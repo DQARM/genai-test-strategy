@@ -1,6 +1,6 @@
 # 審查交接、修正與核可
 
-此文件供 genai-test-strategy 準備及接回審查。兩個 Skill 共用同一專案及資料契約，審查端只新增審查紀錄，設計端負責規格／案例修正及核可基線。工具 1.8.0 的交接包自帶四輪準則，另一模型不需安裝 Skill 也能接手。
+此文件供 genai-test-strategy 準備及接回審查。兩個 Skill 共用同一專案及資料契約，審查端只新增審查紀錄，設計端負責規格／案例修正及核可基線。工具的交接包自帶四輪準則，另一模型不需安裝 Skill 也能接手。
 
 ## 設計端交出待審版本
 
@@ -38,9 +38,9 @@ python3 qa/tools/qa_project.py prepare-review . --portable
 - 換模型時開新的對話，提供同一份實際 portable ZIP 或已解壓內容，請依 PROMPT.md 開始。平台不能解壓、讀圖片／附件時，明列限制並提供可讀的對應原檔；只有貼原機器路徑不能保證另一模型能讀。
 - 新模型用 REVIEW_TEMPLATE 建立新的結果 JSON，回傳結果與摘要；沒有專案寫入權時直接交回，不要求先建專案或裝 Skill。保存實際 model／session、checked_case_ids、read_sources、review_focus_checked、完成輪次及限制。不能把同對話換模型標為 fresh-session。
 
-工具 1.6.0 起，review-pack 帶 interview_evidence_ids 與相關原始問答／更正鏈；獨立審查須核對人的回答是否支持決策中的適用條件，AI 解讀不是原話。未保留原文則列限制，不把歷史摘要補成逐字稿。
+review-pack 帶 interview_evidence_ids 與相關原始問答／更正鏈；獨立審查須核對人的回答是否支持決策中的適用條件，AI 解讀不是原話。未保留原文則列限制，不把歷史摘要補成逐字稿。
 
-工具 1.7.0 起，review-pack 保留來源 readings、source_citations 與 source_reading_summary。交接須提供相關原檔及閱讀證據檔；審查逐一回到引用的版本、正文／圖表及上下文，查摘錄是否忠實且支持規則。不能只因引用存在或標為 scoped 就通過。僅目錄、缺頁、錯誤解讀、過期或已更正摘錄均列具體 Finding；審查端不改來源紀錄，由設計端追加閱讀／修正後以新 digest 重審。
+review-pack 保留來源 readings、source_citations 與 source_reading_summary。交接須提供相關原檔及閱讀證據檔；審查逐一回到引用的版本、正文／圖表及上下文，查摘錄是否忠實且支持規則。不能只因引用存在或標為 scoped 就通過。僅目錄、缺頁、錯誤解讀、過期或已更正摘錄均列具體 Finding；審查端不改來源紀錄，由設計端追加閱讀／修正後以新 digest 重審。
 
 ## 獨立性與版本
 
@@ -62,8 +62,8 @@ python3 qa/tools/qa_project.py prepare-review . --portable
 
 新基線使用 coverage-items-v1：每個已選 AC（Acceptance Criterion，驗收條件）有保留 COV（取自 Coverage，覆蓋項目），全部保留項目有已選案例斷言；暫緩項目具有人決策與剩餘風險，同時保留 AC／風險／情境的檢查。舊專案依 test-design.md 補齊資料，新 digest 重審；舊基線與執行快照不改寫。
 
-工具 1.5.0 的新基線另依 [risk-assessment.md](risk-assessment.md) 採 requirement-risk-v1：本輪涉及需求的評估已確認、風險分級有依據、已選風險有案例，其他關聯風險有暫緩決策。全專案未選需求仍可未評估，不因此重啟訪談。
+工具的新基線另依 [risk-assessment.md](risk-assessment.md) 採 requirement-risk-v1：本輪涉及需求的評估已確認、風險分級有依據、已選風險有案例，其他關聯風險有暫緩決策。全專案未選需求仍可未評估，不因此重啟訪談。
 
 工具只能驗證結構，不能證明規格、覆蓋模型及自由文字正確。核可記錄與 baseline 由設計端依 [records.md](records.md#審查核可) 及 [local-versioning.md](local-versioning.md) 建立；案例基線不是產品放行。
 
-工具 1.5.0 的 risk_evidence_source_ids 保留風險初評引用的觀察資料；這些資料只支持危害／可能性分析，不能取代已確認的產品 Expected。未引用的任意現況觀察仍不加入審查包。
+工具的 risk_evidence_source_ids 保留風險初評引用的觀察資料；這些資料只支持危害／可能性分析，不能取代已確認的產品 Expected。未引用的任意現況觀察仍不加入審查包。

@@ -18,7 +18,7 @@ REQ 取自 Requirement（需求）；RISK 是 Risk（風險）這個單字；TC 
 
 先做全體已登錄需求的狀態盤點，再深入本輪範圍；未讀、未評估及不在本輪的部分明列，不讓全專案逐條確認成為交付的前提。AI 可批次完成初評，說明來源、推論與缺少的證據；只把會改變危害判斷、驗收或測試取捨的重要分歧交人決定。同一人的有效決策可涵蓋多項，不逐需求要求重新同意。
 
-實質風險取捨問題仍計入五題批次；已選先產出、到總上限或等待續問選擇時，不以風險評估重啟訪談。交付初評與缺口，確認狀態保持 proposed／unassessed。使用者停止訪談不是接受風險。
+實質風險取捨問題的計數與續問依 [workflow.md](workflow.md#本輪範圍與釐清預算)；已選先產出、到總上限或等待續問選擇時，不以風險評估重啟訪談。交付初評與缺口，確認狀態保持 proposed／unassessed。使用者停止訪談不是接受風險。
 
 ## 分開三種判斷
 
@@ -83,7 +83,7 @@ risks 保留原有 failure、impact、likelihood、uncertainty、priority、rati
 
 ### 不強迫所有風險源自需求
 
-工具 1.9.0 支援選填 `origin`：requirement（缺欄位時沿用原需求關聯規則）、integration、change、architecture、environment、omission、experience。已有實際需求仍填 requirement_ids；純非需求來源可留空，不為了檢查通過新增假需求。
+工具支援選填 `origin`：requirement（缺欄位時沿用原需求關聯規則）、integration、change、architecture、environment、omission、experience。已有實際需求仍填 requirement_ids；純非需求來源可留空，不為了檢查通過新增假需求。
 
 非 requirement 的風險另填：
 
@@ -106,8 +106,8 @@ risks 保留原有 failure、impact、likelihood、uncertainty、priority、rati
 
 ## 檢查與舊專案
 
-工具 1.5.0 的 `check` 會指出未評估、初評待確認、過期、缺嚴重度或理由、缺直接需求關聯等缺口；無效引用、等級或偽稱 confirmed 卻沒有確認依據是結構錯誤。缺口可先保留草稿，不為通過檢查補造證據。
+工具的 `check` 會指出未評估、初評待確認、過期、缺嚴重度或理由、缺直接需求關聯等缺口；無效引用、等級或偽稱 confirmed 卻沒有確認依據是結構錯誤。缺口可先保留草稿，不為通過檢查補造證據。
 
 新基線須採 risk_policy，並完成**本輪選定驗收條件／案例／風險所直接涉及需求**的風險評估確認。本輪有風險時分級準則須已確認；相關風險各維度及理由完整，已選風險有案例，其他關聯風險有暫緩決策與剩餘風險。本輪外未評估需求只保留警示，不阻塞無關案例。unknown 可保留，但重大未決處置仍依 Q 的實際阻塞範圍處理；不因通過結構檢查而核准產品放行。
 
-舊專案先保存版本，依 local-versioning.md 明確更新 qa/tools/qa_project.py；重跑 init 不會升級工具。缺 risk_policy 或新欄位時仍可 draft 檢查／render，畫面保留未評估與舊資料；新基線前按本輪範圍補欄位、準則與真實評估依據，再設 risk_policy、重審新 digest。不要從舊 priority 或 impact 直接推成已確認 severity。既有基線、核可、執行與證據快照維持原樣。
+舊資料補欄位與工具升級依 [migration.md](migration.md#資料相容性)；本節維護目前的風險檢查條件。

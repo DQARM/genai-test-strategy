@@ -28,14 +28,14 @@ init 產生 `qa/registry.json`，保留以下欄位：
 - `project.risk_policy`：新專案為 `requirement-risk-v1`。`project.risk_criteria` 保存 severity／likelihood／priority 各自的等級定義、status（proposed／confirmed）、source_refs、decision_refs；unknown 是資料不足，不能作最低等級。完整契約與舊資料處理見 [risk-assessment.md](risk-assessment.md)。
 - `scope`: objective、in、out（沒有排除就明寫）、selected_ac_ids、selected_risk_ids、selected_scenario_ids、selected_case_ids、decision_ref。只有選定項目作為本輪覆蓋分母；所有未選風險仍須有取捨與剩餘風險。
 - `sources`: `{id, path, sha256, locator, kind, status, version, note}`。kind 是 normative／harness／observation／experience；status 是 confirmed／unconfirmed。normative 是應然規則；harness 是可驗證操作介面；observation 是現狀；experience 是缺陷歷史或經驗線索，後兩者不可直接作 Expected 的規則依據。locator 提供頁碼／段落。使用 hashlib 或 inventory 取得真實 sha256，不手編。
-  工具 1.7.0 新增選填 `readings`：逐次保存實際閱讀範圍、正文／索引深度、定位摘錄、未讀部分、限制及版本。以 `record-reading` 追加或更正，舊紀錄不覆寫；缺欄位是未留下閱讀紀錄，空陣列是未讀。契約與 `source_citations` 例子見 [source-reading.md](source-reading.md)。來源 confirmed 不表示已讀；`note`／舊 `excerpt` 不自動轉為閱讀證據。
+  支援選填 `readings`：逐次保存實際閱讀範圍、正文／索引深度、定位摘錄、未讀部分、限制及版本。以 `record-reading` 追加或更正，舊紀錄不覆寫；缺欄位是未留下閱讀紀錄，空陣列是未讀。契約與 `source_citations` 例子見 [source-reading.md](source-reading.md)。來源 confirmed 不表示已讀；`note`／舊 `excerpt` 不自動轉為閱讀證據。
   可加 `title`（方便閱讀的名稱）及 `excerpt`（實際讀取的相關摘錄，須保留 locator）；均非必填，不能為了網頁完整而編造摘錄。報告顯示這些已登錄欄位，不自行解析或完整嵌入原始 PDF／Word。新增欄位仍會改變 registry 的設計 digest。
   案例另引用的操作指南、輸入資料檔、自動化腳本及其依賴鎖定檔也登錄為來源並記 hash；尚未驗證的輔助內容標 unconfirmed，不因自動產生就當作已驗證。未登錄的外部依賴變化不會被 digest 自動察覺，必須先補足版本綁定。
 - `decisions`: `{id, statement, by, at, evidence_ref, affected_ids, interaction_refs?, supersedes?}`。實際決策寫在對應 Markdown，interaction_refs 指回原始 QA（Question and Answer，問答紀錄；後綴為流水號）。同一回答可支持多項規則；原話與 AI 解讀分開，不以解讀冒充原話。
 - `interactions`：選填陣列，保存 QA 的 question_text、options、answer_text、answer_status、capture、interpretation、question_id、related_ids、真實已知時間／回答者及更正鏈。完整契約、pending 完成與缺原文處理見 [interview-records.md](interview-records.md)。record-qa 不會自動建立決策、增加需求題數或核可。
 - `project.source_reading_policy`：新專案採 `source-reading-v1`。在有 `source_refs`／`binding_refs`／`oracle.reference_refs`／資料 `basis` 的同一物件加 `source_citations`，每項為 `{source_id, reading_seq, finding_index}`，指向該來源某次閱讀的某則摘錄。ready 的引用鏈需要有效正文證據；新基線要求政策及已選範圍依據完整。歷史專案可先草擬／閱讀，移轉規則見 source-reading.md。
 - `questions`: `{id, text, status, owner, due_or_trigger, impact_ids, blocks, decision_refs}`。status 是 open／resolved／deferred。owner 不知填 unassigned。blocks 可為 baseline、execution、release；impact_ids 可含 ALL 或具體 ID。resolved 必須有 DEC 依據；deferred 仍是未解問題。
-  工具 1.9.0 選填 category、urgency、analysis、suggested_owner、options、source_refs／source_citations，支援規格缺口排序與轉交。完整定義見 [spec-review.md](spec-review.md)；qa/questions.md 是衍生視圖，不是第二份主資料或已訪談紀錄。
+  另可選填 category、urgency、analysis、suggested_owner、options、source_refs／source_citations，支援規格缺口排序與轉交。完整定義見 [spec-review.md](spec-review.md)；qa/questions.md 是衍生視圖，不是第二份主資料或已訪談紀錄。
 - `requirements`: `{id, text, revision, status, source_refs, decision_refs, confirmation, supersedes?}`。status 是 proposed／confirmed／superseded。confirmed 必須有 confirmed normative source 或 DEC，並有真實 confirmation。
   需求另有 `risk_assessment: {status, requirement_revision, rationale, source_refs, decision_refs}`，status 為 unassessed／proposed／confirmed，與需求本身的 status 分開；缺欄位視為未評估。評估版次綁需求 revision，confirmed 需真實決策或已確認 normative 來源。未辨識風險仍須留下檢視範圍與理由，不能當成零風險。
 - `acceptance`: 同 requirement 欄位，增加 `requirement_ids` 及 `oracle: {observe, when, tolerance}`。每個 AC 是可判定的規則；父需求必須已確認。容差不適用寫明「不適用：離散值須完全相等」。AC 不得加入來源未支持的新限制。
@@ -48,7 +48,7 @@ init 產生 `qa/registry.json`，保留以下欄位：
 
 coverage_items、charters 在舊 schema 1 檔案可省略，不必為續作先重建全部專案；它們若存在會納入設計 digest，變動須重審對應新版本。
 
-工具 1.9.0 的風險可加 origin、affected_areas、assessment_status、question_ids，明列整合／變更／環境等非需求來源；缺省仍沿用原直接需求關聯，不自動豁免孤立風險，見 [risk-assessment.md](risk-assessment.md#不強迫所有風險源自需求)。覆蓋方法另支援 combinatorial、error-guessing、data-lifecycle，契約及判準要求不變。
+工具的風險可加 origin、affected_areas、assessment_status、question_ids，明列整合／變更／環境等非需求來源；缺省仍沿用原直接需求關聯，不自動豁免孤立風險，見 [risk-assessment.md](risk-assessment.md#不強迫所有風險源自需求)。覆蓋方法另支援 combinatorial、error-guessing、data-lifecycle，契約及判準要求不變。
 
 選填排程資料放 qa/execution-profile.json，選取建議放 qa/selections/SEL-*.json；不納入設計 digest，但綁定各自指紋並可 check-selection。不得將現有設計欄位移出以規避審查；格式及命令見 [execution-selection.md](execution-selection.md)。
 
@@ -114,7 +114,7 @@ coverage_items、charters 在舊 schema 1 檔案可省略，不必為續作先�
 
 independence 僅可如實填 fresh-session、human、same-session；same-session 不滿足正式基線的獨立審查要求。rounds 只記真正完成的輪次，來源或範圍不足則保留未完成並在 limitations 說明。沒有 findings 僅在實際審查後使用，不能預設填入以通過檢查。
 
-工具 1.8.0 交接另保留 `input_mode`（review-pack／direct-project）、`review_pack_id`（直接審專案填 null）、`review_input_digest`（包內過濾輸入的 hash，不能代替 artifact_digest）、`checked_case_ids`、`read_sources`（source_id／path、sha256、locator、read_scope、limitations）、`review_focus_checked` 及 `limitations`。舊結果可讀，不補造過往閱讀紀錄；新增審查依實際情形填。可攜包的 REVIEW_TEMPLATE.json 是空白結構，不能直接存進 reviews 冒充已審。僅驗證包時不能宣稱重算原專案完整 digest；審查結果須保留此限制。
+交接另保留 `input_mode`（review-pack／direct-project）、`review_pack_id`（直接審專案填 null）、`review_input_digest`（包內過濾輸入的 hash，不能代替 artifact_digest）、`checked_case_ids`、`read_sources`（source_id／path、sha256、locator、read_scope、limitations）、`review_focus_checked` 及 `limitations`。舊結果可讀，不補造過往閱讀紀錄；新增審查依實際情形填。可攜包的 REVIEW_TEMPLATE.json 是空白結構，不能直接存進 reviews 冒充已審。僅驗證包時不能宣稱重算原專案完整 digest；審查結果須保留此限制。
 
 Finding 欄位：id、round、case_ids、rule_refs、issue、evidence、proposal、status（open／fixed／dismissed／accepted-risk）、disposition（by／at／evidence_ref／reason）。accepted-risk 另附 residual_risk。修正造成內容改變，須對新 digest 重審；不是把舊 finding 的狀態改 fixed 就代表已重審。
 

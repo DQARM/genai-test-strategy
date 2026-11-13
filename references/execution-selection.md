@@ -30,7 +30,7 @@ TC＝Test Case（測試案例），SEL 取自 Selection（執行選取建議）�
 
 ## 產生建議清單
 
-工具 1.9.0，以下在專案根目錄執行；Windows 可將 python 改為 py -3：
+先以 --help 確認專案工具支援下列命令，舊版依 [migration.md](migration.md) 升級；以下在專案根目錄執行；Windows 可將 python 改為 py -3：
 
 ```text
 python qa/tools/qa_project.py select-cases .
