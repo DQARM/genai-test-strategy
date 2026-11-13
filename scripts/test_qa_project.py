@@ -81,6 +81,17 @@ class WorkflowTests(unittest.TestCase):
         p = subprocess.run(["git", "-C", str(self.root), *args], capture_output=True, check=True)
         return p.stdout.decode()
 
+    def reading_fixture(self, source):
+        # Real reads of synthetic test files; never a receipt for user documents.
+        return {"seq": 1, "source_sha256": sha(self.root / source["path"]), "status": "scoped", "depth": "content",
+                "purpose": "Synthetic tool regression", "method": "Read synthetic UTF-8 fixture",
+                "read_scope": ["whole synthetic file"], "unread_scope": [], "limitations": [],
+                "findings": [{"locator": "whole file", "type": "quote", "text": (self.root / source["path"]).read_text(encoding="utf-8")}],
+                "evidence_refs": [], "read_at": None, "recorded_at": "2026-11-13T00:00:00Z"}
+
+    def cite(self, sid="SRC-SPEC", seq=1, index=1):
+        return {"source_id": sid, "reading_seq": seq, "finding_index": index}
+
     def fixture(self):
         root = self.root
         (root / "inputs").mkdir()
@@ -95,9 +106,11 @@ class WorkflowTests(unittest.TestCase):
         reg["sources"] = [{"id": sid, "path": path, "sha256": sha(root / path), "locator": "whole file", "kind": kind,
                            "status": "confirmed"} for sid, path, kind in
                           [("SRC-SPEC", "inputs/spec.md", "normative"), ("SRC-HARNESS", "inputs/harness.md", "harness")]]
+        for source in reg["sources"]:
+            source["readings"] = [self.reading_fixture(source)]
         reg["decisions"] = [{"id": "DEC-001", "statement": "Synthetic adoption", **confirm}]
         rule = {"id": "REQ-001", "text": "Output must be ON after evaluate", "revision": 1, "status": "confirmed",
-                "source_refs": ["SRC-SPEC"], "decision_refs": ["DEC-001"], "confirmation": confirm}
+                "source_refs": ["SRC-SPEC"], "source_citations": [self.cite()], "decision_refs": ["DEC-001"], "confirmation": confirm}
         reg["requirements"] = [rule]
         reg["acceptance"] = [{**rule, "id": "AC-001", "requirement_ids": ["REQ-001"],
                               "oracle": {"observe": "output", "when": "after evaluate", "tolerance": "exact"}}]
@@ -111,7 +124,7 @@ class WorkflowTests(unittest.TestCase):
                          "requirement_ids": ["REQ-001"], "severity": "high", "severity_rationale": "Main output unavailable",
                          "likelihood": "unknown", "likelihood_rationale": "No field data",
                          "uncertainty": "high", "priority": "P1", "rationale": "selected promise",
-                         "source_refs": ["SRC-SPEC"]}]
+                         "source_refs": ["SRC-SPEC"], "source_citations": [self.cite()]}]
         reg["scenarios"] = [{"id": "SC-001", "description": "Evaluate from OFF", "category": "state",
                              "ac_ids": ["AC-001"], "risk_ids": ["RISK-001"], "selection": "keep", "reason": "risk selected"}]
         reg["coverage_items"] = [{"id": "COV-001", "ac_ids": ["AC-001"], "technique": "state-transition",
@@ -120,9 +133,9 @@ class WorkflowTests(unittest.TestCase):
         case = {"id": "TC-001", "title": "Evaluate changes OFF to ON", "revision": 1, "status": "ready",
                 "purpose": "Detect missing output", "level": "unit", "type": "manual", "ac_ids": ["AC-001"],
                 "risk_ids": ["RISK-001"], "scenario_ids": ["SC-001"], "coverage_ids": ["COV-001"],
-                "environment": {"target": "isolated fixture", "build_binding": "record fixture version at run", "tools": "fixture v1", "binding_refs": ["SRC-HARNESS"]},
+                "environment": {"target": "isolated fixture", "build_binding": "record fixture version at run", "tools": "fixture v1", "binding_refs": ["SRC-HARNESS"], "source_citations": [self.cite("SRC-HARNESS")]},
                 "preconditions": [{"action": "reset fixture to OFF", "verify": "read output OFF"}],
-                "data": [{"name": "initial", "value": "OFF", "unit": "discrete", "basis": "SRC-HARNESS"}],
+                "data": [{"name": "initial", "value": "OFF", "unit": "discrete", "basis": "SRC-HARNESS", "source_citations": [self.cite("SRC-HARNESS")]}],
                 "steps": [{"n": 1, "action": "evaluate once", "input": "OFF", "observe": "output", "when": "on return", "evidence": "capture fixture JSON",
                            "checks": [{"expected": "output ON", "rule_refs": ["AC-001"], "coverage_ids": ["COV-001"]}]}],
                 "cleanup": [{"action": "close fixture", "verify": "process terminated"}], "independence": "fresh process each case",
@@ -150,6 +163,7 @@ class WorkflowTests(unittest.TestCase):
                 "mission": "Learn behavior where product rule is missing", "scope": ["synthetic isolated fixture"],
                 "timebox_minutes": 10, "ac_ids": [], "question_ids": [], "source_refs": ["SRC-HARNESS"],
                 "binding_refs": ["SRC-HARNESS"],
+                "source_citations": [self.cite("SRC-HARNESS")],
                 "preconditions": [{"action": "reset fixture", "verify": "read OFF"}],
                 "actions": [{"action": "evaluate twice", "observe": "two outputs", "evidence": "record actual JSON"}],
                 "stop_conditions": ["timebox ends", "fixture becomes unavailable"],
@@ -168,6 +182,210 @@ class WorkflowTests(unittest.TestCase):
     def record_pair(self, row, ok=True):
         put(self.root / "qa/input.json", row)
         return self.run_tool("record-qa", "--input", "qa/input.json", ok=ok)
+
+    def reading_input(self, source, **changes):
+        row = self.reading_fixture(source)
+        del row["seq"], row["recorded_at"]
+        row.update(changes)
+        return row
+
+    def record_reading(self, row, sid="SRC-SPEC", ok=True):
+        put(self.root / "qa/reading-input.json", row)
+        return self.run_tool("record-reading", "--source", sid, "--input", "qa/reading-input.json", ok=ok)
+
+    def test_reading_inventory_never_marks_registered_sources_read(self):
+        reg, case = self.fixture()
+        for s in reg["sources"]:
+            s.pop("readings")
+        case["status"] = "draft"
+        for group in ("requirements", "acceptance", "risks"):
+            reg[group][0].pop("source_citations")
+        case["environment"].pop("source_citations")
+        case["data"][0].pop("source_citations")
+        put(self.root / "qa/registry.json", reg)
+        put(self.root / "qa/cases/TC-001.json", case)
+        before = (self.root / "qa/registry.json").read_bytes()
+        self.run_tool("inventory")
+        self.assertEqual(before, (self.root / "qa/registry.json").read_bytes())
+        self.assertIn("no source reading record", self.run_tool("check").stdout)
+        self.run_tool("render")
+        self.assertIn("未留下閱讀紀錄", (self.root / "qa/report.html").read_text(encoding="utf-8"))
+
+    def test_reading_append_preserves_content_and_adoption(self):
+        reg, _ = self.fixture()
+        source = reg["sources"][0]
+        row = self.reading_input(source, status="partial", unread_scope=["Other sections not inspected"],
+            findings=[{"locator": "line 1", "type": "quote", "text": "  Output ON\nexact original spacing  ", "interpretation": "Separate synthetic interpretation"}])
+        self.record_reading(row)
+        current = get(self.root / "qa/registry.json")
+        stored = current["sources"][0]["readings"][1]
+        self.assertEqual(stored["findings"], row["findings"])
+        self.assertEqual(stored["seq"], 2)
+        self.assertEqual(current["sources"][0]["readings"][0], source["readings"][0])
+        self.assertEqual(current["sources"][0]["status"], source["status"])
+        self.assertEqual(current["requirements"], reg["requirements"])
+        self.assertIsNone(stored["read_at"])
+        self.assertTrue(stored["recorded_at"])
+        self.assertEqual(json.loads(self.run_tool("show-source", "--id", "SRC-SPEC", "--reading", "2").stdout), stored)
+        self.assertNotIn("exact original spacing", self.run_tool("show-source").stdout)
+
+    def test_reading_wrong_hash_or_empty_claim_does_not_write(self):
+        reg, _ = self.fixture()
+        before = (self.root / "qa/registry.json").read_bytes()
+        for changes in ({"source_sha256": "0" * 64}, {"findings": []}, {"read_scope": []},
+                        {"depth": "index"}, {"read_at": "2026-11-13"}, {"seq": 99},
+                        {"status": "partial", "unread_scope": []}):
+            self.record_reading(self.reading_input(reg["sources"][0], **changes), ok=False)
+            self.assertEqual(before, (self.root / "qa/registry.json").read_bytes())
+
+    def test_index_reading_cannot_supply_ready_case_content(self):
+        reg, case = self.fixture()
+        row = reg["sources"][0]["readings"][0]
+        row.update(status="partial", depth="index", read_scope=["Table of contents"], unread_scope=["All body sections"],
+                   findings=[{"locator": "TOC", "type": "quote", "text": "3.2 Control"}])
+        put(self.root / "qa/registry.json", reg)
+        self.assertIn("index-only reading does not provide content evidence", self.run_tool("check", ok=False).stdout)
+        case["status"] = "blocked"
+        put(self.root / "qa/cases/TC-001.json", case)
+        self.assertIn("index-only", self.run_tool("check").stdout)
+        self.run_tool("render")
+        self.assertIn("僅目錄／索引", (self.root / "qa/report.html").read_text(encoding="utf-8"))
+
+    def test_partial_content_only_supports_located_findings(self):
+        reg, _ = self.fixture()
+        row = reg["sources"][0]["readings"][0]
+        row.update(status="partial", unread_scope=["Other chapters"], read_scope=["Control rule paragraph"])
+        put(self.root / "qa/registry.json", reg)
+        self.run_tool("check")
+        reg["acceptance"][0]["source_citations"][0]["finding_index"] = 2
+        put(self.root / "qa/registry.json", reg)
+        self.assertIn("unknown reading/finding", self.run_tool("check", ok=False).stdout)
+
+    def test_reading_failed_attempt_keeps_failure_without_confirmation(self):
+        reg, _ = self.fixture()
+        row = self.reading_input(reg["sources"][0], status="failed", findings=[], read_scope=[],
+                                 unread_scope=["Body"], limitations=["Encrypted file; decoder unavailable"])
+        self.record_reading(row)
+        state = json.loads(self.run_tool("show-source").stdout)[0]["reading"]
+        self.assertEqual(state["status"], "failed")
+        self.assertEqual(state["read_scope"], [])
+        self.assertEqual(get(self.root / "qa/registry.json")["sources"][0]["status"], "confirmed")
+
+    def test_reading_source_replacement_invalidates_citation_even_after_inventory_update(self):
+        reg, _ = self.fixture()
+        (self.root / "inputs/spec.md").write_text("Changed synthetic rule", encoding="utf-8")
+        reg["sources"][0]["sha256"] = sha(self.root / "inputs/spec.md")
+        put(self.root / "qa/registry.json", reg)
+        self.assertIn("source changed/missing", self.run_tool("check", ok=False).stdout)
+        self.record_reading(self.reading_input(reg["sources"][0]))
+        self.assertIn("source changed/missing", self.run_tool("check", ok=False).stdout)
+        reg = get(self.root / "qa/registry.json")
+        for group in ("requirements", "acceptance", "risks"):
+            reg[group][0]["source_citations"] = [self.cite(seq=2)]
+        put(self.root / "qa/registry.json", reg)
+        self.run_tool("check")
+        self.assertIn("Missing current independent review", self.run_tool("check", "--gate", "baseline", ok=False).stdout)
+
+    def test_reading_evidence_tamper_changes_digest_and_blocks_reference(self):
+        reg, _ = self.fixture()
+        proof = self.root / "qa/extracted.txt"
+        proof.write_text("Synthetic extracted content", encoding="utf-8")
+        row = self.reading_input(reg["sources"][0], evidence_refs=["qa/extracted.txt"])
+        self.record_reading(row)
+        reg = get(self.root / "qa/registry.json")
+        for group in ("requirements", "acceptance", "risks"):
+            reg[group][0]["source_citations"] = [self.cite(seq=2)]
+        put(self.root / "qa/registry.json", reg)
+        self.run_tool("check")
+        old_digest = self.run_tool("digest").stdout
+        proof.write_text("Replaced extract", encoding="utf-8")
+        self.assertNotEqual(old_digest, self.run_tool("digest").stdout)
+        self.assertIn("reading evidence changed/missing", self.run_tool("check", ok=False).stdout)
+
+    def test_reading_correction_retains_history_and_flags_old_citations(self):
+        reg, _ = self.fixture()
+        old = copy.deepcopy(reg["sources"][0]["readings"][0])
+        self.record_reading(self.reading_input(reg["sources"][0], supersedes=1, change_reason="Correct misread operator"))
+        current = get(self.root / "qa/registry.json")
+        self.assertEqual(current["sources"][0]["readings"][0], old)
+        self.assertIn("reading superseded", self.run_tool("check", ok=False).stdout)
+        self.record_reading(self.reading_input(reg["sources"][0], supersedes=1, change_reason="Duplicate correction"), ok=False)
+        self.record_reading(self.reading_input(reg["sources"][0], supersedes=9, change_reason="Unknown target"), ok=False)
+
+    def test_reading_citations_must_match_explicit_source_links(self):
+        reg, _ = self.fixture()
+        reg["acceptance"][0]["source_citations"] = [self.cite("SRC-HARNESS")]
+        put(self.root / "qa/registry.json", reg)
+        self.assertIn("explicitly linked source", self.run_tool("check", ok=False).stdout)
+
+    def test_reading_legacy_is_readable_without_fabricated_history(self):
+        reg, case = self.fixture()
+        reg["project"].pop("source_reading_policy")
+        for s in reg["sources"]:
+            s.pop("readings")
+        for group in ("requirements", "acceptance", "risks"):
+            reg[group][0].pop("source_citations")
+        case["environment"].pop("source_citations")
+        case["data"][0].pop("source_citations")
+        put(self.root / "qa/registry.json", reg)
+        put(self.root / "qa/cases/TC-001.json", case)
+        before = (self.root / "qa/registry.json").read_bytes()
+        digest_before = self.run_tool("digest").stdout
+        self.run_tool("check")
+        self.run_tool("render")
+        self.run_tool("show-source")
+        self.assertEqual(before, (self.root / "qa/registry.json").read_bytes())
+        self.assertEqual(digest_before, self.run_tool("digest").stdout)
+        self.assertIn("source-reading-v1", self.run_tool("check", "--gate", "baseline", ok=False).stdout)
+
+    def test_unreferenced_unread_source_does_not_block_baseline(self):
+        reg, _ = self.fixture()
+        p = self.root / "inputs/deferred.md"
+        p.write_text("Outside selected scope", encoding="utf-8")
+        reg["sources"].append({"id": "SRC-LATER", "path": "inputs/deferred.md", "sha256": sha(p),
+                               "locator": "not read", "kind": "normative", "status": "unconfirmed", "readings": []})
+        put(self.root / "qa/registry.json", reg)
+        self.refresh_review()
+        self.run_tool("check", "--gate", "baseline")
+
+    def test_reading_html_exposes_exact_citations_and_escapes_content(self):
+        reg, _ = self.fixture()
+        reg["sources"][0]["readings"][0]["findings"][0]["text"] = '<img src=x onerror=alert(1)> "literal"'
+        put(self.root / "qa/registry.json", reg)
+        before = self.run_tool("digest").stdout
+        self.run_tool("render")
+        html = (self.root / "qa/report.html").read_text(encoding="utf-8")
+        parser = ReportParser(html)
+        link = '#reading-' + 'SRC-SPEC'.encode().hex() + '-1-1'
+        self.assertIn(link, parser.records["TC-001"]["links"])
+        self.assertIn(link, parser.records["AC-001"]["links"])
+        self.assertIn('#' + parser.records['TC-001']['anchor'], parser.records['SRC-SPEC']['links'])
+        self.assertNotIn('<img src=x', html)
+        self.assertIn("用途／版本／採納", html)
+        self.assertIn("已讀指定範圍", html)
+        self.assertTrue(all(h[1:] in parser.ids for h in parser.links if h.startswith('#')))
+        self.assertEqual(len(parser.ids), len(set(parser.ids)))
+        self.assertEqual(before, self.run_tool("digest").stdout)
+        self.assertTrue((self.root / "qa/source-reading.md").is_file())
+
+    def test_reading_review_pack_preserves_located_evidence_and_full_digest(self):
+        reg, _ = self.fixture()
+        digest_before = self.run_tool("digest").stdout.strip()
+        self.run_tool("review-pack", "--id", "REV-READING")
+        packet = get(self.root / "qa/review-packs/REV-READING/packet.json")
+        self.assertEqual(packet["artifact_digest"], digest_before)
+        self.assertEqual(packet["review_input"]["registry"]["sources"][0]["readings"], reg["sources"][0]["readings"])
+        self.assertEqual(packet["source_reading_summary"][0]["status"], "scoped")
+        self.assertIn("回到原文件", (self.root / "qa/review-packs/REV-READING/PROMPT.md").read_text(encoding="utf-8"))
+
+    def test_reading_evidence_paths_and_boolean_indexes_are_rejected(self):
+        reg, _ = self.fixture()
+        before = (self.root / "qa/registry.json").read_bytes()
+        self.record_reading(self.reading_input(reg["sources"][0], evidence_refs=["../outside.txt"]), ok=False)
+        self.assertEqual(before, (self.root / "qa/registry.json").read_bytes())
+        reg["acceptance"][0]["source_citations"][0]["finding_index"] = True
+        put(self.root / "qa/registry.json", reg)
+        self.assertIn("unknown reading/finding", self.run_tool("check", ok=False).stdout)
 
     def test_qa_preserves_short_answer_options_and_does_not_create_decisions(self):
         row = self.qa_pair(answer_text="  第二個\n保留原始換行與空白。  ")
@@ -584,6 +802,7 @@ class WorkflowTests(unittest.TestCase):
         reg, case = self.fixture()
         ac = reg["acceptance"][0]
         ac["source_refs"] = []
+        ac["source_citations"] = []
         ac["oracle"].update(kind="implicit", applies_when="isolated fixture evaluation", limitations="not restart or fault injection")
         ac["decision_refs"] = []
         put(self.root / "qa/registry.json", reg)
@@ -609,6 +828,8 @@ class WorkflowTests(unittest.TestCase):
             (self.root / filename).write_text("synthetic observation", encoding="utf-8")
             reg["sources"].append({"id": sid, "kind": "observation", "status": "confirmed", "path": filename,
                                    "sha256": sha(self.root / filename), "locator": "whole file"})
+        reg["sources"][-2]["readings"] = [self.reading_fixture(reg["sources"][-2])]
+        ac["oracle"]["source_citations"] = [self.cite("SRC-REFERENCE")]
         put(self.root / "qa/registry.json", reg)
         self.run_tool("check")
         self.run_tool("review-pack", "--id", "REV-DERIVED")
@@ -625,7 +846,8 @@ class WorkflowTests(unittest.TestCase):
         self.assertIn("not a confirmed normative source", self.run_tool("check", ok=False).stdout)
         for group in ("requirements", "acceptance"):
             reg[group][0]["source_refs"] = []  # Decision remains the rule basis.
-        reg["scenarios"][0].update(origin="experience", source_refs=["SRC-SPEC"])
+            reg[group][0]["source_citations"] = []
+        reg["scenarios"][0].update(origin="experience", source_refs=["SRC-SPEC"], source_citations=[self.cite()])
         put(self.root / "qa/registry.json", reg)
         self.run_tool("check")
         self.run_tool("render")
@@ -886,6 +1108,19 @@ class WorkflowTests(unittest.TestCase):
         before = self.git("diff", "--cached")
         self.run_tool("checkpoint", "-m", "must not mix", ok=False)
         self.assertEqual(self.git("diff", "--cached"), before)
+
+    def test_checkpoint_includes_registered_reading_evidence_outside_qa(self):
+        reg, _ = self.fixture()
+        proof = self.root / "extracts" / "規格 #1 excerpt.md"
+        proof.parent.mkdir()
+        proof.write_text("Synthetic located extract", encoding="utf-8")
+        unrelated = self.root / "extracts" / "unrelated.md"
+        unrelated.write_text("Must remain untracked", encoding="utf-8")
+        self.record_reading(self.reading_input(reg["sources"][0], evidence_refs=[proof.relative_to(self.root).as_posix()]))
+        self.run_tool("checkpoint", "-m", "Keep registered source evidence")
+        tracked = self.git("-c", "core.quotePath=false", "ls-files")
+        self.assertIn(proof.relative_to(self.root).as_posix(), tracked)
+        self.assertNotIn("extracts/unrelated.md", tracked)
 
     def test_parent_repository_needs_explicit_standalone(self):
         child = self.root / "child"

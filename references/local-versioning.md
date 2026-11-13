@@ -24,6 +24,7 @@ Python 3.10+ 與 Git 是唯一執行依賴。Windows 可用 `py -3` 取代下例
 | qa/risks.md | 每筆需求的風險評估狀態、危害／可能性／優先序與案例關係；由 registry 生成 |
 | qa/test-design.md | 方法、覆蓋項目及探索任務的生成視圖 |
 | qa/id-glossary.md | 前綴英文來源、中文意思與用途；由 render 產生 |
+| qa/source-reading.md | 來源閱讀範圍、定位摘錄、未讀與限制；由 render 產生 |
 | qa/report.html | 離線閱讀網頁；來源與完整案例雙向連結，保留規則引用路徑 |
 | qa/decisions/、approvals/、reviews/ | 真實決策、核可、四輪審查 |
 | qa/review-packs/、baselines/ | 交接包與不可重名的案例快照 |
@@ -65,6 +66,8 @@ checkpoint 遇到既有 staged 內容會拒絕提交，不會把別人的變更�
 工具 1.5.0 增加 requirement-risk-v1、直接需求關聯、嚴重度與評估狀態，以及 risks.md／HTML 風險表。舊資料可繼續 draft 檢查與 render；新基線前依 [risk-assessment.md](risk-assessment.md#檢查與舊專案) 補本輪評估及真實依據。既有工具副本需明確升級；不重建專案、不改舊基線或執行證據，填補缺欄位不代表人已核可。
 
 工具 1.6.0 增加 record-qa、show-qa、interactions 及問答閱讀視圖，詳見 [interview-records.md](interview-records.md)。舊專案不重建、不補造歷史；更新專案內工具後才有新功能。既有資料若沒有 interactions，仍可 draft 檢查與 render。問答屬 registry，新增／更正／關聯更動會改變完整設計 digest；舊基線不覆寫。
+
+工具 1.7.0 增加來源 readings、source_citations、record-reading、show-source 及閱讀視圖，詳見 [source-reading.md](source-reading.md)。舊資料可續作，缺證據標未知；建立新基線前補本輪依據並採 source-reading-v1。registry 的閱讀／引用變動，以及額外閱讀證據檔的內容變動，都影響設計 digest。checkpoint 會納入明確登錄的閱讀證據檔，即使位於 qa 外，仍須符合安全路徑與提交檢查；無關未讀來源不因閱讀狀態阻塞，但原有來源完整性檢查仍適用。舊基線與 RUN 快照不回寫。
 
 ## 比較與復原
 

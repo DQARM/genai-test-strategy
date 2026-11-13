@@ -13,9 +13,10 @@ import sys
 from datetime import datetime, timezone
 from urllib.parse import quote
 
-VERSION = "1.6.0"
+VERSION = "1.7.0"
 DESIGN_POLICY = "coverage-items-v1"
 RISK_POLICY = "requirement-risk-v1"
+READING_POLICY = "source-reading-v1"
 TECHNIQUES = {"equivalence", "boundary-2", "boundary-3", "decision-table",
               "state-transition", "pairwise", "scenario", "experience"}
 ID_TERMS = {
@@ -151,10 +152,21 @@ def artifacts(root):
             rel = reference.split("#")[0]
             path = safe(root, rel)
             basis[rel] = file_hash(path) if path.is_file() else None
-    return {"registry": reg, "cases": cases,
+    result = {"registry": reg, "cases": cases,
             "decision_evidence_hashes": basis,
             "strategy": safe(root, "qa/strategy.md").read_text(encoding="utf-8"),
             "plan": safe(root, "qa/plan.md").read_text(encoding="utf-8")}
+    # Preserve legacy digests when no reading evidence exists. External evidence content
+    # is bound separately so replacing an extract cannot silently preserve a review.
+    reading_files = {}
+    for source in reg.get("sources", []):
+        for entry in source.get("readings", []):
+            for item in entry.get("evidence_refs", []):
+                path = safe(root, item["path"])
+                reading_files[item["path"]] = file_hash(path) if path.is_file() else None
+    if reading_files:
+        result["source_reading_evidence_hashes"] = reading_files
+    return result
 
 
 def snapshot_digest(root):
@@ -466,6 +478,301 @@ def show_qa(args, root):
                           for row in rows], ensure_ascii=False, indent=2))
 
 
+def record_dependencies(value):
+    """Explicit design links only; historical replacements are not active dependencies."""
+    keys = {"source_refs", "binding_refs", "reference_refs", "requirement_ids", "ac_ids",
+            "rule_refs", "risk_ids", "scenario_ids", "coverage_ids", "decision_refs"}
+    if isinstance(value, dict):
+        for key, item in value.items():
+            if key in keys:
+                yield from (x for x in ref_list(item) if isinstance(x, str))
+            elif key == "basis" and isinstance(item, str):
+                yield item
+            elif key not in ("readings", "source_citations"):
+                yield from record_dependencies(item)
+    elif isinstance(value, list):
+        for item in value:
+            yield from record_dependencies(item)
+
+
+def dependency_closure(records, seeds):
+    active, pending = set(seeds), list(seeds)
+    while pending:
+        for rid in record_dependencies(records.get(pending.pop(), {})):
+            if rid in records and rid not in active:
+                active.add(rid)
+                pending.append(rid)
+    return active
+
+
+def source_citations(value):
+    if isinstance(value, dict):
+        for key, item in value.items():
+            if key == "source_citations" and isinstance(item, list):
+                yield from (x for x in item if isinstance(x, dict))
+            elif key != "readings":
+                yield from source_citations(item)
+    elif isinstance(value, list):
+        for item in value:
+            yield from source_citations(item)
+
+
+def reading_entry(source, seq):
+    return next((r for r in source.get("readings", []) if r.get("seq") == seq), None)
+
+
+def reading_problems(root, source, entry):
+    """Freshness checks, not proof that an agent read or understood the document."""
+    problems = []
+    try:
+        p = safe(root, source.get("path", ""))
+        actual = file_hash(p) if p.is_file() else None
+    except (ValueError, OSError):
+        actual = None
+    if actual is None or entry.get("source_sha256") != actual or source.get("sha256") != actual:
+        problems.append("source changed/missing; re-read and assess impact")
+    if any(r.get("supersedes") == entry.get("seq") for r in source.get("readings", [])):
+        problems.append("reading superseded; cite the corrected findings")
+    for item in entry.get("evidence_refs", []):
+        try:
+            p = safe(root, item["path"])
+            intact = p.is_file() and file_hash(p) == item.get("sha256")
+        except (ValueError, OSError, KeyError, TypeError):
+            intact = False
+        if not intact:
+            problems.append("reading evidence changed/missing: " + str(item.get("path")))
+    return problems
+
+
+def reading_state(root, source):
+    rows = source.get("readings", [])
+    if not rows:
+        return {"status": "unread" if "readings" in source else "unrecorded",
+                "label": "未讀" if "readings" in source else "未留下閱讀紀錄",
+                "read_scope": [], "unread_scope": [], "limitations": []}
+    entry = rows[-1]
+    problems = reading_problems(root, source, entry)
+    state = "stale" if problems else entry.get("status", "invalid")
+    labels = {"partial": "部分已讀", "scoped": "已讀指定範圍（依紀錄）", "failed": "讀取失敗",
+              "stale": "來源／閱讀證據已變更或不可用，需核對", "invalid": "閱讀紀錄格式待修正"}
+    label = labels.get(state, labels["invalid"])
+    if state == "partial" and entry.get("depth") == "index":
+        label += "（僅目錄／索引）"
+    return {"status": state, "label": label, "seq": entry.get("seq"),
+            "read_scope": entry.get("read_scope", []), "unread_scope": entry.get("unread_scope", []),
+            "limitations": entry.get("limitations", []) + problems}
+
+
+def validate_readings(root, source, errors):
+    sid = source.get("id", "source")
+    rows = source.get("readings", [])
+    if not isinstance(rows, list):
+        errors.append(f"{sid}: readings must be a list")
+        return
+    seen, replaced = set(), set()
+    for row in rows:
+        if not isinstance(row, dict):
+            errors.append(f"{sid}: reading must be an object")
+            continue
+        seq = row.get("seq")
+        label = f"{sid}.reading[{seq}]"
+        if type(seq) is not int or seq <= 0 or seq in seen or (seen and seq <= max(seen)):
+            errors.append(f"{label}: seq must be a unique increasing positive integer")
+        old = row.get("supersedes")
+        if old is not None:
+            if type(old) is not int or old not in seen or old in replaced:
+                errors.append(f"{label}: supersedes must name an earlier unreplaced reading")
+            else:
+                replaced.add(old)
+            if not meaningful(row.get("change_reason")):
+                errors.append(f"{label}: correction needs change_reason")
+        if type(seq) is int:
+            seen.add(seq)
+        if row.get("status") not in ("partial", "scoped", "failed"):
+            errors.append(f"{label}: status must be partial, scoped or failed")
+        if row.get("depth") not in ("index", "content"):
+            errors.append(f"{label}: depth must distinguish index from content")
+        if row.get("status") == "scoped" and row.get("depth") != "content":
+            errors.append(f"{label}: index-only reading cannot claim scoped content completion")
+        for key in ("purpose", "method"):
+            if not isinstance(row.get(key), str) or not meaningful(row[key]):
+                errors.append(f"{label}: missing {key}")
+        if not re.fullmatch(r"[0-9a-f]{64}", str(row.get("source_sha256", ""))):
+            errors.append(f"{label}: needs real source_sha256")
+        for key in ("read_scope", "unread_scope", "limitations"):
+            items = row.get(key)
+            if not isinstance(items, list) or any(not isinstance(x, str) or not meaningful(x) for x in items):
+                errors.append(f"{label}: {key} must be a list of concrete descriptions")
+        for key in ("recorded_at", "read_at"):
+            stamp = row.get(key)
+            if key == "read_at" and stamp is None:
+                continue
+            try:
+                if not isinstance(stamp, str) or datetime.fromisoformat(stamp.replace("Z", "+00:00")).utcoffset() is None:
+                    raise ValueError()
+            except ValueError:
+                errors.append(f"{label}: {key} needs an ISO timestamp with timezone, or null for unknown read_at")
+        findings = row.get("findings")
+        if not isinstance(findings, list):
+            errors.append(f"{label}: findings must be a list")
+            findings = []
+        if row.get("status") in ("partial", "scoped") and (not findings or not row.get("read_scope")):
+            errors.append(f"{label}: read content requires read_scope and located findings")
+        if row.get("status") == "partial" and not row.get("unread_scope"):
+            errors.append(f"{label}: partial reading needs unread_scope")
+        if row.get("status") == "failed" and (findings or not row.get("limitations")):
+            errors.append(f"{label}: failed reading needs limitations and cannot claim findings")
+        for index, finding in enumerate(findings, 1):
+            if not isinstance(finding, dict) or any(not isinstance(finding.get(k), str) or not meaningful(finding[k]) for k in ("locator", "text")):
+                errors.append(f"{label}.finding[{index}]: needs locator and actual content")
+            elif finding.get("type") not in ("quote", "paraphrase", "visual"):
+                errors.append(f"{label}.finding[{index}]: type must be quote, paraphrase or visual")
+        evidence = row.get("evidence_refs", [])
+        if not isinstance(evidence, list):
+            errors.append(f"{label}: evidence_refs must be a list")
+            continue
+        for item in evidence:
+            try:
+                if not isinstance(item, dict) or not isinstance(item.get("path"), str) or not item["path"]:
+                    raise ValueError("evidence needs project-relative path")
+                safe(root, item["path"])
+                if not re.fullmatch(r"[0-9a-f]{64}", str(item.get("sha256", ""))):
+                    raise ValueError("evidence needs real sha256")
+            except ValueError as exc:
+                errors.append(f"{label}: {exc}")
+
+
+def inspect_source_reading(root, reg, cases, gate, errors, warnings):
+    sources = {s["id"]: s for s in reg.get("sources", [])}
+    records = {r["id"]: r for g in GROUPS if g not in ("sources", "interactions") for r in reg.get(g, [])}
+    records.update(cases)
+    policy = reg.get("project", {}).get("source_reading_policy")
+    if policy != READING_POLICY:
+        if policy is not None:
+            errors.append("Unknown project.source_reading_policy")
+        warnings.append("Legacy source reading: missing records are unrecorded, never inferred as read.")
+        if gate == "baseline":
+            errors.append("New baseline requires project.source_reading_policy=source-reading-v1 and relevant reading evidence.")
+    initial_errors = len(errors)
+    for source in sources.values():
+        validate_readings(root, source, errors)
+        if not source.get("readings"):
+            warnings.append(f"{source['id']}: no source reading record")
+    if len(errors) > initial_errors:
+        return
+    seeds = {rid for rid, r in {**cases, **{c['id']: c for c in reg.get('charters', [])}}.items() if r.get("status") == "ready"}
+    if gate == "baseline":
+        seeds.update(rid for key, values in reg.get("scope", {}).items() if key.startswith("selected_") and isinstance(values, list) for rid in values)
+    active = dependency_closure(records, seeds)
+    criteria = reg.get("project", {}).get("risk_criteria")
+    if isinstance(criteria, dict):
+        records["project.risk_criteria"] = criteria
+        if any(rid in active for rid in (r["id"] for r in reg.get("risks", []))):
+            active.add("project.risk_criteria")
+
+    def visit(obj, label, strict):
+        if isinstance(obj, list):
+            for index, item in enumerate(obj, 1):
+                visit(item, f"{label}[{index}]", strict)
+            return
+        if not isinstance(obj, dict):
+            return
+        needed = {sid for key in ("source_refs", "binding_refs", "reference_refs") for sid in ref_list(obj.get(key))}
+        if isinstance(obj.get("basis"), str) and obj["basis"] in sources:
+            needed.add(obj["basis"])
+        citations = obj.get("source_citations", [])
+        if not isinstance(citations, list):
+            errors.append(f"{label}: source_citations must be a list")
+            citations = []
+        supported = set()
+        for cite in citations:
+            if not isinstance(cite, dict):
+                errors.append(f"{label}: citation must be an object")
+                continue
+            sid, seq, index = cite.get("source_id"), cite.get("reading_seq"), cite.get("finding_index")
+            if not isinstance(sid, str) or sid not in sources or sid not in needed:
+                errors.append(f"{label}: citation must name an explicitly linked source")
+                continue
+            entry = reading_entry(sources[sid], seq) if type(seq) is int else None
+            if not entry or type(index) is not int or not 1 <= index <= len(entry.get("findings", [])):
+                errors.append(f"{label}: citation {sid} has unknown reading/finding")
+                continue
+            problems = reading_problems(root, sources[sid], entry)
+            if entry.get("depth") != "content":
+                problems.append("index-only reading does not provide content evidence")
+            if problems:
+                (errors if strict else warnings).append(f"{label}: citation {sid} reading {seq}: " + "; ".join(problems))
+            else:
+                supported.add(sid)
+        for sid in sorted(needed - supported):
+            (errors if strict else warnings).append(f"{label}: {sid} needs current source_citations to located reading findings")
+        for key, value in obj.items():
+            if key not in ("source_citations", "readings"):
+                visit(value, label + "." + key, strict)
+    for rid, record in records.items():
+        visit(record, rid, policy == READING_POLICY and rid in active)
+
+
+def record_reading(args, root):
+    reg, _ = load(root)
+    source = next((s for s in reg.get("sources", []) if s.get("id") == args.source), None)
+    if source is None:
+        fail("Source ID not found; register the source before recording a reading.")
+    incoming = json.loads(sys.stdin.read()) if args.input == "-" else read(safe(root, args.input))
+    allowed = {"source_sha256", "status", "depth", "purpose", "method", "read_scope", "unread_scope", "findings",
+               "limitations", "evidence_refs", "read_at", "reader", "supersedes", "change_reason"}
+    if not isinstance(incoming, dict) or set(incoming) - allowed:
+        fail("Reading input contains unsupported fields; seq and recorded_at are assigned by the tool.")
+    path = safe(root, source["path"])
+    actual_hash = file_hash(path) if path.is_file() else None
+    failed_missing = incoming.get("status") == "failed" and actual_hash is None and incoming.get("source_sha256") == source.get("sha256")
+    if not failed_missing and (actual_hash is None or incoming.get("source_sha256") != actual_hash):
+        fail("Reading source_sha256 must match the actual file; do not attach old extracts to a new file.")
+    rows = source.setdefault("readings", [])
+    if not isinstance(rows, list):
+        fail("Source readings must be a list")
+    errors = []
+    validate_readings(root, source, errors)
+    if errors:
+        fail("; ".join(errors))
+    incoming["seq"] = max((r["seq"] for r in rows), default=0) + 1
+    incoming["recorded_at"] = now()
+    incoming.setdefault("read_at", None)
+    evidence = incoming.setdefault("evidence_refs", [])
+    if not isinstance(evidence, list) or any(not isinstance(x, str) or not x for x in evidence):
+        fail("Input evidence_refs must be a list of project-relative file paths")
+    incoming["evidence_refs"] = []
+    for rel in evidence:
+        p = safe(root, rel)
+        if not p.is_file():
+            fail("Reading evidence file missing: " + rel)
+        incoming["evidence_refs"].append({"path": rel, "sha256": file_hash(p)})
+    rows.append(incoming)
+    validate_readings(root, source, errors)
+    if errors:
+        fail("; ".join(errors))
+    write(safe(root, "qa/registry.json"), reg)
+    print(json.dumps({"source_id": source["id"], "reading_seq": incoming["seq"],
+                      "note": "Recorded located content only; source adoption, product rules and approvals unchanged. Tool cannot prove reading or understanding."}, ensure_ascii=False))
+
+
+def show_source(args, root):
+    reg, _ = load(root)
+    if args.reading is not None and not args.id:
+        fail("--reading requires --id")
+    if args.id:
+        source = next((s for s in reg.get("sources", []) if s.get("id") == args.id), None)
+        if source is None:
+            fail("Source ID not found")
+        result = reading_entry(source, args.reading) if args.reading is not None else source
+        if result is None:
+            fail("Reading sequence not found")
+    else:
+        result = [{"id": s["id"], "path": s.get("path"), "kind": s.get("kind"), "adoption_status": s.get("status"),
+                   "reading": reading_state(root, s)} for s in reg.get("sources", [])]
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+
+
 def inspect(root, gate="draft"):
     reg, cases = load(root)
     errors, warnings = [], []
@@ -504,6 +811,7 @@ def inspect(root, gate="draft"):
                 out.append(maps[group][rid])
         return out
     inspect_interactions(reg, cases, errors, warnings)
+    inspect_source_reading(root, reg, cases, gate, errors, warnings)
     stale = set()
     for sid, source in maps["sources"].items():
         require(source, ["path", "sha256", "locator", "kind", "status"], sid)
@@ -815,7 +1123,8 @@ def init(args, root):
     for folder in ("cases", "decisions", "reviews", "review-packs", "approvals", "baselines", "runs", "evidence", "tools"):
         safe(root, "qa/" + folder).mkdir(parents=True, exist_ok=True)
     reg = {"schema_version": 1, "project": {"name": args.name or root.name, "owner": "unassigned",
-                                         "design_policy": DESIGN_POLICY, "risk_policy": RISK_POLICY},
+                                         "design_policy": DESIGN_POLICY, "risk_policy": RISK_POLICY,
+                                         "source_reading_policy": READING_POLICY},
            "scope": {"objective": "", "in": [], "out": [], "selected_ac_ids": [], "selected_risk_ids": [],
                      "selected_scenario_ids": [], "selected_case_ids": [], "decision_ref": None}}
     reg.update({group: [] for group in GROUPS})
@@ -870,7 +1179,7 @@ def inventory(root):
     result = {"at": now(), "files": rows, "added": sorted(set(current) - set(old)),
               "removed": sorted(set(old) - set(current)),
               "changed": sorted(k for k in set(old) & set(current) if old[k] != current[k]),
-              "note": "Inventory only, not source approval; private filenames, symlinks and generated directories skipped."}
+              "note": "Inventory only: files and hashes are not reading records or source approval; private filenames, symlinks and generated directories skipped."}
     write(old_path, result)
     print(json.dumps({k: v for k, v in result.items() if k != "files"}, ensure_ascii=False, indent=2))
 
@@ -938,6 +1247,16 @@ def render(root):
         fence = "`" * max(3, 1 + max((len(x) for x in re.findall(r"`+", payload)), default=0))
         interview += ["## " + row["id"] + " — " + state, "", fence + "json", payload, fence, ""]
     save_view("qa/interview.md", interview)
+    source_view = ["# 來源閱讀紀錄", "", "由 registry.sources 產生。閱讀狀態、來源採納與本輪用途分開；登錄或檔案指紋不證明已讀。", "",
+                   "閱讀紀錄序號與摘錄序號皆從 1 起算，僅在該來源／紀錄內定位；不是版本、優先度或核可。", ""]
+    for source in reg.get("sources", []):
+        state = reading_state(root, source)
+        source_view += ["## " + source["id"], "", "閱讀：" + state["label"] + "；採納：" + str(source.get("status")) +
+                        "；用途：" + str(source.get("kind")), ""]
+        payload = json.dumps({"reading_state": state, "readings": source.get("readings", [])}, ensure_ascii=False, indent=2)
+        fence = "`" * max(3, 1 + max((len(x) for x in re.findall(r"`+", payload)), default=0))
+        source_view += [fence + "json", payload, fence, ""]
+    save_view("qa/source-reading.md", source_view)
     trace = ["# 已選範圍追溯", "", "案例連結不代表已執行或已通過。", "", "| 已選項目 | 案例 | 狀態 |", "|---|---|---|"]
     for sk, ck in (("selected_ac_ids", "ac_ids"), ("selected_risk_ids", "risk_ids"), ("selected_scenario_ids", "scenario_ids")):
         for rid in reg["scope"].get(sk, []):
@@ -1021,7 +1340,7 @@ def render_html(root, reg, cases):
         "description": "情境描述", "category": "類型", "selection": "選取結果", "reason": "理由",
         "tolerance": "容差", "supersedes": "替代舊項目", "merged_into": "合併目標",
         "coverage_ids": "覆蓋項目", "technique": "測試設計方法", "origin": "候選情境產生方式",
-        "applies_when": "判準適用條件", "limitations": "判準限制", "relation": "已確認的比較關係",
+        "applies_when": "判準適用條件", "limitations": "限制與尚未核對事項", "relation": "已確認的比較關係",
         "reference_refs": "比較參考資料（不是自動採納的正確答案）", "mission": "探索目的",
         "timebox_minutes": "探索時間上限（分鐘）", "actions": "探索操作與觀察", "scope": "範圍",
         "stop_conditions": "停止條件", "question_ids": "待釐清問題",
@@ -1032,6 +1351,10 @@ def render_html(root, reg, cases):
         "asked_at": "實際提問時間", "answered_at": "實際回答時間", "answered_by": "回答者",
         "recorded_at": "問答登錄時間", "answer_recorded_at": "回答登錄時間", "related_ids": "相關項目（不代表已採納）",
         "interaction_refs": "原始問答依據", "change_reason": "更正原因",
+        "source_citations": "具體來源摘錄", "read_scope": "實際已讀範圍", "unread_scope": "未讀範圍",
+        "method": "讀取方式", "read_at": "實際讀取時間（未知留空）", "reader": "讀取者",
+        "depth": "閱讀深度（index＝目錄／索引；content＝正文／圖表）",
+        "source_sha256": "讀取版本指紋", "evidence_refs": "閱讀產物與指紋", "finding_index": "摘錄序號",
         "severity": "危害嚴重度", "severity_rationale": "嚴重度依據",
         "likelihood_rationale": "可能性依據", "disposition": "取捨", "disposition_reason": "取捨理由",
     }
@@ -1098,12 +1421,30 @@ def render_html(root, reg, cases):
             url += "#" + quote(fragment, safe="")
         return '<a href="' + e(url) + '">' + e(raw) + '</a>'
 
+    def citation_anchor(cite):
+        return "reading-" + str(cite.get("source_id")).encode("utf-8").hex() + "-" + str(cite.get("reading_seq")) + "-" + str(cite.get("finding_index"))
+
+    def citation_link(cite):
+        sid, seq, index = cite.get("source_id"), cite.get("reading_seq"), cite.get("finding_index")
+        src = maps["sources"].get(sid, {}) if isinstance(sid, str) else {}
+        entry = reading_entry(src, seq) if type(seq) is int else None
+        text = f"{sid} · 閱讀紀錄 {seq}／摘錄 {index}"
+        if not entry or type(index) is not int or not 1 <= index <= len(entry.get("findings", [])):
+            return '<span class="gap">' + e(text) + '（未登錄）</span>'
+        problems = reading_problems(root, src, entry)
+        if entry.get("depth") != "content":
+            problems.append("index-only reading")
+        return '<a href="#' + e(citation_anchor(cite)) + '">' + e(text) + '</a>' + (
+            '<span class="gap">（已過期／需核對）</span>' if problems else '')
+
     def value(v, key=""):
         if v is None or v == "":
             return '<span class="muted">尚未提供</span>'
         if isinstance(v, list):
             return '<ul>' + ''.join('<li>' + value(x, key) + '</li>' for x in v) + '</ul>' if v else '無列項'
         if isinstance(v, dict):
+            if key == "source_citations":
+                return citation_link(v)
             return '<dl>' + ''.join('<dt>' + e(labels.get(k, k)) + '</dt><dd>' + value(x, k) + '</dd>'
                                    for k, x in v.items()) + '</dl>' if v else '尚未提供'
         if key in ref_groups:
@@ -1212,6 +1553,17 @@ def render_html(root, reg, cases):
     def source_links(cid):
         return '、'.join(link("sources", sid) for sid in sorted({r[0] for r in routes[cid]})) or '未連結來源文件'
 
+    flat_records = {rid: row for group, records in maps.items() if group not in ("sources", "interactions") for rid, row in records.items()}
+    case_citations, citation_cases = {}, {}
+    for cid in cases:
+        cites = {}
+        for rid in dependency_closure(flat_records, [cid]):
+            for cite in source_citations(flat_records.get(rid, {})):
+                key = json.dumps(cite, sort_keys=True, ensure_ascii=False)
+                cites[key] = cite
+                citation_cases.setdefault(citation_anchor(cite), set()).add(cid)
+        case_citations[cid] = [cites[key] for key in sorted(cites)]
+
     health = {}
     for sid, src in maps["sources"].items():
         try:
@@ -1275,18 +1627,36 @@ def render_html(root, reg, cases):
         terms = terms_for(prefix)
         out.append('<tr>' + ''.join('<td>' + e(x) + '</td>' for x in (prefix, *terms)) + '</tr>')
     out += ['</tbody></table></details></section>', '<section id="sources"><h2>來源清單</h2>',
-            '<p>normative＝規格依據；harness＝操作／觀測指南；observation＝現況觀察；experience＝經驗線索（不提供 Expected）。指紋相符僅表示檔案未改變，不代表內容已確認。</p>',
-            '<div class="scroll"><table><thead><tr><th>來源編號</th><th>名稱／檔案</th><th>類型／版本／狀態</th><th>引用案例</th></tr></thead><tbody>']
+            '<p>normative＝規格依據；harness＝操作／觀測指南；observation＝現況觀察；experience＝經驗線索（不提供 Expected）。confirmed 是來源採納狀態。指紋相符僅表示檔案未改變，不代表已閱讀、理解或核可。</p>',
+            '<p>閱讀狀態依登錄紀錄呈現；已讀指定範圍不代表全文已讀。閱讀紀錄序號與摘錄序號從 1 起算，僅用於該來源／紀錄內定位。</p>',
+            '<div class="scroll"><table><thead><tr><th>來源編號</th><th>名稱／檔案</th><th>用途／版本／採納</th><th>閱讀狀態與已讀範圍</th><th>未讀部分／限制</th><th>引用案例</th></tr></thead><tbody>']
     for sid, src in maps["sources"].items():
+        state = reading_state(root, src)
         out.append('<tr><td>' + link("sources", sid) + '</td><td>' + e(src.get("title") or src.get("path", "尚未提供")) +
                    '</td><td>' + e(' / '.join(str(src.get(k) or '未提供') for k in ("kind", "version", "status"))) +
+                   '</td><td>' + e(state["label"]) + value(state["read_scope"]) +
+                   '</td><td>' + value(state["unread_scope"] + state["limitations"]) +
                    '</td><td>' + case_links("sources", sid) + '</td></tr>')
     out += ['</tbody></table></div>' if maps["sources"] else '</tbody></table></div><p>尚未登錄來源。</p>']
     for sid, src in maps["sources"].items():
         out += ['<article class="record" id="' + anchor("sources", sid) + '" data-record-id="' + e(sid) + '"><h3>' + e(sid) + ' · ' + e(src.get("title") or src.get("path", "來源")) + '</h3>',
-                value({k: v for k, v in src.items() if k not in ("id", "title")}),
+                value({k: v for k, v in src.items() if k not in ("id", "title", "readings")}),
                 '<p class="notice">檔案檢查：' + e(health[sid][0]) + '</p>',
-                '<h4>反查引用案例</h4><p>' + case_links("sources", sid) + '</p>' + related_links("sources", sid) + '<p class="back"><a href="#sources">返回來源清單</a></p></article>']
+                '<p class="badge">閱讀：' + e(reading_state(root, src)["label"]) + '</p>']
+        for entry in src.get("readings", []):
+            problems = reading_problems(root, src, entry)
+            out += ['<details open><summary>閱讀紀錄 ' + e(entry.get("seq")) + ' · ' + e(entry.get("status")) + '</summary>',
+                    value({k: v for k, v in entry.items() if k not in ("seq", "findings", "recorded_at", "supersedes")}),
+                    '<p>登錄時間：' + e(entry.get("recorded_at")) + '；更正前紀錄序號：' + e(entry.get("supersedes") or '無') + '</p>']
+            if problems:
+                out.append('<p class="gap">' + e('；'.join(problems)) + '</p>')
+            for index, finding in enumerate(entry.get("findings", []), 1):
+                cite = {"source_id": sid, "reading_seq": entry["seq"], "finding_index": index}
+                aid = citation_anchor(cite)
+                out += ['<div id="' + e(aid) + '"><h4>摘錄 ' + str(index) + ' · ' + e(finding.get("locator")) + '</h4>',
+                        value(finding), '<p>引用此摘錄的案例：' + ('、'.join(link("cases", c) for c in sorted(citation_cases.get(aid, set()))) or '無') + '</p></div>']
+            out.append('</details>')
+        out += ['<h4>反查引用案例</h4><p>' + case_links("sources", sid) + '</p>' + related_links("sources", sid) + '<p class="back"><a href="#sources">返回來源清單</a></p></article>']
     selected = set(reg.get("scope", {}).get("selected_case_ids", []))
     out += ['</section><section id="cases"><h2>測試案例清單</h2><p>draft＝草稿；blocked＝有阻塞；ready＝設計就緒；retired＝停用。人工執行的完整步驟列在各案例內。</p>',
             '<div class="scroll"><table><thead><tr><th>案例編號</th><th>標題</th><th>狀態／本輪範圍</th><th>參考來源</th></tr></thead><tbody>']
@@ -1317,6 +1687,8 @@ def render_html(root, reg, cases):
         paired = sorted(rid for rid in maps["interactions"] if cid in backlinks.get(("interactions", rid), set()))
         if paired:
             out.append('<h4>相關問答（含歷史；連結不表示已採納）</h4><p>' + '、'.join(link("interactions", rid) for rid in paired) + '</p>')
+        out.append('<h4>案例引用的具體來源內容</h4><p>' + ('、'.join(citation_link(c) for c in case_citations[cid]) or
+                   '尚未登錄具體摘錄引用；來源連結本身不證明已讀相關內容。') + '</p>')
         if gaps[cid]:
             out.append('<p class="gap">引用缺口：' + '、'.join(link(g, r) for g, r in sorted(gaps[cid])) + '</p>')
         out += ['<p class="back"><a href="#cases">返回案例清單</a> · <a href="#sources">查看全部來源</a></p></article>']
@@ -1380,7 +1752,7 @@ def render_html(root, reg, cases):
         if p.is_file():
             out += ['<details class="record"><summary>' + label + '</summary><pre class="document">' + e(p.read_text(encoding="utf-8")) + '</pre></details>']
     out += ['<p>原有文件仍保留：' + ' · '.join(file_link("qa/" + f) for f in
-            ("spec.md", "interview.md", "risks.md", "test-design.md", "test-cases.md", "traceability.md", "id-glossary.md", "registry.json")) + '</p></section>',
+            ("spec.md", "source-reading.md", "interview.md", "risks.md", "test-design.md", "test-cases.md", "traceability.md", "id-glossary.md", "registry.json")) + '</p></section>',
             '<footer>本頁由專案記錄產生，請修改原始記錄後重新 render，不直接編輯本頁。可離線閱讀；以瀏覽器尋找功能搜尋編號或文字。來源原檔連結需保留專案相對目錄；僅分享此 HTML 仍可使用頁內雙向連結。<a href="#top">回到頂端</a></footer></main></body></html>']
     safe(root, "qa/report.html").write_text(''.join(out), encoding="utf-8")
 
@@ -1397,7 +1769,9 @@ def checkpoint(args, root):
     paths = [".qa-project.json", "qa"] + args.include
     # Registered source/evidence paths are explicit project inputs, not a blanket git add.
     paths += [s["path"] for s in reg.get("sources", []) if s.get("path")]
-    paths += list(artifacts(root)["decision_evidence_hashes"])
+    snapshot = artifacts(root)
+    paths += list(snapshot["decision_evidence_hashes"])
+    paths += list(snapshot.get("source_reading_evidence_hashes", {}))
     if read(safe(root, ".qa-project.json")).get("created_gitignore"):
         paths.append(".gitignore")
     names = set()
@@ -1489,6 +1863,7 @@ def review_pack(args, root):
               "comparison_reference_ids": sorted(comparison_ids),
               "risk_evidence_source_ids": sorted(risk_evidence_ids),
               "interview_evidence_ids": sorted(interview_ids),
+              "source_reading_summary": [{"source_id": s["id"], **reading_state(root, s)} for s in filtered["registry"]["sources"]],
               "instruction": "Reload confirmed rules, decisions, bindings, risk assessments and coverage items. Experience sources suggest scenarios only. Risk evidence supports assessment, not product Expected. Comparison artifacts support only the explicitly confirmed relation; observed behavior is not automatically correct."}
     write(pack / "packet.json", packet, exclusive=True)
     (pack / "PROMPT.md").write_text(
@@ -1496,6 +1871,8 @@ def review_pack(args, root):
         "沿用原專案與版本，不執行 init、不重問規格概況／版控、不重設釐清額度；四輪是檢查種類，不是四輪訪談。\n"
         "只新增本次審查紀錄，不改來源、registry、案例、scope、session 或舊審查；產品決策缺口交回 genai-test-strategy。\n"
         "artifact_digest 綁完整設計；review_input 可能過濾來源，不得用其子集重新計算並替換 digest。核對原始來源 hash 與目標版本。\n"
+        "檢查 source_citations 指向的 readings 序號與摘錄序號，回到原文件核對上下文、圖表、適用版本與限制；讀取紀錄及檔案指紋不能單獨證明已讀或理解。\n"
+        "來源未讀、只看目錄／抽樣、摘錄不支持判準、引用已被更正或版本改動時列具體 Finding；審查只新增發現，不補寫設計端的閱讀紀錄。\n"
         "分四輪：traceability、executable、coverage、consistency。逐輪列 Finding：ID、case_ids、rule_refs、issue、evidence、proposal。\n"
         "覆蓋輪同時檢查已選 AC／風險／情境與保留 COV：分區、邊界、組合、初態及轉移是否完整；案例的輸入與斷言是否真的承接。暫緩項目查決策與剩餘風險。\n"
         "以 interview_evidence_ids 的原始提問、選項及回答核對決策是否保留限制；AI interpretation 不是原話，摘要／缺失原文與已被更正的答案須標示限制。問答存在不等於規則核可。\n"
@@ -1607,13 +1984,19 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--version", action="version", version=VERSION)
     sub = parser.add_subparsers(dest="cmd", required=True)
-    for name in ("init", "inventory", "check", "render", "digest", "checkpoint", "review-pack", "baseline", "start-run", "check-run", "record-qa", "show-qa"):
+    for name in ("init", "inventory", "check", "render", "digest", "checkpoint", "review-pack", "baseline", "start-run", "check-run", "record-qa", "show-qa", "record-reading", "show-source"):
         p = sub.add_parser(name)
         p.add_argument("root", help="Accessible local project root (quote paths containing spaces)")
         if name == "record-qa":
             p.add_argument("--input", required=True, help="Project-relative JSON file, or - for standard input")
         if name == "show-qa":
             p.add_argument("--id", help="Read one original pair; omit for a compact index")
+        if name == "record-reading":
+            p.add_argument("--source", required=True, help="Existing SRC ID")
+            p.add_argument("--input", required=True, help="Project-relative JSON file, or - for standard input")
+        if name == "show-source":
+            p.add_argument("--id", help="Read one source; omit for a compact reading index")
+            p.add_argument("--reading", type=int, help="Read one append-only reading sequence for --id")
         if name == "init":
             p.add_argument("--name")
             p.add_argument("--standalone", action="store_true")
@@ -1637,6 +2020,8 @@ def main():
         if args.cmd == "init": init(args, root)
         elif args.cmd == "record-qa": record_qa(args, root)
         elif args.cmd == "show-qa": show_qa(args, root)
+        elif args.cmd == "record-reading": record_reading(args, root)
+        elif args.cmd == "show-source": show_source(args, root)
         elif args.cmd == "inventory": inventory(root)
         elif args.cmd == "render": render(root)
         elif args.cmd == "digest": print(snapshot_digest(root))

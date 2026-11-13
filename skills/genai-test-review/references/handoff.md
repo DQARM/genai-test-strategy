@@ -25,6 +25,8 @@
 
 packet 的 artifact_digest 綁原始完整設計；review_input 可能過濾來源種類，不能對過濾後資料另算 digest 冒充原設計版本。pack 不是完整來源備份，原始文件與決策證據通常仍在專案；跨環境須一併提供對應版本的必要檔案。
 
+工具 1.7.0 的包另有 `source_reading_summary`，保留相關來源的 `readings` 與引用物件的 `source_citations`。先按來源／閱讀序號選取所需證據，必要時用 `show-source`，再回到原檔核對內容與上下文。摘要、目錄或「已讀」標記不能代替正文；額外閱讀證據檔也須核對 hash。閱讀紀錄／引用更正及證據內容變化影響完整設計 digest。審查端不執行 record-reading，也不修改既有引用；缺口寫 Finding 交回設計端。
+
 既有專案可唯讀執行（路徑含空白時加引號，Windows 可用 py -3）：
 
 ```bash
