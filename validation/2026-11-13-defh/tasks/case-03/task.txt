@@ -1,0 +1,1 @@
+請使用 /home/agent/.codex/skills/remote-skills/skill-6af1747b432881919448466eb247e9c9/SKILL.md，讀 /workspace/scratch/258261bef5fc/defh-run-01/tasks/case-03/requirements.md。這些產品規則已由我確認；目前沒有其他操作文件。請先產出人工 Test Case 草稿，不再問需求，不建立檔案。

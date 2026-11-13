@@ -14,7 +14,7 @@
 
 ID＝Identifier（識別碼）。向人展示編號時，依 identifiers.md 提供英文來源、中文意思、用途與後綴說明；JSON 的 id／參照欄位仍只放原 ID。
 
-人工決策共同欄位：`{"by":"實際決策人或使用者","at":"2026-11-09T15:00:00+08:00","evidence_ref":"qa/decisions/DEC-001.md"}`。evidence_ref 須存在並記錄實際回答或正式文件的確認依據。by 不得假填人名；沒有真實核可保持 pending，不執行 baseline。這是稽核記錄，並非身分驗證或電子簽章。
+人工決策共同欄位：`{"by":"實際決策人或使用者","at":"2026-11-09T15:00:00+08:00","evidence_ref":"qa/decisions/DEC-001.md"}`。evidence_ref 須存在並記錄實際回答或正式文件的確認依據。by 不得假填人名；沒有真實核可保持 pending，不執行 baseline。這是稽核記錄，並非身分驗證或電子簽章。歷史時間未知時先在 interactions 保存原話及未知時間，規則保留 proposed 與待補項；不要為通過檢查新增缺資料的 DEC、偽填 confirmed 或把登錄時間當原決策時間。既有不完整紀錄保留並揭露檢查限制。
 
 ## Registry
 
@@ -129,3 +129,7 @@ Finding 欄位：id、round、case_ids、rule_refs、issue、evidence、proposal
 狀態為 NOT_RUN／PASS／FAIL／BLOCKED／INCONCLUSIVE。只完成準備或沒有判準就不標 PASS。run PASS 必須所有步驟有證據且為 PASS；FAIL 要有失敗步驟；未測步驟保留 NOT_RUN。重新跑建立新 RUN ID，不覆寫前次 Actual。
 
 工具不會替你執行 SUT。使用 check-run 檢查紀錄完整性，再人工檢查證據與結論是否相符。不可修改 case_snapshot 或 registry_snapshot 來讓舊結果符合新規格。
+
+## 分析附表與相容性
+
+品質適用性表放 strategy.md，實測回顧／可選度量放 plan.md；沿用原設計 digest，不另設必填 registry 欄位。假想缺陷檢查寫在審查報告及既有 finding.evidence／proposal，無法評估寫 limitations；它不是產品執行結果。工具 1.9.1 更新可攜審查準則，schema 1 及既有資料檢查規則不變。舊包保留，新準則需升級專案工具後建立新包；不回寫歷史包。

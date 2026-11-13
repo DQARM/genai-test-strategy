@@ -32,7 +32,7 @@ description: 審查已存在的測試案例與測試設計。使用者要求檢�
 
 1. 規格追溯（traceability）：每個預期有已確認依據、適用條件與版本；不只看引用存在。依 source_citations 回到 readings 的指定定位，再實際核對原文／圖表及上下文；只讀目錄、摘錄誤解或未涵蓋相關範圍都列發現。來源已登錄、confirmed 或 scoped 均不能代替這項核對。
 2. 可執行且可判定（executable）：前置、資料、操作、觀測、時機、證據與重置可落實；支援手動及實機步驟，不強制自動化。
-3. 已選範圍覆蓋（coverage）：方法與覆蓋項目合理，保留項目由案例資料及斷言承接；同時檢查已選驗收條件、風險與情境，以及本輪需求的風險評估、直接關聯與未選取捨。
+3. 已選範圍覆蓋（coverage）：依 criteria.md 對保留項目檢視合理假想錯誤能否被具體斷言辨識，記反例或無法評估理由；方法與覆蓋項目合理，保留項目由案例資料及斷言承接；同時檢查已選驗收條件、風險與情境，以及本輪需求的風險評估、直接關聯與未選取捨。
 4. 一致性（consistency）：重複、矛盾、過期、單位與判準不一致、案例間依賴或初態污染。
 
 設計端若有規格問題單，以 registry.questions 為主資料核對其對本輪 Expected／操作的影響；匯出問題不等於已回答。跨領域風險允許明列非需求來源，依 criteria.md 查證據，不要求創造假需求。風險對應的方法／深度須能發現該失效，不套固定等級表。執行選取建議與排程標籤不是設計範圍，不能用較短清單縮小本次審查分母。
@@ -59,3 +59,5 @@ description: 審查已存在的測試案例與測試設計。使用者要求檢�
 優先沿用專案的 `project.id_glossary`／`qa/id-glossary.md`。每則回覆、每份獨立報告第一次使用前綴時說明英文來源、中文及用途，或附簡短圖例；後綴意義也要說明。ID＝Identifier（識別碼）。REV 取自 Review（審查紀錄），F 取自 Finding（審查發現），TC＝Test Case（測試案例），AC＝Acceptance Criterion（驗收條件），REQ 取自 Requirement（需求），SRC 取自 Source（資料來源），COV 取自 Coverage（覆蓋項目），DEC 取自 Decision（決策），Q 取自 Question（待釐清問題），QA＝Question and Answer（問答紀錄），EXP 取自 Exploration（探索任務），RISK 是 Risk（風險）這個單字，不另捏造縮寫。數字是本類流水號，不代表優先度、版本或通過。其他或意義不明的既有前綴不可猜，保留原編號並標未知。
 
 只用專案已有工具和版控選擇，不維護另一份工具、ID 字典或產品資料庫。審查只需讀取及記錄；不要執行會改動設計的 init、inventory、record-qa、record-reading、render、baseline 或 start-run。可用 `show-source` 選取閱讀記錄，仍須核對原文；`digest`／`check` 只協助驗證結構與版本，不能取代語意審查。保存本次紀錄時依 handoff.md 的明確檔案範圍操作；不自動改 remote、分支或登入服務。
+
+審查者校準屬選用維護工作，按 [calibration.md](references/calibration.md) 以隔離資料及分離答案進行；不改正式包，不把校準成績當產品驗證。

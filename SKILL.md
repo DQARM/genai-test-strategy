@@ -9,10 +9,10 @@ description: 協助使用者從需求草稿或口頭規則釐清需求、補可�
 
 ## 先選工作入口
 
-- 新任務：先讀 [workflow.md 的初始輸入](references/workflow.md#初始輸入與資料權威)。規格概況未知時，第一則只問「你目前有沒有已知規格或需求草稿？」；接著依流程補專案資料夾、版控選擇及來源位置。
+- 新任務：先讀 [workflow.md 的初始輸入](references/workflow.md#初始輸入與資料權威)。規格概況未知時，第一則只問「你目前有沒有已知規格或需求草稿？」；接著取得本輪資料與背景；資料夾與版控在需要保存時補齊。
 - 續作或接回修正：先讀適用專案指引、精簡 session、Git 狀態與版本，再按 [續作規則](references/workflow.md#版本進度與變更) 接續。保留編號、焦點、已問題數及續問／先產出選擇。
 - 只要求檢查既有案例：交由 `genai-test-review`，提供實際可讀的資料或已驗證交接包。審查端只新增審查紀錄；缺少該 Skill 時仍可用包內準則交接。
-- 只做對話草稿：直接處理可做的分析，明確標示尚未寫入檔案。正式案例基線與產品執行均依任務按需處理。
+- 依任務選入口：只要討論／草稿時在對話產出；指定資料夾、保存、報告或續作時沿用專案記錄。未說明保存需求可先分析並明說未落檔，不加一輪模式問卷。轉成專案時保留原話、來源、編號與進度；審查、核可按需接續，實測紀錄依是否真的執行決定。兩種入口共用判準及完整案例要求。
 
 ## 核心界線
 
@@ -35,6 +35,7 @@ description: 協助使用者從需求草稿或口頭規則釐清需求、補可�
 | 讀取本專案資料 | [source-reading.md](references/source-reading.md)：實際讀取，再用 record-reading 保存；引用具體 source_citations |
 | 有草稿、需找缺口或轉交 PM／工程 | [spec-review.md](references/spec-review.md)：批次分析並匯出問題單，再挑必要決策；分析不算已訪談 |
 | 記錄原始問答與更正 | [interview-records.md](references/interview-records.md)：提問先記 pending，回答立即保存，AI 解讀另列 |
+| 檢視品質特性及系統風險 | [quality-characteristics.md](references/quality-characteristics.md)：AI 篩選適用性；設備／通訊另看符合性、互通、強健、長時及時序，缺門檻列問題 |
 | 評估哪些失敗最值得測 | [risk-assessment.md](references/risk-assessment.md)：每筆需求評估狀態、直接風險關聯及非需求風險；[failure-modes.md](references/failure-modes.md)：依適用失效機制補分析 |
 | 決定測試方法與深度 | [test-design.md](references/test-design.md)：方法 → COV（Coverage，覆蓋項目）→ 資料、初態與斷言；保留取捨、成本及未測部分 |
 | 重用判準或先探索 | [oracles-exploration.md](references/oracles-exploration.md)：已確認判準依適用條件重用；探索觀察與驗收結果分開 |
@@ -45,6 +46,7 @@ description: 協助使用者從需求草稿或口頭規則釐清需求、補可�
 | 使用 Git server | 僅所選模式需要時讀 [git-server.md](references/git-server.md)，協助登入與同步並讀回結果 |
 | 交接、接回審查或建立基線 | [review.md](references/review.md)：prepare-review、核對實際 HANDOFF、修正及新版本重審 |
 | 安排手動執行或回歸 | [execution-selection.md](references/execution-selection.md)：選填排程、選取理由、版本與剩餘風險；執行依 [workflow.md](references/workflow.md#執行與放行) |
+| 接回實測缺陷或檢視成效 | [feedback.md](references/feedback.md)：以實際證據更新經驗與風險；按需記少量度量 |
 | 調整領域或需要具體示例 | 按需讀 [domain-adaptation.md](references/domain-adaptation.md) 或 [worked-example.md](references/worked-example.md)，範例不帶入新專案 |
 | 舊工具、舊預算或資料相容性 | 只在遇到舊專案時讀 [migration.md](references/migration.md)；版本沿革見 [CHANGELOG.md](CHANGELOG.md) |
 | 使用者需要教學 | [README.md](README.md) |

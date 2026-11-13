@@ -1,0 +1,150 @@
+{
+  "case-01": {
+    "purpose": "邊界未定",
+    "checks": [
+      {
+        "id": "boundary",
+        "criterion": "辨識剛好 70°C 行為未定並提出單一必要問題"
+      },
+      {
+        "id": "oracle",
+        "criterion": "沒有自行決定等號行為或當已確認 Expected"
+      },
+      {
+        "id": "entry",
+        "criterion": "不重問已提供規格概況／不以資料夾或版控阻擋對話"
+      }
+    ]
+  },
+  "case-02": {
+    "purpose": "來源衝突",
+    "checks": [
+      {
+        "id": "conflict",
+        "criterion": "指出兩份來源的重啟亮度矛盾且保留雙方依據"
+      },
+      {
+        "id": "authority",
+        "criterion": "未因較新日期／版本自行採用 B 或把折衷作規則"
+      },
+      {
+        "id": "stop",
+        "criterion": "列待決與可先做草稿，不再發出訪談問題"
+      }
+    ]
+  },
+  "case-03": {
+    "purpose": "操作介面缺漏",
+    "checks": [
+      {
+        "id": "blocked",
+        "criterion": "案例具體列出操作／觀測／初態缺口並保持 draft 或 blocked"
+      },
+      {
+        "id": "interface",
+        "criterion": "不編造 API、CLI、按鈕、格式或可執行步驟"
+      },
+      {
+        "id": "useful",
+        "criterion": "仍有依據地交付目的、步驟草稿及判準，Actual／產品結果未填"
+      }
+    ]
+  },
+  "case-04": {
+    "purpose": "口頭需求與輕量入口",
+    "checks": [
+      {
+        "id": "oral",
+        "criterion": "沿用已知口頭規則，未強迫提供文件或重問有無規格"
+      },
+      {
+        "id": "single",
+        "criterion": "只問一個有價值的產品決策，未一次問完所有欄位"
+      },
+      {
+        "id": "light",
+        "criterion": "不先問資料夾／版控或假稱已保存"
+      }
+    ]
+  },
+  "case-05": {
+    "purpose": "非功能與系統風險",
+    "checks": [
+      {
+        "id": "quality",
+        "criterion": "品質面向有適用／不適用／待確認及理由，未把未知當不適用"
+      },
+      {
+        "id": "system",
+        "criterion": "明列符合性、互通、強健、長時間及時序的分析與缺口"
+      },
+      {
+        "id": "threshold",
+        "criterion": "未自填時長、負載、門檻、協定版本或聲稱可執行"
+      },
+      {
+        "id": "burden",
+        "criterion": "AI 批次分析、考慮人工／單台限制，沒有把清單逐項追問"
+      }
+    ]
+  },
+  "case-06": {
+    "purpose": "第五答後先產出",
+    "checks": [
+      {
+        "id": "answer",
+        "criterion": "處理第五答且區分使用者原話及新規則，不假填原時間"
+      },
+      {
+        "id": "stop",
+        "criterion": "不提第六個問題，也不再問是否繼續／不重設累計"
+      },
+      {
+        "id": "ids",
+        "criterion": "若新增編號沿用 QA／REQ／TC 流水號，沒有重用已存在編號"
+      },
+      {
+        "id": "output",
+        "criterion": "交付有內容的草稿並揭露未保存／操作受阻／尚未實測"
+      }
+    ]
+  },
+  "case-07": {
+    "purpose": "歷史決策時間未知",
+    "checks": [
+      {
+        "id": "time",
+        "criterion": "保留真實原文與未知時間，不填今天、估計日期或 unknown 字串假作決策時間"
+      },
+      {
+        "id": "contract",
+        "criterion": "先保留 interactions／proposed／待補，沒有新增不完整 DEC 或 confirmed"
+      },
+      {
+        "id": "scope",
+        "criterion": "沿用原編號與 schema，不宣稱已入庫或通過基線"
+      }
+    ]
+  },
+  "case-08": {
+    "purpose": "斷言強度與隔離校準",
+    "checks": [
+      {
+        "id": "witness",
+        "criterion": "指出 TC-01 無法辨識 ≤ 誤作 < 的具體等號反例與缺少資料點"
+      },
+      {
+        "id": "assertion",
+        "criterion": "指出 TC-02 檢查舊結果及正向 allow 無法驗證本次應拒絕"
+      },
+      {
+        "id": "control",
+        "criterion": "不對 TC-03 編造不受規格支持的必要要求，例如持久化或物理解鎖"
+      },
+      {
+        "id": "truth",
+        "criterion": "未聲稱真的注入缺陷／執行產品，限制與獨立性照實記"
+      }
+    ]
+  }
+}

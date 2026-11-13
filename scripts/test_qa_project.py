@@ -1292,7 +1292,10 @@ class WorkflowTests(unittest.TestCase):
         manifest = get(moved / "manifest.json")
         for row in manifest["inputs"]:
             self.assertEqual(sha(moved / row["bundle_path"]), row["expected_sha256"])
-        self.assertIn("規格追溯", (moved / "REVIEW_GUIDE.md").read_text(encoding="utf-8"))
+        guide = (moved / "REVIEW_GUIDE.md").read_text(encoding="utf-8")
+        self.assertIn("規格追溯", guide)
+        for required in ("假想缺陷與斷言辨識力", "具體斷言", "無法評估", "隔離副本", "誤報"):
+            self.assertIn(required, guide)
 
     def test_portable_manifest_and_copied_sources_are_verified(self):
         self.fixture()

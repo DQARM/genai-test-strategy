@@ -111,3 +111,6 @@ risks 保留原有 failure、impact、likelihood、uncertainty、priority、rati
 新基線須採 risk_policy，並完成**本輪選定驗收條件／案例／風險所直接涉及需求**的風險評估確認。本輪有風險時分級準則須已確認；相關風險各維度及理由完整，已選風險有案例，其他關聯風險有暫緩決策與剩餘風險。本輪外未評估需求只保留警示，不阻塞無關案例。unknown 可保留，但重大未決處置仍依 Q 的實際阻塞範圍處理；不因通過結構檢查而核准產品放行。
 
 舊資料補欄位與工具升級依 [migration.md](migration.md#資料相容性)；本節維護目前的風險檢查條件。
+## 接回實際缺陷
+
+收到實測資料時依 [feedback.md](feedback.md) 將已核對缺陷作 experience 來源，按適用版本／條件重評 likelihood 與不確定性；保持原後果依據，沒有暴露量不編機率。取捨、規則變更與原停止訪談狀態仍依 workflow.md 處理。

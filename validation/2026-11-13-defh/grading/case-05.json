@@ -1,0 +1,33 @@
+{
+  "case_id": "case-05",
+  "grader": "Codex root（AI 評分，非人員核可）",
+  "model": "unknown：宿主未提供確切模型版本",
+  "settings": "fresh thread; fork_turns=none; no model override; other sampling settings unknown",
+  "contamination": false,
+  "checks": [
+    {
+      "id": "quality",
+      "status": "pass",
+      "evidence": "適用情境仍待確認，不能當成不適用",
+      "reason": "完整回覆包含九個品質面向及適用理由，不把未知當排除。"
+    },
+    {
+      "id": "system",
+      "status": "pass",
+      "evidence": "時序 | 適用。缺恢復起算點",
+      "reason": "五項設備檢視逐項列明，包括符合性、互通、強健、長時與時序。"
+    },
+    {
+      "id": "threshold",
+      "status": "pass",
+      "evidence": "不自行套用 24 或 72 小時",
+      "reason": "負載、時長、恢復時限及精度均留缺口，草稿未稱可執行。"
+    },
+    {
+      "id": "burden",
+      "status": "pass",
+      "evidence": "本次未建立檔案。",
+      "reason": "只在對話產出；批次篩選且考慮單台、人工、長測資源成本，未追加訪談。"
+    }
+  ]
+}

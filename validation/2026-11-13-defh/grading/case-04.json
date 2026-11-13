@@ -1,0 +1,27 @@
+{
+  "case_id": "case-04",
+  "grader": "Codex root（AI 評分，非人員核可）",
+  "model": "unknown：宿主未提供確切模型版本",
+  "settings": "fresh thread; fork_turns=none; no model override; other sampling settings unknown",
+  "contamination": false,
+  "checks": [
+    {
+      "id": "oral",
+      "status": "pass",
+      "evidence": "已確認：同一間會議室不能有重疊時段。",
+      "reason": "直接沿用使用者口頭規則，沒有再問規格有無。"
+    },
+    {
+      "id": "single",
+      "status": "pass",
+      "evidence": "另一筆 11:00–12:00 的預約可以成立嗎？",
+      "reason": "單一時間邊界決策，未夾帶其他產品問題。"
+    },
+    {
+      "id": "light",
+      "status": "pass",
+      "evidence": "本輪只在對話釐清，未建檔。",
+      "reason": "沒有行政設定阻擋或保存成功假聲明。"
+    }
+  ]
+}

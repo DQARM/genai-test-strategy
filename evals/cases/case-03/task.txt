@@ -1,0 +1,1 @@
+請使用 {skill}，讀 {input}/requirements.md。這些產品規則已由我確認；目前沒有其他操作文件。請先產出人工 Test Case 草稿，不再問需求，不建立檔案。

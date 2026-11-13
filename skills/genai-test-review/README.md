@@ -1,6 +1,6 @@
 # GenAI 測試審查 Skill 使用手冊
 
-版本：1.5.1。更新日期：2026-11-13（Asia/Taipei）。
+版本：1.6.0。更新日期：2026-11-13（Asia/Taipei）。
 
 此 Skill 用於審查已存在的 Test Case（測試案例），支援純軟體、系統設備與人工測試。需求釐清和案例產生請使用 `genai-test-strategy`；審查使用 `genai-test-review`。
 
@@ -88,3 +88,5 @@ F 取自 Finding（審查發現），TC＝Test Case（測試案例），AC＝Acc
 審查檔保存沿用既有版控方式，只提交本次審查檔；既有 staged 內容或同步阻塞會如實說明。設計端後續更新原進度與 HTML 閱讀網頁。
 
 同一對話換 Skill 仍是 same-session（同工作階段自查），不能稱獨立審查。新工作階段重新讀取指定依據才是 fresh-session；人實際審查才是 human。四輪審查不等於人已核可案例，更不代表產品已實測或通過。
+
+第三輪加入「假想缺陷與斷言辨識力」：確認合理錯誤會在哪個具體檢查被發現；反例不足時如實列限制，不把 AI 無法回答當作案例必定失效。細節見 [四輪準則](references/criteria.md)。要評估審查者可選用 [隔離校準](references/calibration.md)，正式專案不強制執行。

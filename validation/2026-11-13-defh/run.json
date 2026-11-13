@@ -1,0 +1,124 @@
+{
+  "schema_version": 1,
+  "created_at": "2026-11-13T14:48:19.053951+00:00",
+  "rubric_sha256": "bc2e7a1d078c96f2a45d09078d5402a4d4f447e2ada5d7f164fa0305efa7279e",
+  "suite_sha256": "d25262d60e3e8231b189dc2d828f817237274c250ad2b77eb9420fad72d77aa0",
+  "skills": {
+    "strategy": {
+      "path": "/home/agent/.codex/skills/remote-skills/skill-6af1747b432881919448466eb247e9c9",
+      "files": {
+        "SKILL.md": "e0229fae48d9e028a347fa41aaadcd8fbf93344cb45fb52f4e79cfaf0e250896",
+        "references/domain-adaptation.md": "373b0601e0e66cfa270ab71a5b9795388117c1e9a1cb14e24e8829bda23168c0",
+        "references/execution-selection.md": "cf75da74bb884ad9153534f1ec5f6248e66e8606183902a3f93bf8c2d434ee76",
+        "references/failure-modes.md": "880262c6ec53310da26df4a6bb64c341d1ab32f5571d8af5f54097ece78f526c",
+        "references/feedback.md": "92134c8cd2d784a8738c6bc2ffa571cc552aed4b783b91d8c428c10545383c39",
+        "references/git-server.md": "85e8bb5dd1f96d086350ea8d5c0981b7d2db4a2f3592666a3a61e397fc4a9ede",
+        "references/identifiers.md": "9df67303f76d97d39339ef393cdc9ef199d5aa4eafc65a9c119695ccef068c9e",
+        "references/interview-records.md": "1e7f290d721a267c5be438fffc935950064f21f4601d05fc8202c6570b2842c2",
+        "references/local-versioning.md": "f984e8e536db3f3a8848c25e5b3932c7fd148050a1f60396e0e6113fde3a4b87",
+        "references/migration.md": "706470506316dbc0eb51ec44ff7afabcb0da25b5f4b5a66c87f61284722a00fd",
+        "references/oracles-exploration.md": "8a406434eafd41cd15ac7704104e6d1994865903cae91fda13af981aa4a60ce5",
+        "references/quality-characteristics.md": "8e34dc49e0c032253d9e144c56e85ba2405fa0db514e330ea31074e03dd98d9b",
+        "references/records.md": "131237691ab294265b67e81e6bd512716091cc368a138b26411a2296f533a4f4",
+        "references/report.md": "acf378308103dbea5d5f5a2c3e4ae9be4c50f36a9ac5fcb70d0f4d22e6026bc1",
+        "references/review.md": "b2bb9c7a46dac1f23f54c65c5eb539714a748af61d0046a5ea50e0da0851844f",
+        "references/risk-assessment.md": "0b07927a205e067150f219e0d9eb2ff31362ca68ea0c8c6180b752aa58d19212",
+        "references/source-reading.md": "ab109bf486ddaacb90ec74632db85b060d66e0ba75104f02c21aa350bd68cebd",
+        "references/spec-review.md": "4385ece9583fb9395a3819ecb5e39e4e1d06af7ed696622045dce962c2473f92",
+        "references/templates.md": "57dde58e328d15729b2844f5401d32ad1844c42549030d4dbb8523a4ba520092",
+        "references/test-design.md": "e9b7aa5fe999cb9bee5e837848757b70fa650e19fffab1632f2ae51192703e03",
+        "references/worked-example.md": "13d28a9ef7c85bd1eecfdfb788e11256523ee11ff0b1cd5eca579623af327ffd",
+        "references/workflow.md": "d6586af50081137b2630cf9340c1b3ef6543f20767b9bc168578ee4713be3771",
+        "scripts/demo_counter.py": "d7ab57794df96b6c60f403e35ebeed3a76dd974858eaaadb4774e71db6667f03",
+        "scripts/qa_project.py": "70818ce41fcde27bde6eba1d0180f9155512a6bb3eb5f2dbdc8922df299e0367",
+        "scripts/test_qa_project.py": "4dfd025df639d2a83c7b0b0531e9d784562b90b27815bc03b305b82ef8214732"
+      }
+    },
+    "review": {
+      "path": "/home/agent/.codex/skills/remote-skills/skill-6af5ae4f47bc8191bf6457cdd95a2bc7",
+      "files": {
+        "SKILL.md": "da6f47cc76e868fa0a2bcff6fdd2c85cb83b381cbbaa228c6c413905ee1499c2",
+        "references/calibration.md": "b2b7517ff33a063436922580d0968d5ca3d8ec2696b006bca90926a17223842e",
+        "references/criteria.md": "ad305d34bcd903e760fb751f7f48b734d757932ba6283afe1fdd9b3145c005f4",
+        "references/handoff.md": "3209a54f9a065f96c8dff5fb175cfcb9cc2eead885f172eda475622212f323af"
+      }
+    }
+  },
+  "core_case_ids": [
+    "case-01",
+    "case-02",
+    "case-03",
+    "case-04",
+    "case-05",
+    "case-06",
+    "case-07",
+    "case-08"
+  ],
+  "cases": [
+    {
+      "id": "case-01",
+      "skill": "strategy",
+      "inputs": {
+        "tasks/case-01/task.txt": "cbf6f29349c39e07d84e83fe79c1de0c9937c7a8fd2eed4cc32477f40894d4d8",
+        "tasks/case-01/draft.md": "5b29c7f3edd4d29db2c45943c77d2146ad04103644b246ff931b1030e93e8d15"
+      }
+    },
+    {
+      "id": "case-02",
+      "skill": "strategy",
+      "inputs": {
+        "tasks/case-02/task.txt": "78949953dea197c4064ee597ef33fc4b4ccdcc2f515912f99fae46ab7e7f424e",
+        "tasks/case-02/spec-a.md": "165a5002f33270278c2e64a9087986e7cc84c83d40526bd84967a8b8dcb171fa",
+        "tasks/case-02/spec-b.md": "421cdd1e5dd905cf9368378838e5ef27a2ac36c6c5d9169c127bccbc038af232"
+      }
+    },
+    {
+      "id": "case-03",
+      "skill": "strategy",
+      "inputs": {
+        "tasks/case-03/task.txt": "74299cb39537e3b753cf9f62db66b5a9f8446f8f0e3529bb6041ba15fae548b1",
+        "tasks/case-03/requirements.md": "46f8cc1420e9e967e93031427a8bd73e4d0cef2ce5d68c8681fd10a49f44d028"
+      }
+    },
+    {
+      "id": "case-04",
+      "skill": "strategy",
+      "inputs": {
+        "tasks/case-04/task.txt": "2d3114a05f698c5b6e8c9219ec317834f558ccc4fe6b33614b211e8f81a8f512"
+      }
+    },
+    {
+      "id": "case-05",
+      "skill": "strategy",
+      "inputs": {
+        "tasks/case-05/task.txt": "e8a539eede592cf12706a192d02948342a79e7cccf7293c812087806ccc7b570",
+        "tasks/case-05/draft.md": "b320fdf5a3a6487b850cb933bf416b6e009ac2fe902b18d2ef71b950382f187b"
+      }
+    },
+    {
+      "id": "case-06",
+      "skill": "strategy",
+      "inputs": {
+        "tasks/case-06/task.txt": "af4a5b877c64faa6b129361983b4bfc24e6f2859108e1849bb4fc9e3dcd69909",
+        "tasks/case-06/session.md": "2ed502b09123d9e7aebbd892d177fa73fbcf6640c79e9fc89d2942cadb872198"
+      }
+    },
+    {
+      "id": "case-07",
+      "skill": "strategy",
+      "inputs": {
+        "tasks/case-07/history.md": "290b3100c148d5a9a796fb44581b881ad61062448e19af800891e6d2bb7f25cf",
+        "tasks/case-07/task.txt": "1f05c0a3d12a84e02752271bbdcd1c3dd4c3fec4926929198f1c25c0e31f89eb"
+      }
+    },
+    {
+      "id": "case-08",
+      "skill": "review",
+      "inputs": {
+        "tasks/case-08/task.txt": "a9abba2fc30e40624ef964c94ba79f185bd15962f4b707ae56efc10f9c75740b",
+        "tasks/case-08/cases.md": "b7c8f7ca1c1594b4a3fa31f3e4f73f6396f3dce6ea792a762ea58668479736dc",
+        "tasks/case-08/rules.md": "74aa3c6deb07a2896b16563c70dc907e44608462601b8de464cff03420bad1b3"
+      }
+    }
+  ]
+}

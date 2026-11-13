@@ -16,7 +16,7 @@ import zipfile
 from datetime import datetime, timezone
 from urllib.parse import quote
 
-VERSION = "1.9.0"
+VERSION = "1.9.1"
 DESIGN_POLICY = "coverage-items-v1"
 RISK_POLICY = "requirement-risk-v1"
 READING_POLICY = "source-reading-v1"
@@ -2169,6 +2169,9 @@ artifact_digest 是原專案完整設計的版本識別；review_input 是按交
 逐需求查 risk_assessment 狀態及 requirement_revision、risks.requirement_ids 的直接多對多關聯；severity（危害嚴重度）、likelihood（可能性）、priority（測試優先序）須各有專案分級與理由。unknown 不等於低風險，低機率不降低危害；沒有風險紀錄不代表零風險。已選風險須承接，其他本輪關聯風險須有暫緩依據；未選需求可未評估，不擴張訪談。
 依失效機制核對方法深度與證據，不把高危害機械對應三值邊界。狀態與轉移對要有可行序列、初態及中間觀測；組合核對強度 t、約束與可行元組；決策表縮減保留原列映射，未知不是不可行。錯誤推測與生命週期只供情境線索，Expected 仍有已確認依據。
 跨領域風險可明列非 requirement 的 origin、affected_areas、assessment_status 及來源／決策；遺漏規則另連 question_ids，不要求新增假需求，也不讓舊孤立風險只改 origin 就免檢。問題單是原 questions 的視圖，匯出或建議選項不代表已回答。執行排程與選取建議不改原設計範圍，不能以 smoke／預算清單縮小審查分母；原設計欄位仍按完整 digest 綁定。
+
+假想缺陷與斷言辨識力：對每個保留 COV 設想與已確認規則相關的合理錯誤，對照初態、輸入、操作與具體斷言；記 COV／規則、反例、正確與錯誤行為差異、案例步驟及可辨識／無法辨識／無法評估／不適用理由。規則 ≤ 2 m、錯誤 < 2 m 時，只有 1.9 m 的案例無法辨識等號錯誤。已有具體反例卻仍會全數通過才列斷言缺口；缺規則、觀測或合理反例時記限制，不因想不出來就判弱，不要求區分等價錯誤。這是設計推演，不是已執行 mutation testing 或實測結果。
+選用審查校準須在獨立合成資料／隔離副本進行：維護者另存已知瑕疵與有效對照，受測審查者只讀任務／輸入／準則，評分者才讀答案。保存模型、設定、版本與原始回覆，分列檢出／漏報／誤報／待定及分母，無資料記未知；接觸答案的重跑須標污染。不能改正式包、digest 或基線來埋瑕疵，也不能用校準結果代替產品驗證。
 
 ## 4. consistency：一致性
 檢查重複、矛盾、過期來源／版本、單位與判準混用、案例間依賴、初態污染及隱藏順序。前一案成功不能作為本案前置；必要連續操作應在同一案明列。合併建議須保留既有 ID 與唯一覆蓋，不直接刪案例。
