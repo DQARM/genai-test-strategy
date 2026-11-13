@@ -35,6 +35,7 @@ init 產生 `qa/registry.json`，保留以下欄位：
 - `interactions`：選填陣列，保存 QA 的 question_text、options、answer_text、answer_status、capture、interpretation、question_id、related_ids、真實已知時間／回答者及更正鏈。完整契約、pending 完成與缺原文處理見 [interview-records.md](interview-records.md)。record-qa 不會自動建立決策、增加需求題數或核可。
 - `project.source_reading_policy`：新專案採 `source-reading-v1`。在有 `source_refs`／`binding_refs`／`oracle.reference_refs`／資料 `basis` 的同一物件加 `source_citations`，每項為 `{source_id, reading_seq, finding_index}`，指向該來源某次閱讀的某則摘錄。ready 的引用鏈需要有效正文證據；新基線要求政策及已選範圍依據完整。歷史專案可先草擬／閱讀，移轉規則見 source-reading.md。
 - `questions`: `{id, text, status, owner, due_or_trigger, impact_ids, blocks, decision_refs}`。status 是 open／resolved／deferred。owner 不知填 unassigned。blocks 可為 baseline、execution、release；impact_ids 可含 ALL 或具體 ID。resolved 必須有 DEC 依據；deferred 仍是未解問題。
+  工具 1.9.0 選填 category、urgency、analysis、suggested_owner、options、source_refs／source_citations，支援規格缺口排序與轉交。完整定義見 [spec-review.md](spec-review.md)；qa/questions.md 是衍生視圖，不是第二份主資料或已訪談紀錄。
 - `requirements`: `{id, text, revision, status, source_refs, decision_refs, confirmation, supersedes?}`。status 是 proposed／confirmed／superseded。confirmed 必須有 confirmed normative source 或 DEC，並有真實 confirmation。
   需求另有 `risk_assessment: {status, requirement_revision, rationale, source_refs, decision_refs}`，status 為 unassessed／proposed／confirmed，與需求本身的 status 分開；缺欄位視為未評估。評估版次綁需求 revision，confirmed 需真實決策或已確認 normative 來源。未辨識風險仍須留下檢視範圍與理由，不能當成零風險。
 - `acceptance`: 同 requirement 欄位，增加 `requirement_ids` 及 `oracle: {observe, when, tolerance}`。每個 AC 是可判定的規則；父需求必須已確認。容差不適用寫明「不適用：離散值須完全相等」。AC 不得加入來源未支持的新限制。
@@ -46,6 +47,10 @@ init 產生 `qa/registry.json`，保留以下欄位：
 - `charters`: 探索任務設計，EXP 取自 Exploration。欄位為 id、title、status（draft／ready／retired）、mission、scope、timebox_minutes、source_refs、binding_refs、ac_ids、question_ids、preconditions、actions、stop_conditions、cleanup。ready 需要正整數時間上限、已確認的操作來源，以及具體初態、操作／觀察／證據、停止及清理方式；actions 每項含 action、observe、evidence，前置及清理每項含 action、verify。ac_ids 可以為空；有引用則須已確認。觀察／發現另存 evidence，不寫入任務設計。模板及紀錄要求見 oracles-exploration.md。
 
 coverage_items、charters 在舊 schema 1 檔案可省略，不必為續作先重建全部專案；它們若存在會納入設計 digest，變動須重審對應新版本。
+
+工具 1.9.0 的風險可加 origin、affected_areas、assessment_status、question_ids，明列整合／變更／環境等非需求來源；缺省仍沿用原直接需求關聯，不自動豁免孤立風險，見 [risk-assessment.md](risk-assessment.md#不強迫所有風險源自需求)。覆蓋方法另支援 combinatorial、error-guessing、data-lifecycle，契約及判準要求不變。
+
+選填排程資料放 qa/execution-profile.json，選取建議放 qa/selections/SEL-*.json；不納入設計 digest，但綁定各自指紋並可 check-selection。不得將現有設計欄位移出以規避審查；格式及命令見 [execution-selection.md](execution-selection.md)。
 
 尚未確認的通用 AC 模板（不代表已核可；依專案填好並取得真實依據後才改 confirmed）：
 

@@ -80,6 +80,10 @@ checkpoint 遇到既有 staged 內容會拒絕提交，不會把別人的變更�
 
 ## 版本綁定
 
+工具 1.9.0 增加 export-questions、select-cases、check-selection，仍使用 schema 1。依原流程先保存、比較再明確升級專案內工具；init 不覆寫舊副本。新問題／風險欄位是選填，舊資料可繼續檢查；只在採用跨領域 origin 時檢查其依據與影響，舊孤立風險不自動豁免。歷史基線及執行不修改。
+
+qa/questions.md 是 registry.questions 的生成視圖；不要直接把填答寫在會被 render 覆蓋的檔案。新增 qa/execution-profile.json 與 qa/selections/ 屬執行安排，依各自指紋及原設計 digest 核對；不改原 artifacts() 對既有欄位的計算範圍。它們仍由 checkpoint 保存，但不要求因單純標籤或時程修改重新核可設計。設計、來源／風險取捨更動仍依原規則重審。
+
 工具 1.8.0 加入 prepare-review、resolve-review、check-review-pack；交接協定升為 2，專案 schema 仍為 1。先 checkpoint、比較並替換專案內工具再使用新命令；init 不會升級舊工具。prepare-review 預設只保存來源參照，--portable 複製明列來源／決策／閱讀證據並產生 ZIP；不整包複製專案，也不執行產品測試。既有包不覆寫，變更後建立新包；只在原檔及版本、審查重點、模式都吻合且包／ZIP 完整時才重用。
 
 新包、manifest、回傳模板及交接索引屬審查交接產物，不改原完整設計 digest；review_focus 以獨立 hash 綁定包，變更後須新包。checkpoint 預設包含 qa，故會保存包與 portable 副本；打包前檢查來源清單及上傳範圍。大量二進位來源可採 reference 模式並維持原檔備份；可攜包不是整個專案的備份。新環境只檢包時不能重算原專案完整 digest，不能把 review_input_digest 當成原設計 digest。

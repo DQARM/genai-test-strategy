@@ -56,10 +56,13 @@ description: 通用的 GenAI 輔助需求釐清與測試設計流程。使用者
 - 初次使用或續作：讀 [workflow.md](references/workflow.md) 中對應的起始、上下文管理或續作段落。
 - 建立／更新結構化記錄：讀 [records.md](references/records.md)。
 - 登錄、閱讀、引用來源或接手舊專案：讀 [source-reading.md](references/source-reading.md)，以實際定位摘錄建立引用；不能只填「已閱讀」。
+- 已讀草稿後找缺口、PM／工程不在場或需轉交問題：讀 [spec-review.md](references/spec-review.md)，批次分析後匯出問題單；這不等於已訪談。
 - 新增、引用或解釋資料編號：讀 [identifiers.md](references/identifiers.md)。
 - 產生完整案例：先讀 [templates.md](references/templates.md) 並填入本專案的已確認內容。
 - 逐筆需求評估風險、分級、選取或處理舊風險資料：讀 [risk-assessment.md](references/risk-assessment.md)。
 - 從規則選方法、列覆蓋項目或檢查覆蓋：讀 [test-design.md](references/test-design.md)。
+- 規則已有但不知優先測哪種失敗、或要使用團隊缺陷經驗：讀 [failure-modes.md](references/failure-modes.md)，只選本輪適用方向。
+- 要排人工執行、選 smoke／變更回歸案例：讀 [execution-selection.md](references/execution-selection.md)；選填排程資料與原設計版本分開。
 - 重用共用判準、使用推導判準或設計探索任務：讀 [oracles-exploration.md](references/oracles-exploration.md)。
 - 交付可點閱的來源／案例報告：讀 [report.md](references/report.md)；在保留既有產出的前提下生成 `qa/report.html`。
 - 選擇適合本專案的提問、風險與證據：讀 [domain-adaptation.md](references/domain-adaptation.md)，只採適用部分。
@@ -90,6 +93,8 @@ description: 通用的 GenAI 輔助需求釐清與測試設計流程。使用者
 
 ## 2. 逐題釐清並形成規格
 
+已有草稿時，先按 spec-review.md 對已讀範圍做靜態分析，將重要歧義、矛盾及可測試性缺口整理進原 questions；批次分析不增加已問數。決策人不在場或使用者要先產出時，匯出可轉交的 qa/questions.md，繼續不受影響的設計，不等所有缺口解完。無文件則從已知口頭規則開始，不假造靜態審查結果。
+
 沿用本輪範圍與剩餘問題額度，依 workflow.md 的提問篩選，先呈現單一問題，再提供必要情境及選項影響，一次只問一題。產品取捨交給有權決策的人，操作與觀測細節先查文件或交工程／測試負責人。每取得一個有效決策，立即保存並更新相關規則，標記受影響案例及待更新報告；每批結束統整並等待續問或先產出的選擇；選先產出時立即補齊本輪可完成的案例，不等整個專案釐清完才交付。使用者要求先看成果、同一缺口反覆沒有新依據，或已足以完成本輪交付時提前整理。到使用者明訂總上限時依 workflow.md 收尾，未確認 Expected 保持未決；不只憑短答或回覆速度推測人的耐心。
 
 依需要涵蓋 Trigger、Boundary（含等於邊界）、Timing、State、Exception、資料與權限、併發、持久化、恢復、既有行為需維持的條件。不要對每個專案機械式全部提問。
@@ -101,6 +106,8 @@ description: 通用的 GenAI 輔助需求釐清與測試設計流程。使用者
 先查本專案已採納的共用判準；相同適用條件下重用，不逐案例問同一題。人可一次確認具體的共用期望或比較關係，記為 DEC、REQ 與 AC；依 oracles-exploration.md 記判準類型、適用條件及限制。沒有完整產品判準但操作與環境已有依據時，可先交付有時間上限的探索任務；未知結果只作觀察，不代填 Expected。
 
 ## 3. 先定測試策略，再選案例
+
+依失效機制、危害、可能性、不確定性及可取證方式決定方法與深度，留下成本與未測部分；不要用等級機械對應某種方法。跨整合、變更、架構、環境、遺漏或經驗的風險可按 risk-assessment.md 明列 origin、影響及依據，不必虛構 REQ；缺產品判準仍列問題／探索，不能升格為 Expected。
 
 依 risk-assessment.md，為每個已登錄需求保留未評估／已有初評／已確認狀態，以 risks.requirement_ids 直接連結失敗情境與後果，支援多對多。AI 先依文件批次初評，再集中確認會改變取捨的重要分歧，不逐需求增加訪談。分開記 severity（危害嚴重度）、likelihood（發生可能性）及 priority（測試優先序）與各自理由；沿用專案分級，沒有標準先提出建議，unknown 不等於低風險。已選先產出時保留初評／缺口，不重啟提問。未選需求可保持未評估；本輪相關風險須測試或有暫緩依據。優先選有價值的少量項目，不用無資料的精密分數假裝客觀。
 
@@ -137,6 +144,8 @@ description: 通用的 GenAI 輔助需求釐清與測試設計流程。使用者
 正式基線仍要求目前完整設計的四輪獨立審查、Finding 的真實處置及人的明確核可。由設計端確認這些證據後才建立 approval 與 baseline。新基線的 coverage-items-v1 政策、舊專案相容性及不可覆寫快照規則保持不變；細節見 review.md、test-design.md 與 records.md。案例核可不是產品放行。
 
 ## 6. 依任務執行與追蹤變更
+
+使用者需要執行排序或 smoke／回歸清單時，按 execution-selection.md 使用選填 execution-profile 與 select-cases，保留命中理由、受阻案例、未知時間及剩餘風險；不因預算自動刪案例或改 scope。執行前 check-selection 核對目前輸入，再依原授權處理環境與結果。單純排程調整不使設計審查失效；任何原設計欄位變更仍依原 digest 重審。
 
 保留既有人工／自動執行與證據記錄能力；只有使用者要求且範圍已授權時，才依 [workflow.md](references/workflow.md#執行與放行)、[records.md](references/records.md#執行記錄) 與 local-versioning.md 執行。不把測試執行當成完成設計的前提，不代填 Actual 或產品 PASS。
 

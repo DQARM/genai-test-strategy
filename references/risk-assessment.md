@@ -81,6 +81,25 @@ risks 保留原有 failure、impact、likelihood、uncertainty、priority、rati
 
 ## 範圍與案例承接
 
+### 不強迫所有風險源自需求
+
+工具 1.9.0 支援選填 `origin`：requirement（缺欄位時沿用原需求關聯規則）、integration、change、architecture、environment、omission、experience。已有實際需求仍填 requirement_ids；純非需求來源可留空，不為了檢查通過新增假需求。
+
+非 requirement 的風險另填：
+
+- `affected_areas`：非空文字陣列，指出受影響介面／流程／設備／資料與條件；只寫「全系統」不足以完成語意分析。
+- `source_refs`／`source_citations` 或 `decision_refs`：真實來源及定位，或人的真實決策。經驗／觀測可支持失效假說，不能直接支持產品 Expected。
+- `assessment_status`：proposed／confirmed，分開記風險評估是否採納；confirmed 必須有真實決策或已確認 normative 來源。標記為已確認不代表風險已消除。
+- `question_ids`：可連待決問題；origin=omission 時必填，讓被遺漏的產品規則有明確追蹤。問題未決不能靠風險 confirmed 消除其阻塞。
+
+原嚴重度、可能性、優先序、理由、責任、取捨及剩餘風險仍適用。本輪 active 的跨領域風險須完成評估確認才進新基線；已選風險仍須由案例承接，未選但被本輪案例依賴的風險保留暫緩依據。無判準時交付草稿／探索，不能新增無來源 AC 來湊正式覆蓋。
+
+沒有 origin 又沒有 requirement_ids 的舊孤立風險仍列缺口，不能自動改成 environment 來略過檢查。人工檢視其實際來源及影響後再補欄位；舊基線不回寫。語意上的影響範圍與未登錄依賴仍需人檢視，工具不會靠 affected_areas 文字自動擴張所有選取。
+
+### 方法、深度與成本
+
+按 [test-design.md](test-design.md#讓風險決定深度) 將每項已選風險連到失效機制、方法／深度、具體覆蓋、觀測證據及未測部分；實機成本高時可分層安排人工、模擬及真機，說明各自能證明的範圍。風險分數不直接決定固定技術，測試容易也不表示值得優先。執行排程另見 [execution-selection.md](execution-selection.md)，不能用時間預算默默接受風險。
+
 保留原本的測試範圍選擇：已選風險由 selected_risk_ids 與案例 risk_ids 承接，再由人審查步驟／觀察／斷言是否真的能發現失敗。未選風險不偷偷刪除；涉及本輪需求時留下暫緩理由、剩餘風險與決策。重大疑慮可以阻塞相關核可或執行，但不把所有未選需求一律拉進本輪訪談。
 
 需求、風險、分級準則或來源改變時，重新檢視受影響評估並標 proposed／unassessed，保留修訂與真實決策；不可只把 requirement_revision 改新而沿用舊結論。更新測試取捨與案例後以新 digest 審查。需求版次不符時工具會顯示評估過期；工具無法判斷所有自由文字的實質變更。

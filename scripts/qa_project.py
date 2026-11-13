@@ -4,6 +4,7 @@ import argparse
 import hashlib
 from html import escape
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -15,12 +16,15 @@ import zipfile
 from datetime import datetime, timezone
 from urllib.parse import quote
 
-VERSION = "1.8.0"
+VERSION = "1.9.0"
 DESIGN_POLICY = "coverage-items-v1"
 RISK_POLICY = "requirement-risk-v1"
 READING_POLICY = "source-reading-v1"
 TECHNIQUES = {"equivalence", "boundary-2", "boundary-3", "decision-table",
-              "state-transition", "pairwise", "scenario", "experience"}
+              "state-transition", "pairwise", "combinatorial", "scenario", "experience",
+              "error-guessing", "data-lifecycle"}
+QUESTION_CATEGORIES = {"ambiguity", "exception", "boundary", "assumption", "conflict", "testability", "role-permission", "other"}
+RISK_ORIGINS = {"requirement", "integration", "change", "architecture", "environment", "omission", "experience"}
 ID_TERMS = {
     "SRC": ("Source", "資料來源", "追蹤文件、操作指南或其他依據"),
     "REQ": ("Requirement", "需求", "追蹤單一產品需求"),
@@ -38,6 +42,7 @@ ID_TERMS = {
     "APP": ("Approval", "核可紀錄", "記錄人對明確內容與範圍的核可"),
     "BL": ("Baseline", "案例基線", "凍結已核可的案例版本"),
     "RUN": ("Run", "測試執行紀錄", "保存某次實際執行的觀察與證據"),
+    "SEL": ("Selection", "執行選取建議", "依變更與標籤提出案例清單，不改設計範圍或代表已核可"),
 }
 ROUNDS = ["traceability", "executable", "coverage", "consistency"]
 GROUPS = ["sources", "decisions", "questions", "requirements", "acceptance", "risks", "scenarios"]
@@ -228,7 +233,10 @@ def risk_rows(reg, cases):
             rows.append((req, risk, state, note, related))
     for risk in reg.get("risks", []):
         if risk["id"] not in attached:
-            rows.append((None, risk, "未對應需求", "補 requirement_ids；不依文字相似度自動連結",
+            crosscutting = risk.get("origin") in RISK_ORIGINS - {"requirement"}
+            state = {"proposed": "已有初評（待確認）", "confirmed": "已確認"}.get(risk.get("assessment_status"), "未評估")
+            rows.append((None, risk, "跨領域／" + state if crosscutting else "未對應需求",
+                         risk.get("rationale", "") if crosscutting else "補需求關聯或明列非需求來源、影響及評估；不創造假需求",
                          [cid for cid, case in cases.items() if risk["id"] in case.get("risk_ids", [])]))
     return rows
 
@@ -302,8 +310,26 @@ def inspect_risks(reg, cases, maps, gate, errors, warnings, refs):
 
     for rid, risk in maps["risks"].items():
         linked = refs(risk.get("requirement_ids", []), "requirements", rid)
-        basis(risk, rid)
-        if not linked:
+        origin = risk.get("origin", "requirement")
+        if origin not in RISK_ORIGINS:
+            errors.append(f"{rid}: invalid risk origin")
+        crosscutting = origin in RISK_ORIGINS - {"requirement"}
+        basis(risk, rid, crosscutting and risk.get("assessment_status") == "confirmed")
+        questions = refs(risk.get("question_ids", []), "questions", rid)
+        if crosscutting:
+            areas = risk.get("affected_areas")
+            if not isinstance(areas, list) or not areas or any(not isinstance(x, str) or not meaningful(x) for x in areas):
+                gap(rid, "crosscutting risk needs affected_areas", rid in active_risk)
+            if not risk.get("source_refs") and not risk.get("decision_refs"):
+                gap(rid, "crosscutting risk needs source_refs or decision_refs", rid in active_risk)
+            status = risk.get("assessment_status", "proposed")
+            if status not in ("proposed", "confirmed"):
+                errors.append(f"{rid}: invalid crosscutting assessment_status")
+            if status != "confirmed":
+                gap(rid, "crosscutting risk assessment not confirmed", rid in active_risk)
+            if origin == "omission" and not questions:
+                gap(rid, "omission risk needs question_ids for the missing rule", rid in active_risk)
+        elif not linked:
             gap(rid, "risk has no direct requirement_ids", rid in active_risk)
         if policy != RISK_POLICY:
             continue
@@ -871,6 +897,17 @@ def inspect(root, gate="draft"):
         require(question, ["text", "status", "owner", "due_or_trigger"], qid)
         if question.get("status") not in ("open", "resolved", "deferred"):
             error(f"{qid}: invalid question status")
+        refs(question.get("source_refs", []), "sources", qid)
+        if "category" in question and question["category"] not in QUESTION_CATEGORIES:
+            error(f"{qid}: invalid question category")
+        if question.get("urgency", "untriaged") not in ("blocking", "important", "later", "untriaged"):
+            error(f"{qid}: invalid question urgency")
+        for field in ("analysis", "suggested_owner"):
+            if field in question and (not isinstance(question[field], str) or not meaningful(question[field])):
+                error(f"{qid}: invalid {field}")
+        if "options" in question and (not isinstance(question["options"], list) or
+                any(not isinstance(x, str) or not meaningful(x) for x in question["options"])):
+            error(f"{qid}: options must be a list of meaningful strings")
         if question.get("status") == "resolved":
             if not question.get("decision_refs"):
                 error(f"{qid}: resolved question needs decision_refs")
@@ -1186,6 +1223,241 @@ def inventory(root):
     print(json.dumps({k: v for k, v in result.items() if k != "files"}, ensure_ascii=False, indent=2))
 
 
+def md_text(value):
+    """Keep source text as text, including HTML and Markdown metacharacters."""
+    return re.sub(r"([\\`*_{}\[\]()#|])", r"\\\1", escape(str(value), quote=False)).replace("\n", " ")
+
+
+def id_terms(reg, prefix):
+    overrides = reg.get("project", {}).get("id_glossary", {})
+    if not isinstance(overrides, dict):
+        fail("project.id_glossary must be an object")
+    if prefix in overrides:
+        entry = overrides[prefix]
+        terms = [entry.get(k) for k in ("english", "meaning", "purpose")] if isinstance(entry, dict) else []
+        if len(terms) == 3 and all(isinstance(x, str) and meaningful(x) for x in terms):
+            return terms
+        return ["待確認", "待確認", "依本專案定義，不猜測英文來源"]
+    return ID_TERMS.get(prefix, ("待確認", "待確認", "依本專案定義，不猜測英文來源"))
+
+
+def id_legend(reg, prefixes):
+    lines = ["## 編號說明", "", "ID＝Identifier（識別碼）。數字後綴是各類流水號，不代表優先度、版本、核可或測試結果。非數字後綴是專案標籤。", ""]
+    for prefix in sorted(prefixes):
+        lines.append("- " + md_text(prefix + "＝" + "；".join(id_terms(reg, prefix))))
+    return lines + [""]
+
+
+def question_lines(root, reg):
+    """A derived handoff, never a second question store or proof of analysis."""
+    questions = [q for q in reg.get("questions", []) if q.get("status") != "resolved"]
+    def rank(q):
+        return (0 if q.get("blocks") else {"blocking": 0, "untriaged": 1, "important": 2, "later": 3}.get(q.get("urgency", "untriaged"), 1), q["id"])
+    questions.sort(key=rank)
+    sources = {s["id"]: s for s in reg.get("sources", [])}
+    lines = ["# 規格問題交接單", "", "由 registry.questions 產生；這是未決清單，不是逐字訪談或已確認規格。",
+             "請另存填答副本；重新匯出會更新本檔。回覆需保留回答者、日期與依據，再由設計端更新原問答／決策。空白不是同意。",
+             "列出 open 與 deferred；已標阻塞優先，其次未分級、重要及稍後。排序不代表已接受風險。",
+             "設計版本：`" + snapshot_digest(root) + "`", "",
+             "## 未決摘要", "", "| 問題 | 狀態／急迫性 | 內容 | 責任人／確認時點 | 影響 |", "|---|---|---|---|---|"]
+    for q in questions:
+        lines.append("| " + " | ".join(md_text(x) for x in (q["id"], q.get("status", "open") + " / " + q.get("urgency", "untriaged"),
+            q.get("text", ""), str(q.get("owner", "unassigned")) + " / " + str(q.get("due_or_trigger", "未指定")),
+            ", ".join(q.get("impact_ids", [])))) + " |")
+    if not questions:
+        lines += ["", "目前沒有已登錄的未決問題；不代表已讀完或規格沒有缺口。"]
+    lines += ["", "## 已登錄來源的閱讀範圍", "", "僅顯示登錄紀錄；未登錄的文件、未讀部分及尚未分析的內容不視為已審完。", ""]
+    for sid, source in sources.items():
+        state = reading_state(root, source)
+        lines.append("- " + md_text(sid + "：" + state["label"] + "；已讀：" + ", ".join(state["read_scope"]) +
+            "；未讀／限制：" + ", ".join(state["unread_scope"] + state["limitations"])))
+    for q in questions:
+        lines += ["", "## " + md_text(q["id"]) + "：" + md_text(q.get("text", "")), "",
+                  "- 類型：" + md_text(q.get("category", "未分類")),
+                  "- 分歧與影響：" + md_text(q.get("analysis", "尚未補分析，不由工具推測")),
+                  "- 責任人：" + md_text(q.get("owner", "unassigned")) + "；建議轉交：" + md_text(q.get("suggested_owner", "未提供（不代指派）")),
+                  "- 確認時點：" + md_text(q.get("due_or_trigger", "未指定")) + "；阻塞階段：" + md_text(", ".join(q.get("blocks", [])) or "未列"),
+                  "- 影響項目：" + md_text(", ".join(q.get("impact_ids", [])) or "未列"), "", "來源與具體定位：", ""]
+        for sid in q.get("source_refs", []):
+            source = sources.get(sid, {})
+            label = md_text(sid)
+            try:
+                path = safe(root, source.get("path", ""))
+                target = "../" + quote(path.relative_to(root).as_posix(), safe="/")
+                if path.is_file():
+                    label = "[" + label + "](" + target + ")"
+            except (ValueError, OSError):
+                pass
+            lines.append("- " + label + "；版本：" + md_text(source.get("version", "未提供")) + "；SHA256：" + md_text(source.get("sha256", "未提供")))
+        citations = q.get("source_citations", [])
+        for cite in citations:
+            entry = reading_entry(sources.get(cite.get("source_id"), {}), cite.get("reading_seq"))
+            index = cite.get("finding_index")
+            finding = entry["findings"][index - 1] if entry and type(index) is int and 1 <= index <= len(entry.get("findings", [])) else {}
+            lines.append("- " + md_text(f"{cite.get('source_id')}／閱讀 {cite.get('reading_seq')}／摘錄 {index}：" +
+                str(finding.get("locator", "引用不存在")) + "；" + str(finding.get("text", "未提供"))))
+        if not citations:
+            lines.append("- 尚無具體來源摘錄；口頭問題依原始問答追溯，不補造文件依據。")
+        if q.get("options"):
+            lines += ["", "AI 建議選項（均未採納）：", ""] + ["- " + md_text(x) for x in q["options"]]
+        lines += ["", "回答（待填）：", "", "回答者／日期／依據（待填）：", ""]
+    prefixes = set(re.findall(r"\b([A-Z][A-Z0-9]*)-[A-Za-z0-9_-]+", json.dumps(questions, ensure_ascii=False))) | {"Q", "SRC"}
+    return lines[:2] + id_legend(reg, prefixes) + lines[2:]
+
+
+def export_questions(root):
+    reg, _ = load(root)
+    path = safe(root, "qa/questions.md")
+    path.write_text("\n".join(question_lines(root, reg)) + "\n", encoding="utf-8")
+    print("Exported qa/questions.md; original questions, answers, session and design digest unchanged.")
+
+
+def execution_profile(root, cases):
+    """Optional scheduling data. Never move existing design fields out of artifacts()."""
+    path = safe(root, "qa/execution-profile.json")
+    profile = read(path) if path.is_file() else {"schema_version": 1, "priority_order": [], "cases": {}}
+    if (not isinstance(profile, dict) or set(profile) - {"schema_version", "priority_order", "cases"}
+            or type(profile.get("schema_version")) is not int or profile["schema_version"] != 1):
+        fail("Invalid execution profile schema/fields")
+    order, rows = profile.get("priority_order", []), profile.get("cases", {})
+    if not isinstance(order, list) or any(not isinstance(x, str) or not meaningful(x) for x in order) or len(order) != len(set(order)):
+        fail("priority_order must be unique meaningful strings, highest priority first")
+    if not isinstance(rows, dict):
+        fail("execution-profile cases must be an object")
+    for cid, row in rows.items():
+        if cid not in cases or not isinstance(row, dict) or set(row) - {"priority", "tags", "estimated_minutes", "automation_candidate", "note"}:
+            fail("Invalid execution profile case/fields: " + cid)
+        if "priority" in row and row["priority"] not in order:
+            fail(cid + ": priority must appear in priority_order")
+        tags = row.get("tags", [])
+        if not isinstance(tags, list) or any(not isinstance(x, str) or not meaningful(x) for x in tags) or len(tags) != len(set(tags)):
+            fail(cid + ": tags must be unique meaningful strings")
+        minutes = row.get("estimated_minutes")
+        if minutes is not None and (type(minutes) not in (int, float) or not math.isfinite(minutes) or minutes <= 0):
+            fail(cid + ": estimated_minutes must be positive finite minutes or null")
+        if "automation_candidate" in row and type(row["automation_candidate"]) is not bool:
+            fail(cid + ": automation_candidate must be a boolean")
+        if "note" in row and not isinstance(row["note"], str):
+            fail(cid + ": note must be a string")
+    return profile, file_hash(path) if path.is_file() else None
+
+
+def selection_source_hashes(root, reg):
+    hashes = {}
+    for source in reg.get("sources", []):
+        path = safe(root, source["path"])
+        hashes[source["id"]] = file_hash(path) if path.is_file() else None
+    return hashes
+
+
+def select_cases(args, root):
+    """Explain a candidate set. No budget trimming, execution or scope mutation."""
+    reg, cases = load(root)
+    profile, profile_hash = execution_profile(root, cases)
+    records = {row["id"]: row for group in GROUPS for row in reg.get(group, [])}
+    records.update(cases)
+    changes, tags = set(args.changed), set(args.tag)
+    if changes - records.keys():
+        fail("Unknown changed ID(s): " + ", ".join(sorted(changes - records.keys())))
+    if args.budget_minutes is not None and (not math.isfinite(args.budget_minutes) or args.budget_minutes <= 0):
+        fail("budget-minutes must be positive finite minutes")
+    reverse, unresolved = {}, set()
+    def edge(dependency, dependent):
+        if dependency in records:
+            reverse.setdefault(dependency, set()).add(dependent)
+        else:
+            unresolved.add(str(dependency))
+    for rid, record in records.items():
+        deps = set(record_dependencies(record)) | set(ref_list(record.get("question_ids"))) | set(ref_list(record.get("blockers")))
+        if isinstance(record.get("basis"), str) and record["basis"] in records:
+            deps.add(record["basis"])
+        for dep in deps:
+            edge(dep, rid)
+        for target in ref_list(record.get("affected_ids")) + ref_list(record.get("impact_ids")):
+            for dest in cases if target == "ALL" else [target]:
+                if dest in records:
+                    edge(rid, dest)
+                else:
+                    unresolved.add(str(dest))
+    affected = {}
+    for seed in sorted(changes):
+        todo, visited = [seed], set()
+        while todo:
+            rid = todo.pop()
+            if rid in visited:
+                continue
+            visited.add(rid)
+            affected.setdefault(rid, set()).add(seed)
+            todo.extend(reverse.get(rid, ()))
+    current = set(reg.get("scope", {}).get("selected_case_ids", []))
+    risk_map = {r["id"]: r for r in reg.get("risks", [])}
+    order, metadata = profile.get("priority_order", []), profile.get("cases", {})
+    rows, excluded = [], []
+    for cid, case in cases.items():
+        meta = metadata.get(cid, {})
+        reasons = ["changed:" + rid for rid in sorted(affected.get(cid, set()))]
+        reasons += ["tag:" + tag for tag in sorted(tags.intersection(meta.get("tags", [])))]
+        if not changes and not tags and cid in current:
+            reasons.append("current-design-scope")
+        if not reasons:
+            continue
+        if case.get("status") == "retired":
+            excluded.append({"case_id": cid, "reason": "retired", "matched_by": reasons})
+            continue
+        risks = ref_list(case.get("risk_ids"))
+        ratings = [risk_map.get(rid, {}).get("priority") for rid in risks]
+        ranked = [value for value in ratings if value in order]
+        priority = meta.get("priority") or (min(ranked, key=order.index) if ranked else None)
+        rows.append({"case_id": cid, "status": case.get("status"), "in_design_scope": cid in current,
+            "reasons": reasons, "risk_ids": risks, "priority": priority,
+            "priority_basis": "execution-profile" if meta.get("priority") else "linked-risk-priority" if priority else "unranked",
+            "unranked_risk_ids": [rid for rid in risks if risk_map.get(rid, {}).get("priority") not in order],
+            "estimated_minutes": meta.get("estimated_minutes"), "automation_candidate": meta.get("automation_candidate"),
+            "blockers": case.get("blockers", [])})
+    # Unranked work remains visible for triage, never silently demoted to low.
+    rows.sort(key=lambda row: (order.index(row["priority"]) + 1 if row["priority"] in order else 0, row["case_id"]))
+    unknown_time = [row["case_id"] for row in rows if row["estimated_minutes"] is None]
+    known_minutes = sum(row["estimated_minutes"] or 0 for row in rows)
+    covered_risks = {rid for row in rows for rid in row["risk_ids"]}
+    source_hashes = selection_source_hashes(root, reg)
+    warnings = ["只沿已登錄依賴推導；須檢視跨功能影響、共通環境與遺漏連結。清單不改設計範圍，不代表核可或已執行。",
+                "時間只加總已知案例估計；另計設備切換、共用準備及故障排除。預算不會自動刪案例或接受風險。"]
+    stale_sources = [s["id"] for s in reg.get("sources", []) if source_hashes[s["id"]] != s.get("sha256") or source_hashes[s["id"]] is None]
+    if stale_sources:
+        warnings.append("來源缺少或已變更，先重新閱讀並評估：" + ", ".join(stale_sources))
+    result = {"schema_version": 1, "kind": "execution-selection-proposal", "artifact_digest": snapshot_digest(root),
+        "execution_profile_sha256": profile_hash, "source_hashes": source_hashes, "created_at": now(),
+        "criteria": {"changed_ids": sorted(changes), "tags": sorted(tags), "combine": "union", "budget_minutes": args.budget_minutes},
+        "cases": rows, "excluded": excluded, "known_estimated_minutes": known_minutes, "unknown_duration_case_ids": unknown_time,
+        "budget_state": "not-set" if args.budget_minutes is None else "empty" if not rows else "exceeded" if known_minutes > args.budget_minutes else "unknown" if unknown_time else "within-estimate",
+        "uncovered_selected_risk_ids": sorted(set(reg.get("scope", {}).get("selected_risk_ids", [])) - covered_risks),
+        "unmapped_changed_ids": sorted(seed for seed in changes if not any("changed:" + seed in row["reasons"] for row in rows)),
+        "unresolved_reference_ids": sorted(unresolved), "warnings": warnings,
+        "id_legend": {p: dict(zip(("english", "meaning", "purpose"), id_terms(reg, p)))
+                      for p in sorted(set(ID_TERMS) | {rid.split("-", 1)[0] for rid in records} | ({args.save.split("-", 1)[0]} if args.save else set()))},
+        "id_suffix_note": "數字後綴為類別流水號；不是優先度、版本、核可或結果。"}
+    if args.save:
+        valid_id(args.save)
+        result["id"] = args.save
+        write(safe(root, "qa/selections/" + args.save + ".json"), result, exclusive=True)
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+
+
+def check_selection(args, root):
+    valid_id(args.id)
+    selection = read(safe(root, "qa/selections/" + args.id + ".json"))
+    reg, cases = load(root)
+    _, profile_hash = execution_profile(root, cases)
+    if selection.get("kind") != "execution-selection-proposal" or selection.get("id") != args.id:
+        fail("Not a saved execution selection proposal")
+    checks = {"design": selection.get("artifact_digest") == snapshot_digest(root),
+              "execution_profile": selection.get("execution_profile_sha256") == profile_hash,
+              "source_files": selection.get("source_hashes") == selection_source_hashes(root, reg)}
+    print(json.dumps({"matches_current_inputs": all(checks.values()), "checks": checks,
+        "note": "Only checks input versions; does not approve selection, verify coverage, or execute tests."}, indent=2))
+    return int(not all(checks.values()))
+
+
 def coverage_rows(reg, cases):
     """Explicit assertion links only: design references, never executed coverage."""
     selected = set(reg.get("scope", {}).get("selected_case_ids", []))
@@ -1239,6 +1511,7 @@ def render(root):
             spec.append(f"| {cell(row['id'])} | {cell(row.get('status'))} | {cell(row.get('text'))} | {cell(basis)} |")
         spec.append("")
     save_view("qa/spec.md", spec)
+    safe(root, "qa/questions.md").write_text("\n".join(question_lines(root, reg)) + "\n", encoding="utf-8")
     interview = ["# 問答過程紀錄", "", "由 registry.interactions 產生；修改來源記錄後重新 render。原始問答與 AI 解讀分開；回答不自動等於產品決策或核可。", ""]
     replacements = {row["supersedes"]: row["id"] for row in reg.get("interactions", []) if row.get("supersedes")}
     if not reg.get("interactions"):
@@ -1357,6 +1630,8 @@ def render_html(root, reg, cases):
         "method": "讀取方式", "read_at": "實際讀取時間（未知留空）", "reader": "讀取者",
         "depth": "閱讀深度（index＝目錄／索引；content＝正文／圖表）",
         "source_sha256": "讀取版本指紋", "evidence_refs": "閱讀產物與指紋", "finding_index": "摘錄序號",
+        "urgency": "問題急迫性", "analysis": "分歧與影響分析", "suggested_owner": "建議轉交（未指派）",
+        "affected_areas": "受影響範圍", "assessment_status": "跨領域風險評估狀態",
         "severity": "危害嚴重度", "severity_rationale": "嚴重度依據",
         "likelihood_rationale": "可能性依據", "disposition": "取捨", "disposition_reason": "取捨理由",
     }
@@ -1708,7 +1983,7 @@ def render_html(root, reg, cases):
         assessment_refs = {k: assessment[k] for k in ("source_refs", "decision_refs") if assessment.get(k)}
         basis = value(assessment_refs) if assessment_refs else ""
         risk_text = (link("risks", risk["id"]) + '<br>' + e(risk.get("failure", "")) + '<br>' + e(risk.get("impact", ""))) if risk else "未列風險"
-        cells = [link("requirements", req["id"]) if req else "未對應需求", e(state), risk_text,
+        cells = [link("requirements", req["id"]) if req else ("跨領域風險" if risk.get("origin") in RISK_ORIGINS - {"requirement"} else "未對應需求"), e(state), risk_text,
                  *(e(risk_rating(risk, k)) for k in ("severity", "likelihood", "priority")), e(note) + basis,
                  '、'.join(link("cases", cid) for cid in related) or "無"]
         out.append('<tr>' + ''.join('<td>' + x + '</td>' for x in cells) + '</tr>')
@@ -1749,6 +2024,7 @@ def render_html(root, reg, cases):
                         '</p>' + related_links(group, rid) + '<p class="back"><a href="#cases">返回案例清單</a></p></article>']
         out.append('</section>')
     out += ['<section id="documents"><h2>其他成果與本輪範圍</h2>', value(reg.get("scope", {}))]
+    out.append('<p><a href="questions.md">下載／閱讀規格問題交接單（Markdown）</a></p>')
     for filename, label in (("strategy.md", "測試策略"), ("plan.md", "本輪計畫"), ("session.md", "工作進度")):
         p = safe(root, "qa/" + filename)
         if p.is_file():
@@ -1829,8 +2105,9 @@ def review_input_packet(root):
     assessments += reg.get("risks", [])
     risk_evidence_ids = {sid for assessment in assessments if isinstance(assessment, dict)
                          for sid in ref_list(assessment.get("source_refs"))}
+    question_evidence_ids = {sid for question in reg.get("questions", []) for sid in ref_list(question.get("source_refs"))}
     permitted = {s["id"] for s in reg["sources"] if s.get("kind") in ("normative", "harness", "experience")
-                 or s["id"] in comparison_ids or s["id"] in risk_evidence_ids}
+                 or s["id"] in comparison_ids or s["id"] in risk_evidence_ids or s["id"] in question_evidence_ids}
     filtered = json.loads(json.dumps(data))
     filtered["registry"]["sources"] = [s for s in reg["sources"] if s["id"] in permitted]
     # Only related interview evidence accompanies a review, not an entire setup/chat transcript.
@@ -1861,9 +2138,10 @@ def review_input_packet(root):
                           "design_tool_version": VERSION},
               "comparison_reference_ids": sorted(comparison_ids),
               "risk_evidence_source_ids": sorted(risk_evidence_ids),
+              "question_evidence_source_ids": sorted(question_evidence_ids),
               "interview_evidence_ids": sorted(interview_ids),
               "source_reading_summary": [{"source_id": s["id"], **reading_state(root, s)} for s in filtered["registry"]["sources"]],
-              "instruction": "Reload confirmed rules, decisions, bindings, risk assessments and coverage items. Experience sources suggest scenarios only. Risk evidence supports assessment, not product Expected. Comparison artifacts support only the explicitly confirmed relation; observed behavior is not automatically correct."}
+              "instruction": "Reload confirmed rules, decisions, bindings, questions, risk assessments and coverage items. Experience sources suggest scenarios only. Risk and question evidence support analysis, not product Expected. Comparison artifacts support only the explicitly confirmed relation; observed behavior is not automatically correct."}
     return packet
 
 
@@ -1889,6 +2167,8 @@ artifact_digest 是原專案完整設計的版本識別；review_input 是按交
 以完整已選 AC／風險／情境及保留 COV 為分母；先查設計方法與項目本身，再看已選案例的具體資料和斷言是否承接，不只數連結。檢查分區、邊界等號與鄰值、可行條件組合、初態／轉移及適用異常。資料型別、單位與解析度不明時不能猜相鄰值。
 保留 COV 應有案例斷言；defer 需人的取捨、理由與剩餘風險，不能全改 defer 以消除承諾。EXP 是探索計畫，不代替正式案例或執行覆蓋。未承諾的行為只報待釐清，不新增 Expected。
 逐需求查 risk_assessment 狀態及 requirement_revision、risks.requirement_ids 的直接多對多關聯；severity（危害嚴重度）、likelihood（可能性）、priority（測試優先序）須各有專案分級與理由。unknown 不等於低風險，低機率不降低危害；沒有風險紀錄不代表零風險。已選風險須承接，其他本輪關聯風險須有暫緩依據；未選需求可未評估，不擴張訪談。
+依失效機制核對方法深度與證據，不把高危害機械對應三值邊界。狀態與轉移對要有可行序列、初態及中間觀測；組合核對強度 t、約束與可行元組；決策表縮減保留原列映射，未知不是不可行。錯誤推測與生命週期只供情境線索，Expected 仍有已確認依據。
+跨領域風險可明列非 requirement 的 origin、affected_areas、assessment_status 及來源／決策；遺漏規則另連 question_ids，不要求新增假需求，也不讓舊孤立風險只改 origin 就免檢。問題單是原 questions 的視圖，匯出或建議選項不代表已回答。執行排程與選取建議不改原設計範圍，不能以 smoke／預算清單縮小審查分母；原設計欄位仍按完整 digest 綁定。
 
 ## 4. consistency：一致性
 檢查重複、矛盾、過期來源／版本、單位與判準混用、案例間依賴、初態污染及隱藏順序。前一案成功不能作為本案前置；必要連續操作應在同一案明列。合併建議須保留既有 ID 與唯一覆蓋，不直接刪案例。
@@ -2260,9 +2540,16 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--version", action="version", version=VERSION)
     sub = parser.add_subparsers(dest="cmd", required=True)
-    for name in ("init", "inventory", "check", "render", "digest", "checkpoint", "review-pack", "prepare-review", "resolve-review", "check-review-pack", "baseline", "start-run", "check-run", "record-qa", "show-qa", "record-reading", "show-source"):
+    for name in ("init", "inventory", "check", "render", "digest", "checkpoint", "review-pack", "prepare-review", "resolve-review", "check-review-pack", "baseline", "start-run", "check-run", "record-qa", "show-qa", "record-reading", "show-source", "export-questions", "select-cases", "check-selection"):
         p = sub.add_parser(name)
         p.add_argument("root", help="Accessible local project root (quote paths containing spaces)")
+        if name == "select-cases":
+            p.add_argument("--changed", action="append", default=[], help="Changed record ID; repeat to union impacts")
+            p.add_argument("--tag", action="append", default=[], help="Add matching cases (union, not intersection)")
+            p.add_argument("--budget-minutes", type=float, help="Report estimate only; never silently trim cases")
+            p.add_argument("--save", help="New selection ID, e.g. SEL-001; save immutable proposal JSON")
+        if name == "check-selection":
+            p.add_argument("--id", required=True)
         if name == "record-qa":
             p.add_argument("--input", required=True, help="Project-relative JSON file, or - for standard input")
         if name == "show-qa":
@@ -2307,6 +2594,9 @@ def main():
         elif args.cmd == "show-qa": show_qa(args, root)
         elif args.cmd == "record-reading": record_reading(args, root)
         elif args.cmd == "show-source": show_source(args, root)
+        elif args.cmd == "export-questions": export_questions(root)
+        elif args.cmd == "select-cases": select_cases(args, root)
+        elif args.cmd == "check-selection": return check_selection(args, root)
         elif args.cmd == "inventory": inventory(root)
         elif args.cmd == "render": render(root)
         elif args.cmd == "digest": print(snapshot_digest(root))

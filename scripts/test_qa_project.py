@@ -1471,6 +1471,265 @@ class WorkflowTests(unittest.TestCase):
         put(path, run)
         self.assertIn("snapshot changed", self.run_tool("check-run", "--id", "RUN-001", ok=False).stdout)
 
+    def question_fixture(self, qid="Q-001", **fields):
+        return {"id": qid, "text": "Which recovery behavior applies?", "status": "open", "owner": "unassigned",
+                "due_or_trigger": "before affected execution", "impact_ids": ["TC-001"], "blocks": [], **fields}
+
+    def test_question_handoff_sorts_gaps_and_preserves_design_and_interview(self):
+        reg, _ = self.fixture()
+        reg["questions"] = [self.question_fixture("Q-001", urgency="later"),
+            self.question_fixture("Q-002", urgency="important", status="deferred", suggested_owner="Engineering"),
+            self.question_fixture("Q-003"), self.question_fixture("Q-004", blocks=["execution"]),
+            self.question_fixture("Q-005", status="resolved", decision_refs=["DEC-001"])]
+        put(self.root / "qa/registry.json", reg)
+        before = {p: sha(self.root / p) for p in ("qa/registry.json", "qa/session.md")}
+        digest = self.run_tool("digest").stdout
+        self.run_tool("export-questions")
+        md = (self.root / "qa/questions.md").read_text(encoding="utf-8")
+        self.assertTrue(md.index("## Q-004") < md.index("## Q-003") < md.index("## Q-002") < md.index("## Q-001"))
+        self.assertNotIn("Q-005", md)
+        self.assertIn("Engineering", md)
+        self.assertIn("回答（待填）", md)
+        self.assertIn("Question", md)
+        self.run_tool("render")
+        self.assertEqual(digest, self.run_tool("digest").stdout)
+        self.assertEqual(before, {p: sha(self.root / p) for p in before})
+        self.assertIn("questions.md", (self.root / "qa/report.html").read_text(encoding="utf-8"))
+
+    def test_question_handoff_links_real_sources_and_escapes_content(self):
+        reg, _ = self.fixture()
+        path = self.root / "inputs/規格 #1%.md"  # legal on Windows, with URL metacharacters
+        (self.root / "inputs/spec.md").rename(path)
+        reg["sources"][0]["path"] = path.relative_to(self.root).as_posix()
+        reg["questions"] = [self.question_fixture(source_refs=["SRC-SPEC"], source_citations=[self.cite()],
+            analysis="<script>alert(1)</script> | [click](javascript:alert)", options=["A | B", "Other behavior"])]
+        put(self.root / "qa/registry.json", reg)
+        self.run_tool("export-questions")
+        md = (self.root / "qa/questions.md").read_text(encoding="utf-8")
+        self.assertIn("%231%25.md", md)
+        self.assertIn("Synthetic test rule", md)
+        self.assertIn("whole file", md)
+        self.assertNotIn("<script>", md)
+        self.assertIn("&lt;script&gt;", md)
+        self.assertIn("\\[click\\]", md)
+
+    def test_question_optional_fields_validate_without_requiring_migration(self):
+        reg, _ = self.fixture()
+        reg["questions"] = [self.question_fixture()]
+        put(self.root / "qa/registry.json", reg)
+        self.run_tool("check")
+        for fields in ({"category": "invented"}, {"urgency": "low-risk"}, {"source_refs": ["SRC-MISSING"]},
+                       {"options": [None]}, {"analysis": False}):
+            with self.subTest(fields=fields):
+                reg["questions"] = [self.question_fixture(**fields)]
+                put(self.root / "qa/registry.json", reg)
+                self.run_tool("check", ok=False)
+
+    def test_empty_question_export_does_not_claim_no_gaps_or_complete_reading(self):
+        self.run_tool("export-questions")
+        md = (self.root / "qa/questions.md").read_text(encoding="utf-8")
+        self.assertIn("不代表已讀完或規格沒有缺口", md)
+        self.assertEqual(get(self.root / "qa/registry.json")["questions"], [])
+
+    def test_review_pack_retains_question_observation_evidence_without_adopting_it(self):
+        reg, _ = self.fixture()
+        path = self.root / "inputs/observation.md"
+        path.write_text("Synthetic display observation; not an approved product rule.", encoding="utf-8")
+        source = {"id": "SRC-OBS", "path": "inputs/observation.md", "sha256": sha(path), "kind": "observation",
+                  "status": "unconfirmed", "locator": "whole file"}
+        source["readings"] = [self.reading_fixture(source)]
+        reg["sources"].append(source)
+        reg["questions"] = [self.question_fixture(source_refs=["SRC-OBS"], source_citations=[self.cite("SRC-OBS")])]
+        put(self.root / "qa/registry.json", reg)
+        self.run_tool("review-pack", "--id", "REV-QUESTION", "--portable")
+        packet = get(self.root / "qa/review-packs/REV-QUESTION/packet.json")
+        self.assertEqual(packet["question_evidence_source_ids"], ["SRC-OBS"])
+        self.assertIn(source, packet["review_input"]["registry"]["sources"])
+        self.assertEqual(packet["review_input"]["registry"]["questions"][0]["status"], "open")
+        self.assertNotIn("SRC-OBS", packet["comparison_reference_ids"])
+        self.run_tool("check-review-pack", root=self.root / "qa/review-packs/REV-QUESTION")
+
+    def crosscutting_fixture(self, origin="integration"):
+        reg, case = self.fixture()
+        reg["risks"][0].update(requirement_ids=[], origin=origin, affected_areas=["output and downstream interface"],
+                               assessment_status="confirmed", decision_refs=["DEC-001"])
+        put(self.root / "qa/registry.json", reg)
+        self.refresh_review()
+        return reg, case
+
+    def test_crosscutting_risk_can_have_no_fake_requirement_and_pass_baseline(self):
+        reg, _ = self.crosscutting_fixture()
+        original = copy.deepcopy(reg["requirements"])
+        self.run_tool("check", "--gate", "baseline")
+        self.run_tool("render")
+        self.assertEqual(get(self.root / "qa/registry.json")["requirements"], original)
+        self.assertIn("跨領域風險", (self.root / "qa/report.html").read_text(encoding="utf-8"))
+
+    def test_crosscutting_missing_basis_areas_or_confirmation_blocks_baseline(self):
+        reg, _ = self.crosscutting_fixture()
+        for changes in ({"affected_areas": []}, {"assessment_status": "proposed"},
+                        {"source_refs": [], "source_citations": [], "decision_refs": [], "assessment_status": "proposed"}):
+            with self.subTest(changes=changes):
+                edited = copy.deepcopy(reg)
+                edited["risks"][0].update(changes)
+                put(self.root / "qa/registry.json", edited)
+                self.refresh_review()
+                self.run_tool("check")
+                self.run_tool("check", "--gate", "baseline", ok=False)
+
+    def test_crosscutting_unknown_origin_or_fake_confirmation_rejected(self):
+        reg, _ = self.crosscutting_fixture()
+        for changes in ({"origin": "anything"}, {"question_ids": ["Q-MISSING"]},
+                        {"source_refs": ["SRC-HARNESS"], "source_citations": [self.cite("SRC-HARNESS")], "decision_refs": []}):
+            with self.subTest(changes=changes):
+                edited = copy.deepcopy(reg)
+                edited["risks"][0].update(changes)
+                put(self.root / "qa/registry.json", edited)
+                self.run_tool("check", ok=False)
+
+    def test_omission_risk_requires_link_to_missing_rule_and_respects_block(self):
+        reg, _ = self.crosscutting_fixture("omission")
+        self.assertIn("omission risk needs question_ids", self.run_tool("check", "--gate", "baseline", ok=False).stdout)
+        reg["questions"] = [self.question_fixture(impact_ids=["RISK-001"], blocks=["baseline"])]
+        reg["risks"][0]["question_ids"] = ["Q-001"]
+        put(self.root / "qa/registry.json", reg)
+        self.refresh_review()
+        self.assertIn("Q-001", self.run_tool("check", "--gate", "baseline", ok=False).stdout)
+
+    def test_new_methods_are_accepted_but_do_not_supply_missing_expected(self):
+        reg, case = self.fixture()
+        for technique in ("combinatorial", "error-guessing", "data-lifecycle"):
+            reg["coverage_items"][0]["technique"] = technique
+            put(self.root / "qa/registry.json", reg)
+            self.run_tool("check")
+        case["steps"][0]["checks"][0]["rule_refs"] = []
+        put(self.root / "qa/cases/TC-001.json", case)
+        self.run_tool("check", ok=False)
+
+    def selection_fixture(self):
+        reg, case = self.fixture()
+        for cid, status in (("TC-002", "ready"), ("TC-003", "blocked"), ("TC-004", "retired")):
+            row = copy.deepcopy(case)
+            row.update(id=cid, status=status, ac_ids=[], risk_ids=[], scenario_ids=[], coverage_ids=[], steps=[], environment={}, data=[])
+            put(self.root / f"qa/cases/{cid}.json", row)
+        profile = {"schema_version": 1, "priority_order": ["P1", "P2"], "cases": {
+            "TC-001": {"tags": ["regression"], "estimated_minutes": 30},
+            "TC-002": {"priority": "P2", "tags": ["smoke"], "estimated_minutes": 15, "automation_candidate": False},
+            "TC-003": {"tags": ["smoke"]}, "TC-004": {"tags": ["smoke"]}}}
+        put(self.root / "qa/execution-profile.json", profile)
+        return reg, profile
+
+    def test_selection_union_retains_impacts_smoke_and_blocked_but_excludes_retired(self):
+        reg, _ = self.selection_fixture()
+        result = json.loads(self.run_tool("select-cases", "--changed", "REQ-001", "--tag", "smoke").stdout)
+        rows = {r["case_id"]: r for r in result["cases"]}
+        self.assertEqual(set(rows), {"TC-001", "TC-002", "TC-003"})
+        self.assertIn("changed:REQ-001", rows["TC-001"]["reasons"])
+        self.assertIn("tag:smoke", rows["TC-002"]["reasons"])
+        self.assertEqual(rows["TC-003"]["status"], "blocked")
+        self.assertFalse(rows["TC-002"]["in_design_scope"])
+        self.assertEqual(result["excluded"][0]["case_id"], "TC-004")
+        self.assertEqual(get(self.root / "qa/registry.json")["scope"], reg["scope"])
+
+    def test_selection_tracks_source_question_and_decision_dependencies_with_cycles(self):
+        reg, _ = self.selection_fixture()
+        reg["questions"] = [self.question_fixture(source_refs=["SRC-SPEC"], impact_ids=["REQ-001"])]
+        reg["decisions"][0]["affected_ids"] = ["Q-001"]
+        put(self.root / "qa/registry.json", reg)
+        for seed in ("SRC-SPEC", "Q-001", "DEC-001"):
+            result = json.loads(self.run_tool("select-cases", "--changed", seed).stdout)
+            self.assertIn("TC-001", [r["case_id"] for r in result["cases"]])
+
+    def test_selection_default_is_current_scope_and_profile_is_optional(self):
+        self.fixture()
+        result = json.loads(self.run_tool("select-cases").stdout)
+        self.assertEqual([r["case_id"] for r in result["cases"]], ["TC-001"])
+        self.assertIsNone(result["execution_profile_sha256"])
+        self.assertIsNone(result["cases"][0]["priority"])
+        self.assertEqual(result["cases"][0]["unranked_risk_ids"], ["RISK-001"])
+
+    def test_selection_uses_project_id_definitions_without_guessing_unknown_prefixes(self):
+        reg, _ = self.fixture()
+        reg["project"]["id_glossary"] = {"TC": {"english": None, "meaning": None, "purpose": None},
+                                         "SEL": {"english": "Selection", "meaning": "本輪安排", "purpose": "人工建議清單"}}
+        put(self.root / "qa/registry.json", reg)
+        result = json.loads(self.run_tool("select-cases").stdout)
+        self.assertEqual(result["id_legend"]["TC"]["english"], "待確認")
+        self.assertEqual(result["id_legend"]["SEL"]["meaning"], "本輪安排")
+
+    def test_selection_budget_does_not_drop_cases_or_claim_unknown_estimates_fit(self):
+        self.selection_fixture()
+        result = json.loads(self.run_tool("select-cases", "--changed", "REQ-001", "--tag", "smoke", "--budget-minutes", "20").stdout)
+        self.assertEqual(len(result["cases"]), 3)
+        self.assertEqual(result["known_estimated_minutes"], 45)
+        self.assertEqual(result["budget_state"], "exceeded")
+        self.assertEqual(result["unknown_duration_case_ids"], ["TC-003"])
+        result = json.loads(self.run_tool("select-cases", "--tag", "smoke", "--budget-minutes", "60").stdout)
+        self.assertEqual(result["budget_state"], "unknown")
+        self.assertEqual(result["uncovered_selected_risk_ids"], ["RISK-001"])
+
+    def test_execution_metadata_change_preserves_design_but_stales_selection(self):
+        self.fixture()
+        before = self.run_tool("digest").stdout
+        self.run_tool("select-cases", "--save", "SEL-001")
+        self.run_tool("check-selection", "--id", "SEL-001")
+        put(self.root / "qa/execution-profile.json", {"schema_version": 1, "cases": {"TC-001": {"tags": ["smoke"]}}})
+        self.assertEqual(before, self.run_tool("digest").stdout)
+        self.run_tool("check", "--gate", "baseline")
+        result = json.loads(self.run_tool("check-selection", "--id", "SEL-001", ok=False).stdout)
+        self.assertFalse(result["checks"]["execution_profile"])
+        self.assertTrue(result["checks"]["design"])
+
+    def test_existing_case_fields_still_invalidate_design_and_saved_selection(self):
+        _, case = self.fixture()
+        self.run_tool("select-cases", "--save", "SEL-001")
+        old = self.run_tool("digest").stdout
+        case["tags"] = ["legacy-field-remains-design"]
+        put(self.root / "qa/cases/TC-001.json", case)
+        self.assertNotEqual(old, self.run_tool("digest").stdout)
+        self.assertFalse(json.loads(self.run_tool("check-selection", "--id", "SEL-001", ok=False).stdout)["checks"]["design"])
+        self.run_tool("check", "--gate", "baseline", ok=False)
+
+    def test_selection_checks_source_bytes_even_if_registry_not_updated(self):
+        self.fixture()
+        self.run_tool("select-cases", "--save", "SEL-001")
+        (self.root / "inputs/spec.md").write_text("Changed fixture bytes", encoding="utf-8")
+        result = json.loads(self.run_tool("check-selection", "--id", "SEL-001", ok=False).stdout)
+        self.assertFalse(result["checks"]["source_files"])
+        self.assertIn("SRC-SPEC", json.loads(self.run_tool("select-cases").stdout)["warnings"][-1])
+
+    def test_selection_rejects_unknown_changes_and_reports_unmapped_changes(self):
+        reg, _ = self.fixture()
+        self.run_tool("select-cases", "--changed", "REQ-MISSING", ok=False)
+        reg["questions"] = [self.question_fixture(impact_ids=[])]
+        put(self.root / "qa/registry.json", reg)
+        result = json.loads(self.run_tool("select-cases", "--changed", "Q-001", "--budget-minutes", "60").stdout)
+        self.assertEqual(result["cases"], [])
+        self.assertEqual(result["unmapped_changed_ids"], ["Q-001"])
+        self.assertEqual(result["budget_state"], "empty")
+
+    def test_execution_profile_rejects_bad_types_and_design_overrides(self):
+        self.fixture()
+        for row in ({"estimated_minutes": True}, {"estimated_minutes": -1}, {"estimated_minutes": float("inf")},
+                    {"tags": ["smoke", "smoke"]}, {"automation_candidate": "yes"}, {"priority": "P1"},
+                    {"expected": "invented"}):
+            with self.subTest(row=row):
+                put(self.root / "qa/execution-profile.json", {"schema_version": 1, "cases": {"TC-001": row}})
+                self.run_tool("select-cases", ok=False)
+        put(self.root / "qa/execution-profile.json", {"schema_version": 1, "cases": {"TC-MISSING": {}}})
+        self.run_tool("select-cases", ok=False)
+
+    def test_selection_saved_proposal_is_immutable_and_rejects_path_escape(self):
+        self.fixture()
+        self.run_tool("select-cases", "--save", "SEL-001")
+        path = self.root / "qa/selections/SEL-001.json"
+        before = path.read_bytes()
+        self.run_tool("select-cases", "--save", "SEL-001", ok=False)
+        self.assertEqual(path.read_bytes(), before)
+        self.run_tool("select-cases", "--save", "../outside", ok=False)
+        self.run_tool("select-cases", "--budget-minutes", "nan", ok=False)
+        self.run_tool("select-cases", "--budget-minutes", "0", ok=False)
+
     def test_path_escape_and_symlink_rejected(self):
         self.fixture()
         self.run_tool("baseline", "--id", "../oops", "--approval", "qa/approvals/APP-001.json", ok=False)

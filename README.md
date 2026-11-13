@@ -2,10 +2,10 @@
 
 | 項目 | 內容 |
 | --- | --- |
-| 文件版本 | 1.19.0 |
+| 文件版本 | 1.20.0 |
 | 更新日期 | 2026-11-13（Asia/Taipei） |
 | 適用 Skill | GenAI 測試策略 / genai-test-strategy |
-| 適用專案工具 | `qa_project.py` 1.8.0 |
+| 適用專案工具 | `qa_project.py` 1.9.0 |
 | 文字編碼 | UTF-8 |
 | Skill 頁面 | [GenAI 測試策略](https://chatgpt.com/skills?skill_id=6af1747b432881919448466eb247e9c9) |
 
@@ -27,6 +27,7 @@ AI 再依規則選擇測試方法，列出要涵蓋的邊界、條件組合或�
 
 ## 目錄
 
+- [本次新增：規格問題單與執行選取](#本次新增規格問題單與執行選取)
 - [00. 兩個 Skill 如何配合](#00-兩個-skill-如何配合)
 
 - [01. 五分鐘開始使用](#01-五分鐘開始使用)
@@ -47,6 +48,57 @@ AI 再依規則選擇測試方法，列出要涵蓋的邊界、條件組合或�
 - [16. 常見問題與處理方式](#16-常見問題與處理方式)
 - [17. 通用案例模板與跨專案使用方式](#17-通用案例模板與跨專案使用方式)
 - [18. 每階段完成檢查表](#18-每階段完成檢查表)
+
+## 本次新增：規格問題單與執行選取
+
+既有開場、一次一題／每五題統整、人工測試、來源閱讀、問答保存、完整案例及獨立審查均保留。新增能力按任務使用，不要求先填完更多表格。
+
+### 有草稿，但 PM 或工程暫時無法回答
+
+可直接說：
+
+```text
+請先閱讀本輪相關規格，整理歧義、衝突、邊界及無法測試的缺口。
+把問題按影響排序，匯出能轉交 PM／工程的問題單。
+先用已有依據完成不受影響的測試策略與案例，受影響部分保留待確認。
+```
+
+AI 會先做靜態分析，沿用原待確認問題編號，交付 `qa/questions.md`，含來源／定位、影響、責任人或未指派、確認時點、建議選項及空白回答欄。建議選項不代表已確認；問題單也不代表每題已經問過，不消耗五題額度。
+
+原始記錄仍只有 registry.questions；網頁可點問題、來源及摘錄。請把填答另存副本再交回，因為 render 會重新產生問題單。AI 接回後保存原話與實際決策，更新有影響的規則／案例；不知道的部分繼續保留，不把空白當同意。詳見 [規格缺口與轉交](references/spec-review.md)。
+
+### 想知道最值得測什麼、要測多深
+
+```text
+請依本輪品質目標、需求與團隊缺陷資料，提出主要失效機制，
+說明各風險適合的測試方法、深度、證據、人工／設備成本及未測部分。
+```
+
+AI 依失效機制選方法；例如前序操作影響結果時考慮轉移對，已知三因子交互作用時補高階組合，資料跨階段不一致時看生命週期。嚴重度不機械對應某種技術。團隊經驗提供候選線索，不直接作 Expected。
+
+整合、變更、架構、環境或遺漏風險可明列非需求來源，不需要假造需求編號；仍需影響範圍、真實依據、評估及取捨。缺產品規則就列待決／探索，不能跳過判準。詳見 [失效機制](references/failure-modes.md)、[方法與深度](references/test-design.md)、[風險資料](references/risk-assessment.md)。
+
+### 要安排手動測試、Smoke 或回歸
+
+```text
+請依這次變更找受影響案例，再加入本專案的 smoke 案例。
+列命中理由、風險、受阻項目、預估人工時間與未知時間。
+時間不夠先提出取捨，請不要自動刪案例或改已核可範圍。
+```
+
+可選填 `qa/execution-profile.json`，保存執行優先序、標籤、預估時間及自動化候選；不強迫導入 CI/CD。這份排程資料與設計分開，修改標籤或時間不會使原案例設計審查失效。原規格、案例所有欄位、風險、範圍、策略與計畫仍依原版本規則，不能搬欄位來繞過審查。
+
+在專案根目錄執行（ID 請換成本專案既有編號，Linux／macOS 可把 py -3 換成 python3）：
+
+```text
+py -3 qa/tools/qa_project.py export-questions .
+py -3 qa/tools/qa_project.py select-cases . --changed REQ-001 --tag smoke --budget-minutes 60 --save SEL-001
+py -3 qa/tools/qa_project.py check-selection . --id SEL-001
+```
+
+REQ＝Requirement（需求），SEL 取自 Selection（執行選取建議），001 是各類流水號；不是優先度或版本。變更命中與標籤採聯集；選取建議列在 qa/selections，綁定設計、排程及原檔指紋，不覆寫舊清單。沒有時間估計就列未知，超時也不自動接受風險；尚未 ready 的案例如實保留狀態。詳見 [執行選取格式與限制](references/execution-selection.md)。
+
+**既有專案升級：** 先保存 checkpoint、比較新舊工具，再更新專案內 qa/tools/qa_project.py 至 1.9.0；重新 init 不會升級。schema 1、原編號、舊基線與執行快照保留，新增欄位按需採用。
 
 ## 00. 兩個 Skill 如何配合
 
@@ -1362,6 +1414,9 @@ py -3 qa/tools/qa_project.py checkpoint . -m "保存 RUN-001 與執行證據"
 | init | 建立結構及工具副本；不自動建立第一個 commit。 |
 | inventory | 記錄來源檔案的盤點變化；不自動讀懂或採納產品規則。 |
 | record-reading | 追加實際閱讀證據或更正鏈，驗證版本與定位；不代替讀取工具或採納決策。 |
+| export-questions | 從原 questions 匯出規格問題交接單；不自行分析、回答或更改題數。 |
+| select-cases | 按已登錄變更依賴／標籤提出執行清單；不改 scope、不自動刪案或執行。 |
+| check-selection | 核對已存選取建議的設計、排程及原檔版本；不等於核可。 |
 | show-source | 列出精簡閱讀索引，或按來源／閱讀序號查看內容，不自動讀取全文。 |
 | check | 檢查已整理記錄的結構；不執行產品測試。 |
 | render | 從 registry 與 cases 產生原有 Markdown 視圖、編號字典與可點閱的 report.html。 |
@@ -1453,7 +1508,7 @@ symlink、常見私密檔名、虛擬環境、`.git` 內容及 raw 證據目錄�
 
 ### Q15：Skill 更新後，專案內工具仍是舊版，沒有網頁報告。
 
-工具 1.8.0 增加自動配號、驗證交接及可攜包。既有專案先保存 checkpoint、比較差異，再明確更新 qa/tools/qa_project.py；重新 init 不會升級。審查端沿用版本，不擅自改工具；舊包保留並人工核對。
+工具 1.9.0 增加規格問題單、跨領域風險及執行選取；1.8.0 的自動配號、驗證交接及可攜包保留。既有專案先保存 checkpoint、比較差異，再明確更新 qa/tools/qa_project.py；重新 init 不會升級。審查端沿用版本，不擅自改工具；舊包保留並人工核對。
 
 專案工具是初始化時的副本；重跑 init 不會升級它。
 1.1.0 新增文件中的編號說明與 `qa/id-glossary.md`；舊版不會自動產生。
@@ -1647,5 +1702,5 @@ py -3 -m unittest discover -s scripts -p "test_qa_project.py" -v
 請保存本次成果，更新 session，說明剩餘風險，並告訴我下次接著做哪一件事。
 ```
 
-文件依據：此 Skill 目前安裝版本的 [SKILL.md](SKILL.md)、[local-versioning.md](references/local-versioning.md)、[git-server.md](references/git-server.md)、[report.md](references/report.md)、[records.md](references/records.md)、[review.md](references/review.md)、[templates.md](references/templates.md)、[domain-adaptation.md](references/domain-adaptation.md)、[identifiers.md](references/identifiers.md)，[test-design.md](references/test-design.md)、[oracles-exploration.md](references/oracles-exploration.md)，以及 `qa_project.py 1.8.0` 的實際命令與行為。四輪審查的逐項準則見 [GenAI 測試審查](https://github.com/DQARM/genai-test-strategy/tree/dev/skills/genai-test-review)，可攜包另附可獨立使用的準則。
+文件依據：此 Skill 目前安裝版本的 [SKILL.md](SKILL.md)、[local-versioning.md](references/local-versioning.md)、[git-server.md](references/git-server.md)、[report.md](references/report.md)、[records.md](references/records.md)、[review.md](references/review.md)、[templates.md](references/templates.md)、[domain-adaptation.md](references/domain-adaptation.md)、[identifiers.md](references/identifiers.md)，[test-design.md](references/test-design.md)、[oracles-exploration.md](references/oracles-exploration.md)，以及 `qa_project.py 1.9.0` 的實際命令與行為。四輪審查的逐項準則見 [GenAI 測試審查](https://github.com/DQARM/genai-test-strategy/tree/dev/skills/genai-test-review)，可攜包另附可獨立使用的準則。
 工具版本或專案格式變更時，請先核對 --version、--help 與更新內容，再調整本 SOP。

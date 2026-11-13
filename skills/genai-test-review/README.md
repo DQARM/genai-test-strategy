@@ -1,10 +1,12 @@
 # GenAI 測試審查 Skill 使用手冊
 
-版本：1.4.0。更新日期：2026-11-13（Asia/Taipei）。
+版本：1.5.0。更新日期：2026-11-13（Asia/Taipei）。
 
 此 Skill 用於審查已存在的 Test Case（測試案例），支援純軟體、系統設備與人工測試。需求釐清和案例產生請使用 `genai-test-strategy`；審查使用 `genai-test-review`。
 
 ## 安裝
+
+本版補強規格問題單、風險對應測試深度、跨領域風險及執行安排的審查界線。問題單不代表問題已回答；非需求風險不強迫新增假需求。檢查轉移序列、組合強度及決策表縮減的依據，仍只用已確認規則判 Expected。排程標籤／時間與設計版本分開，不能用 smoke／回歸建議清單縮小原設計審查範圍。
 
 安裝本資料夾的 SKILL.md、agents 與 references，保留相對結構；不要覆蓋原本的測試策略 Skill。
 GitHub 入口：[skills/genai-test-review](https://github.com/DQARM/genai-test-strategy/tree/dev/skills/genai-test-review)。
