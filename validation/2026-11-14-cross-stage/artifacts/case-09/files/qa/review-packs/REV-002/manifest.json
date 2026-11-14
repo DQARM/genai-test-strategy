@@ -1,0 +1,71 @@
+{
+  "protocol_version": 2,
+  "pack_id": "REV-002",
+  "tool_version": "1.10.0",
+  "portable": false,
+  "artifact_digest": "adb98a8092ef710f77e1041cc9cd62cee1a8c9a60764b63bfb1b5ce3ebb98b5c",
+  "review_input_digest": "adb98a8092ef710f77e1041cc9cd62cee1a8c9a60764b63bfb1b5ce3ebb98b5c",
+  "focus_digest": "a4ddbcc682098ad0acbef8731534fac28f0b0dc7fc81514f040c4f496ae893d6",
+  "inputs": [
+    {
+      "role": "source",
+      "source_id": "SRC-SPEC",
+      "path": "inputs/spec.md",
+      "expected_sha256": "f574cfbae3eedc1dc70434c467a38a47a2b550511edfdef06c16521d9c0ba691",
+      "actual_sha256": "f574cfbae3eedc1dc70434c467a38a47a2b550511edfdef06c16521d9c0ba691",
+      "status": "available",
+      "bundle_path": null
+    },
+    {
+      "role": "source",
+      "source_id": "SRC-HARNESS",
+      "path": "inputs/harness.md",
+      "expected_sha256": "6050ea2d883af7e763867cd2cc9320f8347986265482bc05f42bc28ee325c140",
+      "actual_sha256": "6050ea2d883af7e763867cd2cc9320f8347986265482bc05f42bc28ee325c140",
+      "status": "available",
+      "bundle_path": null
+    },
+    {
+      "role": "decision",
+      "path": "qa/decisions/DEC-001.md",
+      "expected_sha256": "e83e2466b7ecf10a485cf4c2cfe03bfd3142fc4dc9ee818d5de9924b8ebd9558",
+      "actual_sha256": "e83e2466b7ecf10a485cf4c2cfe03bfd3142fc4dc9ee818d5de9924b8ebd9558",
+      "status": "available",
+      "bundle_path": null
+    },
+    {
+      "role": "decision",
+      "path": "qa/decisions/DEC-002.md",
+      "expected_sha256": "8540805c042ebe26aa51a0bf23396d0bd651257db2de80cfc5df41a098957b98",
+      "actual_sha256": "8540805c042ebe26aa51a0bf23396d0bd651257db2de80cfc5df41a098957b98",
+      "status": "available",
+      "bundle_path": null
+    }
+  ],
+  "files": [
+    {
+      "path": "HANDOFF.md",
+      "sha256": "b64f47c9f3f629df2ed8f1a742fc2c918aba254601c1f1a7473c49cc1e660e09"
+    },
+    {
+      "path": "PROMPT.md",
+      "sha256": "8250a0c2f32bd483ee7115f489db652ea1ec401c2e49cb64d9e1c3df88e8695d"
+    },
+    {
+      "path": "REVIEW_GUIDE.md",
+      "sha256": "d6d5ed79ecb03bbdc0a97301febfd68cdd140159f275df4cf32e347b055db1f6"
+    },
+    {
+      "path": "REVIEW_TEMPLATE.json",
+      "sha256": "ddfd561f38f70e25c761a77866d363f98b061ff580c16544021c40a3e66571a5"
+    },
+    {
+      "path": "packet.json",
+      "sha256": "3457fec2bc58fb2cc01b84cffd9abe6fcefcf17384b8b248671fe256e7c7b4f1"
+    },
+    {
+      "path": "verify_pack.py",
+      "sha256": "9c9ecdcd661ba08ae5b9bc6f1ed5b5e44279f01e80937ae5b6c39bdae4ad46fd"
+    }
+  ]
+}

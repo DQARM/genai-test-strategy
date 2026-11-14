@@ -1,0 +1,40 @@
+{
+  "date": "2026-11-14",
+  "platform": "Linux / Python 3.12",
+  "tool_version": "1.10.0",
+  "manual_version": "1.23.0",
+  "review_manual_version": "1.6.0",
+  "product_tool_tests": {
+    "command": "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s scripts -p test_qa_project.py",
+    "run": 125,
+    "passed": 125,
+    "failed": 0,
+    "seconds": 60.683,
+    "source": "Observed execution summary; this file is not a raw full test log."
+  },
+  "evaluation_tool_tests": {
+    "command": "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s evals -p test_evaluate.py",
+    "run": 8,
+    "passed": 8,
+    "failed": 0,
+    "seconds": 1.011,
+    "source": "Observed execution summary; this file is not a raw full test log."
+  },
+  "docs": {
+    "file_links": 147,
+    "anchors": 62,
+    "errors": []
+  },
+  "quick_validate": "passed",
+  "git_diff_check": "passed",
+  "browser_visual_check": {
+    "status": "NOT_RUN",
+    "reason": "Bundled Playwright browser missing; system Chromium could not launch because socket creation was denied by runtime. No screenshots were obtained."
+  },
+  "not_validated": [
+    "Native Windows",
+    "Physical SUT",
+    "Cross-model/repeated behavioral trials",
+    "Independent human grading"
+  ]
+}

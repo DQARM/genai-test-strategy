@@ -124,12 +124,47 @@ Finding 欄位：id、round、case_ids、rule_refs、issue、evidence、proposal
 
 ## 執行記錄
 
-`start-run` 建立 `qa/runs/RUN-001.json` 並凍結 case／registry／digest／Git 狀態。填實際執行人、started_at、finished_at，逐步填 actual、status、at、evidence。證據格式：`{"path":"qa/evidence/RUN-001-step2.log","sha256":"真實檔案 hash"}`。
+`start-run` 建立 `qa/runs/RUN-001.json` 並凍結 case／registry／digest／Git 狀態。填實際執行人、started_at、finished_at，由 record-run 逐步登錄 actual、status、at、evidence，避免手改整份凍結快照。證據格式：`{"path":"qa/evidence/RUN-001-step2.log","sha256":"真實檔案 hash"}`。
 
 狀態為 NOT_RUN／PASS／FAIL／BLOCKED／INCONCLUSIVE。只完成準備或沒有判準就不標 PASS。run PASS 必須所有步驟有證據且為 PASS；FAIL 要有失敗步驟；未測步驟保留 NOT_RUN。重新跑建立新 RUN ID，不覆寫前次 Actual。
 
 工具不會替你執行 SUT。使用 check-run 檢查紀錄完整性，再人工檢查證據與結論是否相符。不可修改 case_snapshot 或 registry_snapshot 來讓舊結果符合新規格。
 
+### 使用 record-run
+
+先將小型輸入 JSON 保存於專案內，例如 qa/run-input.json，再執行：
+
+```bash
+python3 qa/tools/qa_project.py record-run . --id RUN-001 --input qa/run-input.json
+```
+
+輸入示例是格式示意；操作人、Actual、時間、路徑及判定必須換成真實資料，不能直接當實測：
+
+```json
+{
+  "operator": "實際執行人",
+  "expected_revision": 0,
+  "started_at": "2026-11-14T10:00:00+08:00",
+  "steps": [{
+    "n": 1, "status": "PASS", "actual": "實際觀察內容及判定依據",
+    "at": "2026-11-14T10:00:01+08:00",
+    "evidence": ["qa/evidence/RUN-001-step1.log"]
+  }],
+  "finish": true,
+  "finished_at": "2026-11-14T10:00:03+08:00"
+}
+```
+
+- 步驟 n 必須存在且不重複；只接受登錄欄位，不能傳入或改動 snapshot／digest／案例步驟。PASS／FAIL 要有現存證據，工具自算 SHA-256；不從檔案存在、hash 相符或關鍵字推論產品成功。
+- 預設 finish=false，只存觀察。recording_status=in-progress，頂層 status 暫留 NOT_RUN（相容舊狀態列舉），報告顯示「登錄中；尚無最終結果」，不可當完全未測或正式通過。recording_policy=record-run-v1 為選填契約，不改 schema 1。
+- 明確 finish=true 才彙總：存在 FAIL 優先，其次 BLOCKED、INCONCLUSIVE；所有步驟 PASS 且原案例 ready 才可 PASS。尚有 NOT_RUN 則不能 PASS，提前結束須 reason；僅剩 PASS 與 NOT_RUN 時結果為 INCONCLUSIVE。BLOCKED 指環境／操作阻塞，不能掩蓋已觀測的產品 FAIL。
+- 實際 started_at、finished_at 及有結果步驟的 at 用含時區 ISO 8601；步驟須位於執行區間。缺實際步驟時間時用 at=null 與 time_unknown_reason 保存未完成觀察，不能 finish；不要用 now 補造。recording_events.recorded_at 才是工具自動產生的登錄時間。
+- expected_revision 是選填的併發檢查值，取上一回覆的 recording_revision（初始為 0）。每次成功登錄自增、追加 recording_events，保留變更前後的結果及人員／理由；工具回覆只列精簡摘要。既有快照及設計 digest 不變。
+- 覆寫已記步驟、修改已有時間／執行人或更正已結束紀錄，必須提供 reason，舊觀察保留於事件鏈。這僅供登錄更正，真正重跑一定建新 RUN。更正後未明確 finish 時回到未完成狀態。
+- 寫入前檢查快照、證據、欄位及時間，再原子替換；無效輸入不保存。偵測到另一寫入者／版本衝突時停止並保留原檔。遺留 .lock 先查有無作業中程序，不自動刪鎖。
+- 舊 RUN 沒有 recording_* 欄位仍沿用原 check-run 規則；不回填歷史。新工具不是身分驗證或防惡意竄改簽章，檔案、事件及判定仍需查核。
+
+
 ## 分析附表與相容性
 
-品質適用性表放 strategy.md，實測回顧／可選度量放 plan.md；沿用原設計 digest，不另設必填 registry 欄位。假想缺陷檢查寫在審查報告及既有 finding.evidence／proposal，無法評估寫 limitations；它不是產品執行結果。工具 1.9.1 更新可攜審查準則，schema 1 及既有資料檢查規則不變。舊包保留，新準則需升級專案工具後建立新包；不回寫歷史包。
+品質適用性表放 strategy.md，實測回顧／可選度量放 plan.md；沿用原設計 digest，不另設必填 registry 欄位。假想缺陷檢查寫在審查報告及既有 finding.evidence／proposal，無法評估寫 limitations；它不是產品執行結果。工具 1.10.0 增加選填的實測登錄事件與版本化結果視圖；schema 1、既有快照及原設計 digest 範圍不變。舊包保留，新準則需升級專案工具後建立新包；不回寫歷史包。

@@ -1,0 +1,72 @@
+{
+  "protocol_version": 2,
+  "pack_id": "REV-002",
+  "tool_version": "1.10.0",
+  "portable": false,
+  "artifact_digest": "5e866e68c5d418e8f3ff617ceaaa422f81d10daad18ee768fa4ca4c1fcc9abc3",
+  "review_input_digest": "5e866e68c5d418e8f3ff617ceaaa422f81d10daad18ee768fa4ca4c1fcc9abc3",
+  "focus_digest": "c4b3c1e23277d5ee2523febb767446cbe3a0f272ef4ed9b0f96b89906185cc63",
+  "inputs": [
+    {
+      "role": "source",
+      "source_id": "SRC-SPEC",
+      "path": "inputs/spec.md",
+      "expected_sha256": "f574cfbae3eedc1dc70434c467a38a47a2b550511edfdef06c16521d9c0ba691",
+      "actual_sha256": "f574cfbae3eedc1dc70434c467a38a47a2b550511edfdef06c16521d9c0ba691",
+      "status": "available",
+      "bundle_path": null
+    },
+    {
+      "role": "source",
+      "source_id": "SRC-HARNESS",
+      "path": "inputs/harness.md",
+      "expected_sha256": "6050ea2d883af7e763867cd2cc9320f8347986265482bc05f42bc28ee325c140",
+      "actual_sha256": "6050ea2d883af7e763867cd2cc9320f8347986265482bc05f42bc28ee325c140",
+      "status": "available",
+      "bundle_path": null
+    },
+    {
+      "role": "source",
+      "source_id": "SRC-NEW",
+      "path": "inputs/addendum.md",
+      "expected_sha256": "440bf8cad8af68909d13960c0ebdaa46e5613ab4107acb6bc9ce62f4c12d4987",
+      "actual_sha256": "440bf8cad8af68909d13960c0ebdaa46e5613ab4107acb6bc9ce62f4c12d4987",
+      "status": "available",
+      "bundle_path": null
+    },
+    {
+      "role": "decision",
+      "path": "qa/decisions/DEC-001.md",
+      "expected_sha256": "e83e2466b7ecf10a485cf4c2cfe03bfd3142fc4dc9ee818d5de9924b8ebd9558",
+      "actual_sha256": "e83e2466b7ecf10a485cf4c2cfe03bfd3142fc4dc9ee818d5de9924b8ebd9558",
+      "status": "available",
+      "bundle_path": null
+    }
+  ],
+  "files": [
+    {
+      "path": "HANDOFF.md",
+      "sha256": "0880aba7d22c5692d85b170d789f81bb0b6050a08a4f23c29a8efb37c8253ff8"
+    },
+    {
+      "path": "PROMPT.md",
+      "sha256": "8250a0c2f32bd483ee7115f489db652ea1ec401c2e49cb64d9e1c3df88e8695d"
+    },
+    {
+      "path": "REVIEW_GUIDE.md",
+      "sha256": "d6d5ed79ecb03bbdc0a97301febfd68cdd140159f275df4cf32e347b055db1f6"
+    },
+    {
+      "path": "REVIEW_TEMPLATE.json",
+      "sha256": "aa64ba0fca602d526603cc6f71ffbe94ad51af22347c565305b7b7c987ef250b"
+    },
+    {
+      "path": "packet.json",
+      "sha256": "d169dd0822aebf4619a5e1a6b6bcd2add74425cb176b03d60a76b76a5e01fd1a"
+    },
+    {
+      "path": "verify_pack.py",
+      "sha256": "9c9ecdcd661ba08ae5b9bc6f1ed5b5e44279f01e80937ae5b6c39bdae4ad46fd"
+    }
+  ]
+}

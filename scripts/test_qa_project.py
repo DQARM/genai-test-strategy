@@ -1743,6 +1743,161 @@ class WorkflowTests(unittest.TestCase):
         self.run_tool("checkpoint", "-m", "reject symlink", "--include", "outside", ok=False)
         self.assertEqual(self.git("diff", "--cached"), "")
 
+    def begin_recording(self, two_steps=False):
+        _, case = self.fixture()
+        if two_steps:
+            case['steps'].append({**copy.deepcopy(case['steps'][0]), 'n': 2})
+            put(self.root / 'qa/cases/TC-001.json', case)
+        self.run_tool('start-run', '--id', 'RUN-001', '--case', 'TC-001', '--sut-version', 'synthetic-build', '--environment', 'isolated fixture')
+        evidence = self.root / 'qa/evidence/觀測 #1.log'
+        evidence.write_text('Synthetic observation ON', encoding='utf-8')
+        return get(self.root / 'qa/runs/RUN-001.json')
+
+    def observation(self, n=1, **changes):
+        row = {'n': n, 'status': 'PASS', 'actual': 'Observed ON in synthetic fixture',
+               'at': '2026-11-14T10:00:01+08:00', 'evidence': ['qa/evidence/觀測 #1.log']}
+        row.update(changes)
+        return row
+
+    def record_result(self, steps=None, ok=True, **extra):
+        data = {'operator': 'synthetic-operator', 'steps': steps if steps is not None else [self.observation()], **extra}
+        put(self.root / 'qa/result-input.json', data)
+        return self.run_tool('record-run', '--id', 'RUN-001', '--input', 'qa/result-input.json', ok=ok)
+
+    def test_record_run_progress_finalization_preserves_all_snapshots(self):
+        before = self.begin_recording(two_steps=True)
+        first = json.loads(self.record_result(started_at='2026-11-14T10:00:00+08:00', expected_revision=0).stdout)
+        self.assertEqual(first['recording_status'], 'in-progress')
+        self.assertEqual(first['status'], 'NOT_RUN')
+        self.assertNotIn('design_snapshot', first)
+        self.run_tool('check-run', '--id', 'RUN-001')
+        self.record_result([self.observation(2, at='2026-11-14T10:00:02+08:00')], finish=True,
+                           finished_at='2026-11-14T10:00:03+08:00', expected_revision=1)
+        after = get(self.root / 'qa/runs/RUN-001.json')
+        self.assertEqual(after['status'], 'PASS')
+        self.assertEqual(after['recording_revision'], 2)
+        for k in ('design_snapshot', 'case_snapshot', 'registry_snapshot', 'artifact_digest', 'case_digest', 'registry_digest'):
+            self.assertEqual(before[k], after[k])
+        self.assertEqual(after['steps'][0]['evidence'][0]['sha256'], sha(self.root / 'qa/evidence/觀測 #1.log'))
+        self.run_tool('check-run', '--id', 'RUN-001')
+
+    def test_record_run_unknown_time_is_incomplete_not_current_time(self):
+        self.begin_recording()
+        self.record_result([self.observation(at=None, time_unknown_reason='Historical log has no time')])
+        path = self.root / 'qa/runs/RUN-001.json'
+        run = get(path)
+        self.assertIsNone(run['steps'][0]['at'])
+        self.assertTrue(run['recording_events'][0]['recorded_at'])
+        original = path.read_bytes()
+        self.record_result([], finish=True, started_at='2026-11-14T10:00:00+08:00', finished_at='2026-11-14T10:00:03+08:00', ok=False)
+        self.assertEqual(original, path.read_bytes())
+
+    def test_record_run_rejects_forged_fields_missing_evidence_and_stale_writes(self):
+        self.begin_recording()
+        path = self.root / 'qa/runs/RUN-001.json'
+        original = path.read_bytes()
+        for changes in ({'design_snapshot': {}}, {'expected_revision': 9}, {'finish': 'yes'}):
+            self.record_result(ok=False, **changes)
+            self.assertEqual(original, path.read_bytes())
+        for step in (self.observation(n=99), self.observation(evidence=[]), self.observation(evidence=['../outside']),
+                     self.observation(at='2026-11-14T10:00:01'), self.observation(status='NOT_RUN'),
+                     self.observation(evidence=['qa/evidence/missing.log'])):
+            self.record_result([step], ok=False)
+            self.assertEqual(original, path.read_bytes())
+        self.assertFalse((self.root / 'qa/runs/RUN-001.json.lock').exists())
+
+    def test_record_run_correction_preserves_old_actual_and_requires_reason(self):
+        self.begin_recording()
+        self.record_result(finish=True, started_at='2026-11-14T10:00:00+08:00', finished_at='2026-11-14T10:00:03+08:00')
+        path = self.root / 'qa/runs/RUN-001.json'
+        original = path.read_bytes()
+        corrected = self.observation(actual='Corrected transcription: output OFF', status='FAIL')
+        self.record_result([corrected], ok=False)
+        self.assertEqual(original, path.read_bytes())
+        self.record_result([corrected], finish=True, reason='Transcription correction; not a rerun', expected_revision=1)
+        run = get(path)
+        self.assertEqual(run['status'], 'FAIL')
+        self.assertIn('ON', run['recording_events'][1]['changes'][0]['before']['actual'])
+        self.assertEqual(run['recording_events'][0], json.loads(original)['recording_events'][0])
+        self.run_tool('check-run', '--id', 'RUN-001')
+
+    def test_record_run_early_stop_and_time_order(self):
+        self.begin_recording(two_steps=True)
+        self.record_result([self.observation(status='BLOCKED', actual='Fixture power unavailable', evidence=[])],
+                           started_at='2026-11-14T10:00:00+08:00')
+        path = self.root / 'qa/runs/RUN-001.json'; original = path.read_bytes()
+        self.record_result([], finish=True, finished_at='2026-11-14T10:00:03+08:00', ok=False)
+        self.record_result([], finish=True, reason='Cannot continue', finished_at='2026-11-14T09:00:03+08:00', ok=False)
+        self.assertEqual(original, path.read_bytes())
+        self.record_result([], finish=True, reason='Fixture unavailable; remaining step not executed', finished_at='2026-11-14T10:00:03+08:00')
+        run = get(path)
+        self.assertEqual(run['status'], 'BLOCKED')
+        self.assertEqual(run['steps'][1]['status'], 'NOT_RUN')
+
+    def test_record_run_lock_and_changed_evidence_do_not_overwrite(self):
+        self.begin_recording()
+        path = self.root / 'qa/runs/RUN-001.json'; original = path.read_bytes()
+        lock = self.root / 'qa/runs/RUN-001.json.lock'; lock.write_text('other writer')
+        self.record_result(ok=False)
+        self.assertEqual(lock.read_text(), 'other writer')
+        self.assertEqual(original, path.read_bytes())
+        lock.unlink()
+        self.record_result()
+        original = path.read_bytes()
+        (self.root / 'qa/evidence/觀測 #1.log').write_text('Changed evidence')
+        self.record_result([], finish=True, started_at='2026-11-14T10:00:00+08:00', finished_at='2026-11-14T10:00:03+08:00', ok=False)
+        self.assertEqual(original, path.read_bytes())
+
+    def test_report_results_show_history_frozen_expected_and_bidirectional_links(self):
+        self.begin_recording()
+        self.record_result(finish=True, started_at='2026-11-14T10:00:00+08:00', finished_at='2026-11-14T10:00:03+08:00')
+        rev = get(self.root / 'qa/reviews/REV-001.json')
+        rev['checked_case_ids'] = ['TC-001']
+        rev['findings'] = [{'id': 'F-001', 'case_ids': ['TC-001'], 'issue': 'Synthetic finding', 'status': 'fixed'}]
+        put(self.root / 'qa/reviews/REV-001.json', rev)
+        case = get(self.root / 'qa/cases/TC-001.json'); case['revision'] = 2
+        case['steps'][0]['checks'][0]['expected'] = 'NEW DRAFT EXPECTED'
+        put(self.root / 'qa/cases/TC-001.json', case)
+        historical = {str(p): p.read_bytes() for p in (self.root / 'qa/runs').glob('*.json')}
+        self.run_tool('render')
+        page = ReportParser((self.root / 'qa/report.html').read_text(encoding='utf-8'))
+        run = page.records['RUN-001']
+        self.assertIn('歷史版本', run['text'])
+        self.assertIn('output ON', run['text'])
+        self.assertNotIn('NEW DRAFT EXPECTED', run['text'])
+        self.assertIn('#' + run['anchor'], page.records['TC-001']['links'])
+        self.assertIn('#' + page.records['TC-001']['anchor'], run['links'])
+        self.assertIn('F-001', page.records['REV-001']['text'])
+        self.assertTrue(any('%23' in x for x in run['links']))
+        self.assertTrue(all(x[1:] in page.ids for x in page.links if x.startswith('#')))
+        for path, content in historical.items(): self.assertEqual(Path(path).read_bytes(), content)
+
+    def test_report_invalid_results_and_unsafe_evidence_are_visible_not_executed(self):
+        self.begin_recording()
+        self.record_result([self.observation(actual='<script>alert(1)</script>')])
+        path = self.root / 'qa/runs/RUN-001.json'
+        run = get(path); run['steps'][0]['evidence'][0]['path'] = '../outside'
+        put(path, run)
+        (self.root / 'qa/reviews/REV-BROKEN.json').write_text('{broken')
+        self.run_tool('render')
+        text = (self.root / 'qa/report.html').read_text(encoding='utf-8')
+        page = ReportParser(text)
+        self.assertFalse(page.scripts)
+        self.assertIn('紀錄檢查有缺口', page.records['RUN-001']['text'])
+        self.assertIn('登錄中', page.records['RUN-001']['text'])
+        self.assertIn('REV-BROKEN', page.records)
+        self.assertNotIn('../../outside', page.links)
+
+    def test_report_baseline_binding_and_legacy_review_scope(self):
+        self.fixture()
+        self.run_tool('baseline', '--id', 'BL-001', '--approval', 'qa/approvals/APP-001.json')
+        self.run_tool('render')
+        page = ReportParser((self.root / 'qa/report.html').read_text(encoding='utf-8'))
+        self.assertIn('對應目前完整設計', page.records['BL-001']['text'])
+        self.assertIn('未知／未提供', page.records['REV-001']['text'])
+        self.assertIn('#' + page.records['BL-001']['anchor'], page.records['TC-001']['links'])
+        self.assertNotIn('#' + page.records['REV-001']['anchor'], page.records['TC-001']['links'])
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

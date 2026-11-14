@@ -1,0 +1,1 @@
+請使用 /home/agent/.codex/skills/remote-skills/skill-6af1747b432881919448466eb247e9c9/SKILL.md，依 /workspace/scratch/258261bef5fc/phase-update/run-01/tasks/case-06/session.md 接續。我的上一題回答是「維持原設定，畫面顯示匯出失敗」。先產出本輪策略與案例草稿，這次不再提問；只在對話交付，不建立檔案。

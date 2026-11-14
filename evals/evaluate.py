@@ -3,6 +3,9 @@
 import argparse
 import hashlib
 import json
+import os
+import subprocess
+import sys
 from pathlib import Path
 from datetime import datetime, timezone
 
@@ -45,6 +48,13 @@ def catalog():
             raise ValueError('Invalid task definition')
         for name in files:
             inside(HERE, 'cases/' + c['id'] + '/' + name).read_text(encoding='utf-8')
+        if c.get('project_seed'):
+            if c['project_seed'] not in c['files']: raise ValueError('Project seed must be a declared input')
+            seed = read(inside(HERE, 'cases/' + c['id'] + '/' + c['project_seed']))
+            if not isinstance(seed, dict) or not seed: raise ValueError('Empty project seed')
+            for rel, content in seed.items():
+                inside(HERE, rel)
+                if '.git' in Path(rel).parts or not isinstance(content, str): raise ValueError('Unsafe project seed')
         checks = rubrics[c['id']]['checks']
         if not checks or len({x['id'] for x in checks}) != len(checks):
             raise ValueError('Checks must be nonempty and unique')
@@ -59,6 +69,45 @@ def skill_fingerprint(path):
     for sub in ('references', 'scripts'):
         files += sorted(p for p in (path / sub).rglob('*') if p.is_file() and p.suffix in {'.md', '.py'})
     return {'path': str(path), 'files': {str(p.relative_to(path)): sha(p) for p in files}}
+
+
+def project_hashes(project):
+    files = {}
+    for path in sorted(project.rglob('*')):
+        rel = path.relative_to(project).as_posix()
+        if '.git' in path.relative_to(project).parts: continue
+        if path.is_symlink(): raise ValueError('Workspace symlink is not captured: ' + rel)
+        if path.is_file(): files[rel] = sha(path)
+    return files
+
+
+def capture(root, selected=None):
+    run = read(root / 'run.json')
+    tool = Path(run['skills']['strategy']['path']) / 'scripts/qa_project.py'
+    if sha(tool) != run['skills']['strategy']['files']['scripts/qa_project.py']:
+        raise ValueError('Evaluation tool version changed')
+    rows = [c for c in run['cases'] if c.get('workspace') and (not selected or c['id'] in selected)]
+    if selected and set(selected) != {c['id'] for c in rows}: raise ValueError('Unknown workspace case')
+    for c in rows:
+        cid = c['id']; workspace = c['workspace']; project = inside(root, workspace['path'])
+        out = inside(root, 'artifacts/' + cid)
+        if out.exists(): raise ValueError('Capture already exists; preserve it and start a new run for retesting')
+        after = project_hashes(project); before = workspace['before']
+        changed = {p: {'before': before.get(p), 'after': after.get(p)} for p in sorted(set(before) | set(after)) if before.get(p) != after.get(p)}
+        commands = {}
+        for name, extra in [('check', []), ('baseline-gate', ['--gate', 'baseline']), ('digest', [])]:
+            cmd = 'check' if name == 'baseline-gate' else name
+            result = subprocess.run([sys.executable, str(tool), cmd, str(project), *extra], capture_output=True, text=True, encoding='utf-8', timeout=60)
+            commands[name] = {'returncode': result.returncode, 'stdout': result.stdout, 'stderr': result.stderr}
+        for rel in after:
+            # Tool code is already fingerprinted; keep user-facing records and generated reports.
+            if rel.startswith('qa/tools/'): continue
+            dest = inside(out, 'files/' + rel); dest.parent.mkdir(parents=True, exist_ok=True)
+            dest.write_bytes(inside(project, rel).read_bytes())
+        write(out / 'capture.json', {'case_id': cid, 'captured_at': datetime.now(timezone.utc).isoformat(),
+            'before': before, 'after': after, 'changed': changed, 'checks': commands,
+            'note': 'File evidence from a synthetic workspace; semantic grading and authorization checks are separate.'})
+    return {'captured': [c['id'] for c in rows]}
 
 
 def stage(args):
@@ -91,14 +140,25 @@ def stage(args):
             dest = inside(target, name)
             dest.parent.mkdir(parents=True, exist_ok=True)
             dest.write_bytes(inside(source, name).read_bytes())
+        workspace = None
+        project = out / 'workspaces' / c['id'] / 'project'
+        if c.get('project_seed'):
+            for rel, content in read(source / c['project_seed']).items():
+                dest = inside(project, rel); dest.parent.mkdir(parents=True, exist_ok=True)
+                dest.write_text(content, encoding='utf-8')
+            tool = project / 'qa/tools/qa_project.py'; tool.parent.mkdir(parents=True, exist_ok=True)
+            tool.write_bytes((skills['strategy'] / 'scripts/qa_project.py').read_bytes())
+            env = {k: v for k, v in os.environ.items() if k not in {'GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE', 'GIT_COMMON_DIR'}}
+            subprocess.run(['git', '-C', str(project), 'init', '--quiet'], check=True, env=env)
+            workspace = {'path': str(project.relative_to(out)), 'before': project_hashes(project)}
         task = (source / c['task']).read_text(encoding='utf-8')
-        task = task.format(skill=skills[c['skill']] / 'SKILL.md', input=target)
+        task = task.format(skill=skills[c['skill']] / 'SKILL.md', input=target, project=project)
         (target / 'task.txt').write_text(task, encoding='utf-8')
         files = {str(p.relative_to(out)): sha(p) for p in target.rglob('*') if p.is_file()}
-        run['cases'].append({'id': c['id'], 'skill': c['skill'], 'inputs': files})
+        run['cases'].append({'id': c['id'], 'skill': c['skill'], 'inputs': files, 'workspace': workspace})
         write(out / 'grading' / (c['id'] + '.json'), {
             'case_id': c['id'], 'grader': None, 'model': None, 'settings': None,
-            'contamination': None, 'checks': [dict(id=x['id'], status='unassessed', evidence='', reason='')
+            'contamination': None, 'checks': [dict(id=x['id'], status='unassessed', evidence='', reason='', artifact_refs=[])
                                             for x in rubrics[c['id']]['checks']]})
     write(out / 'run.json', run)
     print(json.dumps({'run': str(out), 'tasks': [str(out / 'tasks' / c['id'] / 'task.txt') for c in run['cases']]}, ensure_ascii=False))
@@ -135,7 +195,18 @@ def score(root):
             if status not in {'pass', 'fail', 'unassessed'}:
                 raise ValueError('Invalid check status: ' + cid)
             if status != 'unassessed':
-                if not check.get('evidence', '').strip() or check['evidence'] not in text or not check.get('reason', '').strip():
+                refs = check.get('artifact_refs', [])
+                if c.get('workspace') and not refs:
+                    raise ValueError('Workspace grades need captured file evidence: ' + cid)
+                evidence_text = text
+                for ref in refs:
+                    rel = ref['path']
+                    if not rel.startswith('artifacts/' + cid + '/'):
+                        raise ValueError('Evidence must belong to this captured case')
+                    artifact = inside(root, rel)
+                    if sha(artifact) != ref['sha256']: raise ValueError('Captured evidence changed: ' + rel)
+                    evidence_text += '\n' + artifact.read_text(encoding='utf-8')
+                if not check.get('evidence', '').strip() or check['evidence'] not in evidence_text or not check.get('reason', '').strip():
                     raise ValueError('Grade needs verbatim evidence and reasoning: ' + cid)
             statuses.append(status)
         assessed = any(x != 'unassessed' for x in statuses)
@@ -162,10 +233,12 @@ def main():
     s.add_argument('--strategy', type=Path, required=True)
     s.add_argument('--review', type=Path, required=True)
     s.add_argument('--cases', nargs='+')
+    s = sub.add_parser('capture'); s.add_argument('root', type=Path); s.add_argument('--cases', nargs='+')
     s = sub.add_parser('score'); s.add_argument('root', type=Path)
     args = p.parse_args()
     try:
         if args.command == 'stage': stage(args)
+        elif args.command == 'capture': print(json.dumps(capture(args.root.resolve(), args.cases), ensure_ascii=False))
         elif args.command == 'score': print(json.dumps(score(args.root.resolve()), ensure_ascii=False, indent=2))
         else: print(json.dumps({'cases': len(catalog()[0]), 'valid': True}))
     except (ValueError, KeyError, OSError, TypeError) as e:

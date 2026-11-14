@@ -1,0 +1,18 @@
+{
+  "status": "verified-with-gaps",
+  "errors": [],
+  "limitations": [
+    "REQ-002: risk assessment proposed; not evidence of no risk",
+    "TC-001: blocked; not a ready executable case"
+  ],
+  "pack_id": "REV-002",
+  "artifact_digest": "5e866e68c5d418e8f3ff617ceaaa422f81d10daad18ee768fa4ca4c1fcc9abc3",
+  "portable": false,
+  "version_check": "current-project",
+  "pack_path": "qa/review-packs/REV-002",
+  "pack_absolute_path": "/workspace/scratch/258261bef5fc/phase-update/run-01/workspaces/case-11/project/qa/review-packs/REV-002",
+  "handoff_path": "/workspace/scratch/258261bef5fc/phase-update/run-01/workspaces/case-11/project/qa/review-packs/REV-002/HANDOFF.md",
+  "manifest_sha256": "9bc7b97aeac7475eda8d22af31c4bc2dbeed394456ab7fa6c3c43fa308ca1466",
+  "archive_path": null,
+  "reused": false
+}

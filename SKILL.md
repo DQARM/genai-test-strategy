@@ -41,7 +41,7 @@ description: 協助使用者從需求草稿或口頭規則釐清需求、補可�
 | 重用判準或先探索 | [oracles-exploration.md](references/oracles-exploration.md)：已確認判準依適用條件重用；探索觀察與驗收結果分開 |
 | 開始撰寫完整案例 | 先依 [workflow.md](references/workflow.md#候選情境與案例) 展示已知條件，再填 [templates.md](references/templates.md)；依據足夠就接續產出 |
 | 修改資料與狀態 | [records.md](references/records.md)：registry／cases 契約、revision、引用、審查與執行格式 |
-| 交付閱讀網頁 | [report.md](references/report.md)：render 產生來源、案例、問答及雙向追溯視圖 |
+| 交付閱讀網頁 | [report.md](references/report.md)：render 產生來源、案例、問答及版本化審查／實測視圖 |
 | 保存版本或備份 | [local-versioning.md](references/local-versioning.md)：init、checkpoint、版本綁定、備份及復原 |
 | 使用 Git server | 僅所選模式需要時讀 [git-server.md](references/git-server.md)，協助登入與同步並讀回結果 |
 | 交接、接回審查或建立基線 | [review.md](references/review.md)：prepare-review、核對實際 HANDOFF、修正及新版本重審 |

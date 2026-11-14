@@ -39,7 +39,7 @@ class EvaluationIntegrityTests(unittest.TestCase):
         result = ev.score(self.out)
         self.assertEqual(result['counts']['NOT_RUN'], 1)
         self.assertEqual(result['counts']['PASS'], 0)
-        self.assertEqual(result['core_total'], 8)
+        self.assertEqual(result['core_total'], 12)
         self.assertEqual(result['selected_total'], 1)
 
     def test_existing_output_is_never_overwritten(self):
@@ -79,6 +79,41 @@ class EvaluationIntegrityTests(unittest.TestCase):
     def test_path_escape_is_rejected(self):
         with self.assertRaises(ValueError): ev.inside(self.base, '../outside')
         with self.assertRaises(ValueError): ev.inside(self.base, str(self.base.absolute()))
+
+
+    def stage_workspace(self):
+        (self.skill / 'scripts').mkdir()
+        (self.skill / 'scripts/qa_project.py').write_bytes((Path(__file__).resolve().parent.parent / 'scripts/qa_project.py').read_bytes())
+        ev.stage(argparse.Namespace(out=self.out, strategy=self.skill, review=self.skill, cases=['case-09']))
+
+    def test_workspace_capture_preserves_seed_and_records_real_changes(self):
+        self.stage_workspace()
+        project = self.out / 'workspaces/case-09/project'
+        seed = (self.out / 'tasks/case-09/project.json').read_bytes()
+        casefile = project / 'qa/cases/TC-001.json'
+        case = ev.read(casefile); case['revision'] += 1; ev.write(casefile, case)
+        ev.capture(self.out)
+        capture = ev.read(self.out / 'artifacts/case-09/capture.json')
+        self.assertIn('qa/cases/TC-001.json', capture['changed'])
+        self.assertNotIn('qa/baselines/BL-001.json', capture['changed'])
+        self.assertEqual(seed, (self.out / 'tasks/case-09/project.json').read_bytes())
+        self.assertNotEqual(capture['checks']['baseline-gate']['returncode'], 0)
+        with self.assertRaisesRegex(ValueError, 'already exists'): ev.capture(self.out)
+
+    def test_workspace_grade_requires_captured_evidence_and_matching_hash(self):
+        self.stage_workspace(); ev.capture(self.out)
+        (self.out / 'responses/case-09.md').write_text('response', encoding='utf-8')
+        path = self.out / 'grading/case-09.json'; grade = ev.read(path)
+        grade.update(grader='fixture', model='unknown', settings='unknown', contamination=False)
+        for check in grade['checks']: check.update(status='pass', evidence='response', reason='fixture')
+        ev.write(path, grade)
+        with self.assertRaisesRegex(ValueError, 'need captured file'): ev.score(self.out)
+        artifact = self.out / 'artifacts/case-09/capture.json'
+        for check in grade['checks']: check['artifact_refs'] = [{'path': 'artifacts/case-09/capture.json', 'sha256': ev.sha(artifact)}]
+        ev.write(path, grade)
+        self.assertEqual(ev.score(self.out)['counts']['PASS'], 1)
+        artifact.write_text('{}', encoding='utf-8')
+        with self.assertRaisesRegex(ValueError, 'Captured evidence changed'): ev.score(self.out)
 
 
 if __name__ == '__main__':

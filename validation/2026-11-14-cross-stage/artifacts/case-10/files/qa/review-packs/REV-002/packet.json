@@ -1,0 +1,674 @@
+{
+  "artifact_digest": "c7125643c1e9517cd7058a7e52de0712b137216425550a9c1bbda9ff1e0832fe",
+  "created_at": "2026-11-14T13:11:38+00:00",
+  "review_input": {
+    "registry": {
+      "schema_version": 1,
+      "project": {
+        "name": "Synthetic fixture",
+        "owner": "unassigned",
+        "design_policy": "coverage-items-v1",
+        "risk_policy": "requirement-risk-v1",
+        "source_reading_policy": "source-reading-v1",
+        "risk_criteria": {
+          "status": "confirmed",
+          "decision_refs": [
+            "DEC-001"
+          ],
+          "severity": {
+            "high": "Synthetic main function lost",
+            "low": "Synthetic cosmetic effect"
+          },
+          "likelihood": {
+            "high": "Observed often in synthetic fixture",
+            "low": "Rare in synthetic fixture"
+          },
+          "priority": {
+            "P1": "Selected synthetic scope",
+            "P2": "Later synthetic scope"
+          }
+        }
+      },
+      "scope": {
+        "objective": "Check synthetic output",
+        "in": [
+          "module"
+        ],
+        "out": [
+          "physical device"
+        ],
+        "selected_ac_ids": [
+          "AC-001"
+        ],
+        "selected_risk_ids": [
+          "RISK-001"
+        ],
+        "selected_scenario_ids": [
+          "SC-001"
+        ],
+        "selected_case_ids": [
+          "TC-001"
+        ],
+        "decision_ref": "DEC-001"
+      },
+      "sources": [
+        {
+          "id": "SRC-SPEC",
+          "path": "inputs/spec.md",
+          "sha256": "f574cfbae3eedc1dc70434c467a38a47a2b550511edfdef06c16521d9c0ba691",
+          "locator": "whole file",
+          "kind": "normative",
+          "status": "confirmed",
+          "readings": [
+            {
+              "seq": 1,
+              "source_sha256": "f574cfbae3eedc1dc70434c467a38a47a2b550511edfdef06c16521d9c0ba691",
+              "status": "scoped",
+              "depth": "content",
+              "purpose": "Synthetic tool regression",
+              "method": "Read synthetic UTF-8 fixture",
+              "read_scope": [
+                "whole synthetic file"
+              ],
+              "unread_scope": [],
+              "limitations": [],
+              "findings": [
+                {
+                  "locator": "whole file",
+                  "type": "quote",
+                  "text": "Synthetic test rule: after evaluate, output ON.\n"
+                }
+              ],
+              "evidence_refs": [],
+              "read_at": null,
+              "recorded_at": "2026-11-13T00:00:00Z"
+            }
+          ]
+        },
+        {
+          "id": "SRC-HARNESS",
+          "path": "inputs/harness.md",
+          "sha256": "6050ea2d883af7e763867cd2cc9320f8347986265482bc05f42bc28ee325c140",
+          "locator": "whole file",
+          "kind": "harness",
+          "status": "confirmed",
+          "readings": [
+            {
+              "seq": 1,
+              "source_sha256": "6050ea2d883af7e763867cd2cc9320f8347986265482bc05f42bc28ee325c140",
+              "status": "scoped",
+              "depth": "content",
+              "purpose": "Synthetic tool regression",
+              "method": "Read synthetic UTF-8 fixture",
+              "read_scope": [
+                "whole synthetic file"
+              ],
+              "unread_scope": [],
+              "limitations": [],
+              "findings": [
+                {
+                  "locator": "whole file",
+                  "type": "quote",
+                  "text": "Synthetic harness: reset, evaluate, inspect output; isolated state.\n"
+                }
+              ],
+              "evidence_refs": [],
+              "read_at": null,
+              "recorded_at": "2026-11-13T00:00:00Z"
+            }
+          ]
+        },
+        {
+          "id": "SRC-001",
+          "path": "qa/runs/RUN-001.json",
+          "title": "evaluate 後仍為 OFF 的合成測試回報",
+          "sha256": "7c1bc0f9a10f3e9657e449a65c82a7461d1d291737bb7367f4bedc2475314042",
+          "locator": "/status, /sut_version, /environment, /operator, /started_at, /finished_at, /steps/0, /case_snapshot/steps/0",
+          "kind": "experience",
+          "status": "confirmed",
+          "version": "fixture-build-7 / synthetic-lab / 2026-11-14",
+          "note": "使用者本輪確認為回報者提供的合成紀錄（QA-006）。confirmed 僅表示採納其為經驗來源，不表示 AI 重現、根因已確認、風險初評已核可，亦不支持產品 Expected。",
+          "readings": [
+            {
+              "read_scope": [
+                "執行基本資料：/id, /status, /case_id, /artifact_digest, /sut_version, /environment, /operator, /started_at, /finished_at, /steps, /notes",
+                "/case_snapshot 的初態、步驟、斷言、判定、清理及隔離要求；已核對快照與接手時案例／registry 一致"
+              ],
+              "unread_scope": [
+                "未將與本輪失效分類無關的重複設計快照欄位逐欄重新引用。"
+              ],
+              "findings": [
+                {
+                  "locator": "/status; /case_id; /sut_version; /environment; /operator; /started_at; /finished_at; /steps/0",
+                  "type": "paraphrase",
+                  "text": "回報者 synthetic-tester 在 synthetic-lab 對 fixture-build-7 執行 TC-001；區間 2026-11-14T10:00:00+08:00 至 10:00:02+08:00。步驟 1 與整體記為 FAIL，步驟時間 10:00:01+08:00。",
+                  "interpretation": "這是使用者確認來源的合成執行回報；不是本輪 AI 操作產品或獨立重現。"
+                },
+                {
+                  "locator": "/steps/0/actual",
+                  "type": "quote",
+                  "text": "Evaluate returned but output stayed OFF",
+                  "interpretation": "支持 evaluate 返回但輸出未從 OFF 轉成 ON 的既有失效線索；根因與可重現頻率未提供。"
+                },
+                {
+                  "locator": "/steps/0/evidence/0",
+                  "type": "paraphrase",
+                  "text": "證據為 qa/evidence/failure.log；登錄 sha256 為 077d6fb7d0c5ffb3f1fcea0048d592131a4c6d1d9e1043c51667b1293d53793c。",
+                  "interpretation": "已讀日誌第 1 行並檢查實檔指紋相符；hash 只證明版本一致，不證明產品真實性。"
+                },
+                {
+                  "locator": "/case_snapshot/steps/0/checks/0; /case_snapshot/preconditions/0",
+                  "type": "paraphrase",
+                  "text": "凍結案例從 OFF 初態 evaluate once，預期 output ON，引用 AC-001；先 reset fixture to OFF 並 read output OFF。",
+                  "interpretation": "Expected 仍以原本規格與已確認驗收條件為依據，不從本次日誌 expected=ON 推導新規則。"
+                }
+              ],
+              "limitations": [
+                "合成資料；無本輪獨立重現、根因分析或修復後結果。",
+                "未提供所有執行次數、現場暴露量或完整觀測期間，不可估發生機率。",
+                "回報沒有另外提供完整初態／清理紀錄、產物 hash 與實際依賴工具版本；保留證據完整性限制。"
+              ],
+              "source_sha256": "7c1bc0f9a10f3e9657e449a65c82a7461d1d291737bb7367f4bedc2475314042",
+              "status": "scoped",
+              "depth": "content",
+              "purpose": "接回合成測試回報，區分產品失效線索與環境阻塞，重評既有輸出控制風險。",
+              "method": "以 Python 讀取 JSON 指定欄位及 UTF-8 日誌正文；以專案 check-run 核對快照與證據指紋。",
+              "evidence_refs": [],
+              "read_at": null,
+              "reader": "Codex",
+              "seq": 1,
+              "recorded_at": "2026-11-14T13:08:59+00:00"
+            }
+          ]
+        },
+        {
+          "id": "SRC-002",
+          "path": "qa/runs/RUN-002.json",
+          "title": "供電不可用、evaluate 未執行的合成回報",
+          "sha256": "105eb1557b22496fb0749908ccfc3177d788ab3ba41e6b1e1d344d6116ccc596",
+          "locator": "/status, /sut_version, /environment, /operator, /started_at, /finished_at, /steps/0",
+          "kind": "experience",
+          "status": "confirmed",
+          "version": "fixture-build-7 / synthetic-lab / 2026-11-14",
+          "note": "使用者本輪確認為回報者提供的合成紀錄（QA-006）。confirmed 僅表示採納其為經驗來源，不表示 AI 重現、根因已確認、風險初評已核可，亦不支持產品 Expected。",
+          "readings": [
+            {
+              "read_scope": [
+                "/id, /status, /case_id, /artifact_digest, /sut_version, /environment, /operator, /started_at, /finished_at, /steps, /notes",
+                "已核對案例／registry 凍結快照與接手時版本一致"
+              ],
+              "unread_scope": [
+                "未將與本輪環境阻塞分類無關的重複設計快照欄位逐欄重新引用。"
+              ],
+              "findings": [
+                {
+                  "locator": "/status; /case_id; /sut_version; /environment; /operator; /started_at; /finished_at; /steps/0",
+                  "type": "paraphrase",
+                  "text": "回報者 synthetic-tester 在 synthetic-lab 對 fixture-build-7 的 TC-001 記為 BLOCKED；區間 2026-11-14T10:10:00+08:00 至 10:10:01+08:00。步驟 1 同為 BLOCKED，evidence 為空陣列。",
+                  "interpretation": "保留環境／操作阻塞分類；evaluate 未執行，不能算產品失敗、成功或修復後重跑證據。"
+                },
+                {
+                  "locator": "/steps/0/actual",
+                  "type": "quote",
+                  "text": "Fixture power unavailable; evaluate not performed",
+                  "interpretation": "只支持供電不可用的回報線索。未附獨立供電診斷證據，供電問題根因仍待確認。"
+                }
+              ],
+              "limitations": [
+                "合成回報且未附獨立 evidence；不推定已重現供電問題。",
+                "evaluate 未執行，沒有產品輸出觀察，不納入產品失敗次數。",
+                "本輪不恢復供電、不操作產品、不新增執行結果。"
+              ],
+              "source_sha256": "105eb1557b22496fb0749908ccfc3177d788ab3ba41e6b1e1d344d6116ccc596",
+              "status": "scoped",
+              "depth": "content",
+              "purpose": "接回合成測試回報，區分產品失效線索與環境阻塞，重評既有輸出控制風險。",
+              "method": "以 Python 讀取 JSON 指定欄位及 UTF-8 日誌正文；以專案 check-run 核對快照與證據指紋。",
+              "evidence_refs": [],
+              "read_at": null,
+              "reader": "Codex",
+              "seq": 1,
+              "recorded_at": "2026-11-14T13:08:59+00:00"
+            }
+          ]
+        },
+        {
+          "id": "SRC-003",
+          "path": "qa/evidence/failure.log",
+          "title": "輸出未轉為 ON 的合成原始日誌",
+          "sha256": "077d6fb7d0c5ffb3f1fcea0048d592131a4c6d1d9e1043c51667b1293d53793c",
+          "locator": "第 1 行（全文）",
+          "kind": "experience",
+          "status": "confirmed",
+          "version": "fixture-build-7 / synthetic-lab / 2026-11-14",
+          "note": "使用者本輪確認為回報者提供的合成紀錄（QA-006）。confirmed 僅表示採納其為經驗來源，不表示 AI 重現、根因已確認、風險初評已核可，亦不支持產品 Expected。",
+          "readings": [
+            {
+              "read_scope": [
+                "第 1 行（全文）"
+              ],
+              "unread_scope": [],
+              "findings": [
+                {
+                  "locator": "第 1 行",
+                  "type": "quote",
+                  "text": "2026-11-14T10:00:01+08:00 initial=OFF evaluate_returned=true observed=OFF expected=ON",
+                  "interpretation": "與第一份回報步驟 1 的時間及 Actual 一致，支持在該次合成紀錄下 evaluate 返回而仍觀察到 OFF。expected=ON 只是日誌欄位，產品應然值仍引用原規格。"
+                }
+              ],
+              "limitations": [
+                "單一合成日誌，沒有總執行數、暴露量或長期觀測資料。",
+                "未記 build、環境及執行人；這些條件由第一份回報綁定，不能僅由日誌證明。",
+                "沒有完整初態建立、隔離、清理與修復後驗證紀錄。"
+              ],
+              "source_sha256": "077d6fb7d0c5ffb3f1fcea0048d592131a4c6d1d9e1043c51667b1293d53793c",
+              "status": "scoped",
+              "depth": "content",
+              "purpose": "接回合成測試回報，區分產品失效線索與環境阻塞，重評既有輸出控制風險。",
+              "method": "以 Python 讀取 JSON 指定欄位及 UTF-8 日誌正文；以專案 check-run 核對快照與證據指紋。",
+              "evidence_refs": [],
+              "read_at": null,
+              "reader": "Codex",
+              "seq": 1,
+              "recorded_at": "2026-11-14T13:08:59+00:00"
+            }
+          ]
+        }
+      ],
+      "decisions": [
+        {
+          "id": "DEC-001",
+          "statement": "Synthetic adoption",
+          "by": "synthetic-fixture-owner",
+          "at": "2026-11-09T00:00:00Z",
+          "evidence_ref": "qa/decisions/DEC-001.md"
+        }
+      ],
+      "questions": [],
+      "requirements": [
+        {
+          "id": "REQ-001",
+          "text": "Output must be ON after evaluate",
+          "revision": 1,
+          "status": "confirmed",
+          "source_refs": [
+            "SRC-SPEC"
+          ],
+          "source_citations": [
+            {
+              "source_id": "SRC-SPEC",
+              "reading_seq": 1,
+              "finding_index": 1
+            }
+          ],
+          "decision_refs": [
+            "DEC-001"
+          ],
+          "confirmation": {
+            "by": "synthetic-fixture-owner",
+            "at": "2026-11-09T00:00:00Z",
+            "evidence_ref": "qa/decisions/DEC-001.md"
+          },
+          "risk_assessment": {
+            "revision": 2,
+            "status": "proposed",
+            "requirement_revision": 1,
+            "rationale": "本輪依使用者確認來源的兩份合成回報與失敗日誌重評。已核對一次 evaluate 返回仍為 OFF 的失效回報，另一次供電不可用而未執行 evaluate，屬環境阻塞。沿用 high 嚴重度與 P1 已選優先序，likelihood 仍 unknown、uncertainty 仍 high：全部執行次數、現場暴露量、完整觀測期間與根因未知。這是 AI 更新初評，尚無對此版本的新風險確認；舊評估保留於原基線、執行快照及本機提交。產品規則與需求 revision 1 不變。",
+            "source_refs": [
+              "SRC-SPEC",
+              "SRC-001",
+              "SRC-002",
+              "SRC-003"
+            ],
+            "source_citations": [
+              {
+                "source_id": "SRC-SPEC",
+                "reading_seq": 1,
+                "finding_index": 1
+              },
+              {
+                "source_id": "SRC-001",
+                "reading_seq": 1,
+                "finding_index": 2
+              },
+              {
+                "source_id": "SRC-002",
+                "reading_seq": 1,
+                "finding_index": 2
+              },
+              {
+                "source_id": "SRC-003",
+                "reading_seq": 1,
+                "finding_index": 1
+              }
+            ],
+            "decision_refs": []
+          }
+        }
+      ],
+      "acceptance": [
+        {
+          "id": "AC-001",
+          "text": "Output must be ON after evaluate",
+          "revision": 1,
+          "status": "confirmed",
+          "source_refs": [
+            "SRC-SPEC"
+          ],
+          "source_citations": [
+            {
+              "source_id": "SRC-SPEC",
+              "reading_seq": 1,
+              "finding_index": 1
+            }
+          ],
+          "decision_refs": [
+            "DEC-001"
+          ],
+          "confirmation": {
+            "by": "synthetic-fixture-owner",
+            "at": "2026-11-09T00:00:00Z",
+            "evidence_ref": "qa/decisions/DEC-001.md"
+          },
+          "requirement_ids": [
+            "REQ-001"
+          ],
+          "oracle": {
+            "observe": "output",
+            "when": "after evaluate",
+            "tolerance": "exact"
+          }
+        }
+      ],
+      "risks": [
+        {
+          "id": "RISK-001",
+          "failure": "OFF after evaluate",
+          "impact": "control lost",
+          "requirement_ids": [
+            "REQ-001"
+          ],
+          "severity": "high",
+          "severity_rationale": "沿用已採納分級：evaluate 後主輸出仍為 OFF 導致本輪模組控制功能未達承諾。新資料未顯示後果擴大或縮小；不因回報次數變更嚴重度，也不推論範圍外實體設備危害。",
+          "likelihood": "unknown",
+          "likelihood_rationale": "在 fixture-build-7／synthetic-lab 有一筆附日誌的 FAIL 回報，支持既有失效情境曾在所提供合成紀錄中出現；另一筆 BLOCKED 因供電不可用而未執行 evaluate，不能算產品失敗。全部執行次數、現場暴露量、完整觀測期間及樣本選取方式未知，不能以兩份回報為分母，也不能將單次失效轉成機率或「經常發生」。",
+          "uncertainty": "high",
+          "priority": "P1",
+          "rationale": "保留原已選的輸出控制優先序。此次失效回報強化既有 OFF→evaluate→ON 轉移的回歸價值，但不擴大原範圍或代替人的新取捨。現有 TC-001／COV-001 已有對應斷言；本輪僅更新分析，未操作產品。",
+          "source_refs": [
+            "SRC-SPEC",
+            "SRC-001",
+            "SRC-002",
+            "SRC-003"
+          ],
+          "source_citations": [
+            {
+              "source_id": "SRC-SPEC",
+              "reading_seq": 1,
+              "finding_index": 1
+            },
+            {
+              "source_id": "SRC-001",
+              "reading_seq": 1,
+              "finding_index": 2
+            },
+            {
+              "source_id": "SRC-002",
+              "reading_seq": 1,
+              "finding_index": 2
+            },
+            {
+              "source_id": "SRC-003",
+              "reading_seq": 1,
+              "finding_index": 1
+            }
+          ],
+          "revision": 2,
+          "evidence_refs": [
+            "qa/runs/RUN-001.json#/steps/0",
+            "qa/evidence/failure.log#L1",
+            "qa/runs/RUN-002.json#/steps/0"
+          ],
+          "owner": "unassigned",
+          "residual_risk": "根因、修復情況與可重現頻率未知，尚無修復後新執行證據。供電阻塞沒有獨立診斷 evidence，需由測試／環境負責人確認環境可用，才能取得新產品觀察；目前未指派或承諾時程。此供電問題是環境阻塞線索，不能與產品 FAIL 合計。",
+          "assessment_status": "proposed"
+        }
+      ],
+      "scenarios": [
+        {
+          "id": "SC-001",
+          "description": "Evaluate from OFF",
+          "category": "state",
+          "ac_ids": [
+            "AC-001"
+          ],
+          "risk_ids": [
+            "RISK-001"
+          ],
+          "selection": "keep",
+          "reason": "risk selected"
+        }
+      ],
+      "coverage_items": [
+        {
+          "id": "COV-001",
+          "ac_ids": [
+            "AC-001"
+          ],
+          "technique": "state-transition",
+          "description": "OFF -> evaluate -> ON",
+          "selection": "keep",
+          "reason": "selected transition"
+        }
+      ],
+      "charters": [],
+      "interactions": []
+    },
+    "cases": {
+      "TC-001": {
+        "id": "TC-001",
+        "title": "Evaluate changes OFF to ON",
+        "revision": 1,
+        "status": "ready",
+        "purpose": "Detect missing output",
+        "level": "unit",
+        "type": "manual",
+        "ac_ids": [
+          "AC-001"
+        ],
+        "risk_ids": [
+          "RISK-001"
+        ],
+        "scenario_ids": [
+          "SC-001"
+        ],
+        "coverage_ids": [
+          "COV-001"
+        ],
+        "environment": {
+          "target": "isolated fixture",
+          "build_binding": "record fixture version at run",
+          "tools": "fixture v1",
+          "binding_refs": [
+            "SRC-HARNESS"
+          ],
+          "source_citations": [
+            {
+              "source_id": "SRC-HARNESS",
+              "reading_seq": 1,
+              "finding_index": 1
+            }
+          ]
+        },
+        "preconditions": [
+          {
+            "action": "reset fixture to OFF",
+            "verify": "read output OFF"
+          }
+        ],
+        "data": [
+          {
+            "name": "initial",
+            "value": "OFF",
+            "unit": "discrete",
+            "basis": "SRC-HARNESS",
+            "source_citations": [
+              {
+                "source_id": "SRC-HARNESS",
+                "reading_seq": 1,
+                "finding_index": 1
+              }
+            ]
+          }
+        ],
+        "steps": [
+          {
+            "n": 1,
+            "action": "evaluate once",
+            "input": "OFF",
+            "observe": "output",
+            "when": "on return",
+            "evidence": "capture fixture JSON",
+            "checks": [
+              {
+                "expected": "output ON",
+                "rule_refs": [
+                  "AC-001"
+                ],
+                "coverage_ids": [
+                  "COV-001"
+                ]
+              }
+            ]
+          }
+        ],
+        "cleanup": [
+          {
+            "action": "close fixture",
+            "verify": "process terminated"
+          }
+        ],
+        "independence": "fresh process each case",
+        "verdict_rules": {
+          "pass": "ON",
+          "fail": "not ON with valid input",
+          "inconclusive": "no output"
+        },
+        "blockers": []
+      }
+    },
+    "decision_evidence_hashes": {
+      "qa/decisions/DEC-001.md": "e83e2466b7ecf10a485cf4c2cfe03bfd3142fc4dc9ee818d5de9924b8ebd9558"
+    },
+    "strategy": "# 輸出控制測試策略：合成回報接回後初評\n\n編號圖例：REQ＝Requirement（需求）、AC＝Acceptance Criterion（驗收條件）、TC＝Test Case（測試案例）、COV＝Coverage（覆蓋項目）、SC＝Scenario（情境）、SRC＝Source（來源）、DEC＝Decision（人的決策）；RISK＝Risk（風險）、RUN＝Run（執行紀錄）是英文單字。數字後綴是各類流水號；SRC-SPEC／SRC-HARNESS 沿用規格／操作來源標籤。P＝Priority（優先序），P1 表示專案已選的合成範圍，並非危害等級。\n\n## 目標、範圍與規則\n\n沿用 REQ-001、AC-001 與 DEC-001 所選範圍：模組在 evaluate 後輸出 ON，實體設備在範圍外。以 SRC-SPEC 為產品判準，以 SRC-HARNESS 為隔離、reset、evaluate、inspect 操作來源。新增的 SRC-001～SRC-003 僅為經驗來源；日誌中的 expected=ON 不另立產品規則。\n\n本輪交付為合成回報整理、風險初評與閱讀報告，保留「先產出，不再問」，不進行產品操作、不擴大測試範圍。\n\n## 風險、失效機制與現有控制\n\nRISK-001 修訂 2：OFF 初態 → evaluate 返回但輸出仍為 OFF → 模組主要控制承諾未達 → 比對返回後輸出與既有 ON 判準。RUN-001 的 Actual 與失敗日誌第 1 行相符，支持此失效線索；這不是本輪獨立重現，也沒有根因證據。\n\n嚴重度維持 high，依據為主要輸出功能未達承諾；可能性仍 unknown，不確定性仍 high；優先序保留 P1。缺全部執行次數、現場暴露量及完整觀測期間，不能計頻率、推估機率或宣稱「常發生」。新的需求風險評估保持 proposed；原確認只屬原版本，未代填新的人的決策。\n\nRUN-002 報告供電不可用，evaluate 未執行，是環境阻塞線索，沒有產品失敗或成功觀察。它影響取得新驗證證據的能力，不能加進產品失敗次數。未附獨立供電診斷 evidence，根因未確認。\n\n## 方法、覆蓋與成本\n\n沿用人工單元層級的狀態轉移方法、SC-001、COV-001 與 TC-001；既有斷言已能識別「evaluate 後仍為 OFF」。不新增相同目的的重複案例，不將回報的 Actual 寫回案例設計，案例與驗收條件版本保持 1。\n\n若後續修復或環境復原，建議由測試負責人在另行授權後以新執行紀錄重跑現有案例，保留真實 build、工具、環境、初態、逐步觀察、清理與證據。這是待辦，不表示已安排或執行。現有資料不支持擴張到實機、長時間測試或統計估計。\n\n## 品質特性適用性\n\n| 特性 | 本輪適用性與證據限制 |\n|---|---|\n| 功能正確性／狀態轉移 | 適用；原規格承諾 evaluate 後 ON，附日誌回報顯示 OFF。 |\n| 環境可用性與可觀測性 | 適用於測試安排；供電阻塞尚無獨立診斷證據，恢復後才能觀察產品。 |\n| 長期可靠性／失效頻率 | 未能評估；總執行數、暴露量與完整期間未知。 |\n| 實體設備效果 | 原選取範圍之外；模組合成紀錄不能證明實體動作。 |\n| 安全、效能、相容性等其他特性 | 本輪沒有新增相關資料，不增訂門檻或假設產品要求。 |\n\n## 進入、退出與剩餘風險\n\n後續執行前由測試／環境負責人確認供電、真實初態、隔離與觀測可用；正式新基線仍需要此完整新設計版本的審查及人的核可。本輪未建立新基線，未核准產品放行。\n\n缺陷／修復負責人與測試／環境負責人目前均未指派。下一次收到根因、修復 build、環境復原證據或完整暴露資料時，再按實際內容更新分析；保持未知，不以修復宣稱或缺陷關閉取代新執行證據。\n",
+    "plan": "# 本輪合成回報回顧與後續計畫\n\n編號圖例：RUN＝Run（測試執行紀錄）、RISK＝Risk（風險）為英文單字；SRC＝Source（來源）、REQ＝Requirement（需求）、AC＝Acceptance Criterion（驗收條件）、TC＝Test Case（測試案例）、COV＝Coverage（覆蓋項目）、QA＝Question and Answer（問答紀錄）、REV＝Review（審查）、APP＝Approval（核可）、BL＝Baseline（案例基線）。數字為各類流水號；SRC-SPEC／SRC-HARNESS 是沿用的來源標籤。P＝Priority（優先序），P1 沿用專案已選合成範圍。\n\n## 新增確認與回報分類\n\n使用者於 QA-006 確認這是回報者提供的合成資料，並說明目前沒有全部執行次數或現場暴露量。確認的是資料來源，不是 AI 獨立重現、根因判定、風險接受或產品放行。未新增實質需求問題，沿用先產出。\n\n| 回報 | 受測版本／環境／執行人 | 回報觀察與證據 | 本輪解讀 |\n|---|---|---|---|\n| RUN-001／SRC-001 | fixture-build-7；synthetic-lab；synthetic-tester | 2026-11-14 10:00:00～10:00:02 +08:00；步驟 1 在 10:00:01 記 FAIL、evaluate 返回但輸出仍 OFF。SRC-003 日誌第 1 行時間與觀察一致，實檔指紋符合原引用。 | 可支持既有產品失效線索的回報；未獨立重現，根因與修復狀態未知。 |\n| RUN-002／SRC-002 | fixture-build-7；synthetic-lab；synthetic-tester | 2026-11-14 10:10:00～10:10:01 +08:00；步驟 1 記 BLOCKED、供電不可用、evaluate 未執行；evidence 為空。 | 環境阻塞，沒有產品輸出觀察；不得算第二次產品 FAIL，也不是修復重跑。 |\n\n原檔：`qa/runs/RUN-001.json`、`qa/runs/RUN-002.json`、`qa/evidence/failure.log`。本輪讀取、登錄經驗來源並核對紀錄，沒有操作產品或新增執行結果。兩筆舊格式回報的 start-run 範本 notes 原樣保留；它只說建立紀錄本身不會執行產品，本輪採用使用者確認的回報來源與實際步驟／證據分析，不以範本 notes 代替判定。\n\n## 經驗如何回到風險與案例\n\nRISK-001 修訂 2 維持 high 嚴重度、unknown 可能性、high 不確定性與 P1 優先序。新初評以兩份回報與日誌的具體閱讀摘錄為依據，REQ-001 的 risk_assessment 改為 proposed，待有權責的人確認新版本風險評估。\n\nREQ-001 與 AC-001 的產品內容／revision 1、TC-001 revision 1、COV-001 的 OFF→evaluate→ON 覆蓋及既有選取範圍均保持。既有案例已能判別所回報的 OFF 失效，不需新增重複案例；Expected 仍來自 SRC-SPEC。案例內容的 ready 不代表目前環境可用、完整新設計已審查或已實測通過。\n\n## 觀測數量及限制\n\n| 項目 | 值 | 定義與限制 |\n|---|---|---|\n| 本輪收到的回報數 | 2 | 只計 `qa/runs` 中這兩份紀錄，不代表全部執行次數。 |\n| 附日誌的產品 FAIL 回報 | 1 | 只指 RUN-001，非獨立確認的缺陷總數或機率估計。 |\n| 未執行 evaluate 的環境阻塞回報 | 1 | 只指 RUN-002；不可與產品 FAIL 合計。 |\n| 全部產品執行次數 | 未知／null | 使用者明確表示尚無；不得拿 2 份回報作分母。 |\n| 現場暴露量／完整觀測期間 | 未知／null | 回報時間只界定這兩份紀錄的區間，不能代表現場觀測期間。 |\n| 失敗率／現場發生機率 | 不計算／null | 缺適當分母、期間及樣本選取資訊，不能得出 50% 或 100%。 |\n| 修復後驗證結果 | 未知／null | 沒有修復版本與新執行證據；阻塞回報不證明修復成功。 |\n\n## 證據缺口與下一步\n\n| 待辦 | 建議責任角色／實際指派 | 觸發時點與用途 |\n|---|---|---|\n| 提供完整執行清單、觀測期間、使用條件、暴露量及樣本選取方式 | 測試／資料負責人；未指派 | 有資料時再評估可能性；目前保留 unknown，不重新提問。 |\n| 確認 evaluate 返回仍 OFF 的根因與修復版本 | 產品／工程負責人；未指派 | 收到根因或修復證據後檢視影響範圍，不能僅憑已關閉缺陷視為修復驗證。 |\n| 確認供電阻塞原因與環境復原證據 | 測試／環境負責人；未指派 | 下一次獲授權執行前完成；缺獨立診斷 evidence 時保持回報線索。 |\n| 修復／環境復原後，以新執行紀錄重跑現有案例 | 測試負責人；未指派 | 需另有執行授權與真實環境；綁新 build、工具版本、初態、操作、實際觀察、清理、證據及執行時間。 |\n| 審查新設計與確認風險初評 | 獨立審查者／有權決策者；未指派 | 準備新基線時；目前沒有新的審查、核可或放行。 |\n\n本輪只整理與保存，無新執行人力、時程或操作工具承諾。現有回報未提供完整依賴工具版本、build 產物 hash、初態建立與清理的獨立證據，這些限制不因 check-run 成功而消失。\n\n## 版本與保存\n\n原完整設計 digest 為 `7e2a1f2dbafed040787d4c50534cbe81fc13d9cbdc457d10cb36f9adf94d645a`。原 REV-001、APP-001、BL-001 及兩筆 RUN 快照保留原樣。新增來源、閱讀紀錄與風險初評後，完整設計已有新版本；歷史審查／核可不套用新版本。\n\n僅保存本機。結構檢查、報告產生及交接包驗證不是產品測試或新的獨立審查。當前版本與實際交接位置記於 session；原檔與相對目錄必須連同 HTML 保留，才能開啟原始 evidence。\n"
+  },
+  "handoff": {
+    "protocol_version": 2,
+    "target_skill": "genai-test-review",
+    "design_tool_version": "1.10.0",
+    "pack_id": "REV-002",
+    "portable": false
+  },
+  "comparison_reference_ids": [],
+  "risk_evidence_source_ids": [
+    "SRC-001",
+    "SRC-002",
+    "SRC-003",
+    "SRC-SPEC"
+  ],
+  "question_evidence_source_ids": [],
+  "interview_evidence_ids": [],
+  "source_reading_summary": [
+    {
+      "source_id": "SRC-SPEC",
+      "status": "scoped",
+      "label": "已讀指定範圍（依紀錄）",
+      "seq": 1,
+      "read_scope": [
+        "whole synthetic file"
+      ],
+      "unread_scope": [],
+      "limitations": []
+    },
+    {
+      "source_id": "SRC-HARNESS",
+      "status": "scoped",
+      "label": "已讀指定範圍（依紀錄）",
+      "seq": 1,
+      "read_scope": [
+        "whole synthetic file"
+      ],
+      "unread_scope": [],
+      "limitations": []
+    },
+    {
+      "source_id": "SRC-001",
+      "status": "scoped",
+      "label": "已讀指定範圍（依紀錄）",
+      "seq": 1,
+      "read_scope": [
+        "執行基本資料：/id, /status, /case_id, /artifact_digest, /sut_version, /environment, /operator, /started_at, /finished_at, /steps, /notes",
+        "/case_snapshot 的初態、步驟、斷言、判定、清理及隔離要求；已核對快照與接手時案例／registry 一致"
+      ],
+      "unread_scope": [
+        "未將與本輪失效分類無關的重複設計快照欄位逐欄重新引用。"
+      ],
+      "limitations": [
+        "合成資料；無本輪獨立重現、根因分析或修復後結果。",
+        "未提供所有執行次數、現場暴露量或完整觀測期間，不可估發生機率。",
+        "回報沒有另外提供完整初態／清理紀錄、產物 hash 與實際依賴工具版本；保留證據完整性限制。"
+      ]
+    },
+    {
+      "source_id": "SRC-002",
+      "status": "scoped",
+      "label": "已讀指定範圍（依紀錄）",
+      "seq": 1,
+      "read_scope": [
+        "/id, /status, /case_id, /artifact_digest, /sut_version, /environment, /operator, /started_at, /finished_at, /steps, /notes",
+        "已核對案例／registry 凍結快照與接手時版本一致"
+      ],
+      "unread_scope": [
+        "未將與本輪環境阻塞分類無關的重複設計快照欄位逐欄重新引用。"
+      ],
+      "limitations": [
+        "合成回報且未附獨立 evidence；不推定已重現供電問題。",
+        "evaluate 未執行，沒有產品輸出觀察，不納入產品失敗次數。",
+        "本輪不恢復供電、不操作產品、不新增執行結果。"
+      ]
+    },
+    {
+      "source_id": "SRC-003",
+      "status": "scoped",
+      "label": "已讀指定範圍（依紀錄）",
+      "seq": 1,
+      "read_scope": [
+        "第 1 行（全文）"
+      ],
+      "unread_scope": [],
+      "limitations": [
+        "單一合成日誌，沒有總執行數、暴露量或長期觀測資料。",
+        "未記 build、環境及執行人；這些條件由第一份回報綁定，不能僅由日誌證明。",
+        "沒有完整初態建立、隔離、清理與修復後驗證紀錄。"
+      ]
+    }
+  ],
+  "instruction": "Reload confirmed rules, decisions, bindings, questions, risk assessments and coverage items. Experience sources suggest scenarios only. Risk and question evidence support analysis, not product Expected. Comparison artifacts support only the explicitly confirmed relation; observed behavior is not automatically correct.",
+  "review_focus": "# 本輪待審重點\n\n編號圖例：RUN＝Run（執行紀錄）、RISK＝Risk（風險）；SRC＝Source（來源）、REQ＝Requirement（需求）、AC＝Acceptance Criterion（驗收條件）、TC＝Test Case（測試案例）、QA＝Question and Answer（問答紀錄）。數字後綴是各類流水號，SRC-SPEC 為沿用的規格來源標籤。\n\n- 對照 QA-006、SRC-001～SRC-003 原文，檢查 RUN-001 的附日誌失效回報與 RUN-002 的環境阻塞有清楚分開；沒有把收到兩份回報當完整執行分母。\n- 檢查 RISK-001 的 unknown／high 不確定性、後果與優先序理由；REQ-001 新風險初評為 proposed，沒有把來源確認當風險採納。\n- 檢查 TC-001 與 AC-001 的 Expected 仍由 SRC-SPEC 支持，經驗來源只支持失效分析；沒有聲稱 AI 重現、修復通過或新產品放行。\n- 以整個新設計版本完成四輪審查；歷史審查、核可、基線與 RUN 快照不可回寫。合成 fixture 的既有核可文字不是本輪新核可。\n",
+  "design_check": {
+    "gate": "draft",
+    "artifact_digest": "c7125643c1e9517cd7058a7e52de0712b137216425550a9c1bbda9ff1e0832fe",
+    "errors": [],
+    "warnings": [
+      "QA-006: incomplete original Q&A (partial); do not treat a summary as a transcript",
+      "REQ-001: risk assessment proposed; not evidence of no risk"
+    ],
+    "note": "Structural checks only; not human approval or product test results."
+  },
+  "used_review_ids": [
+    "REV-001",
+    "REV-002"
+  ],
+  "used_finding_ids": []
+}

@@ -1,0 +1,375 @@
+{
+  "schema_version": 1,
+  "project": {
+    "name": "Synthetic fixture",
+    "owner": "unassigned",
+    "design_policy": "coverage-items-v1",
+    "risk_policy": "requirement-risk-v1",
+    "source_reading_policy": "source-reading-v1",
+    "risk_criteria": {
+      "status": "confirmed",
+      "decision_refs": [
+        "DEC-001"
+      ],
+      "severity": {
+        "high": "Synthetic main function lost",
+        "low": "Synthetic cosmetic effect"
+      },
+      "likelihood": {
+        "high": "Observed often in synthetic fixture",
+        "low": "Rare in synthetic fixture"
+      },
+      "priority": {
+        "P1": "Selected synthetic scope",
+        "P2": "Later synthetic scope"
+      }
+    }
+  },
+  "scope": {
+    "objective": "Check synthetic output",
+    "in": [
+      "module"
+    ],
+    "out": [
+      "physical device"
+    ],
+    "selected_ac_ids": [
+      "AC-001"
+    ],
+    "selected_risk_ids": [
+      "RISK-001"
+    ],
+    "selected_scenario_ids": [
+      "SC-001"
+    ],
+    "selected_case_ids": [
+      "TC-001"
+    ],
+    "decision_ref": "DEC-001"
+  },
+  "sources": [
+    {
+      "id": "SRC-SPEC",
+      "path": "inputs/spec.md",
+      "sha256": "f574cfbae3eedc1dc70434c467a38a47a2b550511edfdef06c16521d9c0ba691",
+      "locator": "whole file",
+      "kind": "normative",
+      "status": "confirmed",
+      "readings": [
+        {
+          "seq": 1,
+          "source_sha256": "f574cfbae3eedc1dc70434c467a38a47a2b550511edfdef06c16521d9c0ba691",
+          "status": "scoped",
+          "depth": "content",
+          "purpose": "Synthetic tool regression",
+          "method": "Read synthetic UTF-8 fixture",
+          "read_scope": [
+            "whole synthetic file"
+          ],
+          "unread_scope": [],
+          "limitations": [],
+          "findings": [
+            {
+              "locator": "whole file",
+              "type": "quote",
+              "text": "Synthetic test rule: after evaluate, output ON.\n"
+            }
+          ],
+          "evidence_refs": [],
+          "read_at": null,
+          "recorded_at": "2026-11-13T00:00:00Z"
+        },
+        {
+          "source_sha256": "f574cfbae3eedc1dc70434c467a38a47a2b550511edfdef06c16521d9c0ba691",
+          "status": "scoped",
+          "depth": "content",
+          "purpose": "接回既有審查發現，補明確初態讀值並保留重啟規則缺口。",
+          "method": "以 Python Path.read_text 實際讀取 UTF-8 原檔全文，核對第 1 行及現有審查與案例。",
+          "read_scope": [
+            "inputs/spec.md 第 1 行（全文）"
+          ],
+          "unread_scope": [],
+          "findings": [
+            {
+              "locator": "inputs/spec.md:1",
+              "type": "quote",
+              "text": "Synthetic test rule: after evaluate, output ON.\n",
+              "interpretation": "本輪只沿用 evaluate 後 ON 的既有應然規則；原文沒有重啟後輸出定義。"
+            }
+          ],
+          "limitations": [
+            "原文沒有重啟後輸出規則，不可推導重啟 Expected。"
+          ],
+          "evidence_refs": [],
+          "read_at": null,
+          "reader": "ChatGPT",
+          "seq": 2,
+          "recorded_at": "2026-11-14T13:08:17+00:00"
+        }
+      ]
+    },
+    {
+      "id": "SRC-HARNESS",
+      "path": "inputs/harness.md",
+      "sha256": "6050ea2d883af7e763867cd2cc9320f8347986265482bc05f42bc28ee325c140",
+      "locator": "whole file",
+      "kind": "harness",
+      "status": "confirmed",
+      "readings": [
+        {
+          "seq": 1,
+          "source_sha256": "6050ea2d883af7e763867cd2cc9320f8347986265482bc05f42bc28ee325c140",
+          "status": "scoped",
+          "depth": "content",
+          "purpose": "Synthetic tool regression",
+          "method": "Read synthetic UTF-8 fixture",
+          "read_scope": [
+            "whole synthetic file"
+          ],
+          "unread_scope": [],
+          "limitations": [],
+          "findings": [
+            {
+              "locator": "whole file",
+              "type": "quote",
+              "text": "Synthetic harness: reset, evaluate, inspect output; isolated state.\n"
+            }
+          ],
+          "evidence_refs": [],
+          "read_at": null,
+          "recorded_at": "2026-11-13T00:00:00Z"
+        },
+        {
+          "source_sha256": "6050ea2d883af7e763867cd2cc9320f8347986265482bc05f42bc28ee325c140",
+          "status": "scoped",
+          "depth": "content",
+          "purpose": "接回既有審查發現，補明確初態讀值並保留重啟規則缺口。",
+          "method": "以 Python Path.read_text 實際讀取 UTF-8 原檔全文，核對第 1 行及現有審查與案例。",
+          "read_scope": [
+            "inputs/harness.md 第 1 行（全文）"
+          ],
+          "unread_scope": [],
+          "findings": [
+            {
+              "locator": "inputs/harness.md:1",
+              "type": "quote",
+              "text": "Synthetic harness: reset, evaluate, inspect output; isolated state.\n",
+              "interpretation": "原文列出 reset、evaluate、inspect output 與隔離狀態；本輪用該觀測介面補初態讀值。OFF 初態取自既有案例及本輪明確處置，並非原文另有定義 reset／重啟結果。"
+            }
+          ],
+          "limitations": [
+            "簡短文件僅列操作名稱及隔離條件，沒有產品命令或重啟行為；本輪不補造 API、命令或重啟判準。"
+          ],
+          "evidence_refs": [],
+          "read_at": null,
+          "reader": "ChatGPT",
+          "seq": 2,
+          "recorded_at": "2026-11-14T13:08:17+00:00"
+        }
+      ]
+    }
+  ],
+  "decisions": [
+    {
+      "id": "DEC-001",
+      "statement": "Synthetic adoption",
+      "by": "synthetic-fixture-owner",
+      "at": "2026-11-09T00:00:00Z",
+      "evidence_ref": "qa/decisions/DEC-001.md"
+    },
+    {
+      "id": "DEC-002",
+      "statement": "依使用者處置修正 F-001：evaluate 前透過既有 harness 讀取並確認 output=OFF；F-002 重啟行為未決，列 Q-001 待辦。只保存本機、先產出不再問；未核可新版、未授權產品執行、未接受重啟剩餘風險。",
+      "by": "使用者",
+      "at": "2026-11-14T11:00:00+08:00",
+      "evidence_ref": "qa/decisions/DEC-002.md",
+      "affected_ids": [
+        "TC-001",
+        "Q-001"
+      ],
+      "interaction_refs": [
+        "QA-006"
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "Q-001",
+      "text": "重啟後輸出應為何值，何時觀測，適用於哪些重啟條件？",
+      "status": "open",
+      "owner": "unassigned",
+      "due_or_trigger": "由產品規則決策人確認重啟行為，且使用者明確要求恢復釐清或將重啟納入案例時處理；未承諾日期。",
+      "impact_ids": [
+        "REQ-001",
+        "TC-001"
+      ],
+      "blocks": [],
+      "decision_refs": [
+        "DEC-002"
+      ],
+      "category": "testability",
+      "urgency": "later",
+      "analysis": "對應既有審查 F-002。使用者目前無法決定，保持待辦；現行案例只檢查 evaluate，不含重啟，故不以此待辦阻塞該既有轉移。重啟相關驗收與新增案例須待規則確認，不能寫入未確認 Expected；列待辦不等於接受剩餘風險或縮減原選定範圍。",
+      "suggested_owner": "能決定產品重啟語意的產品負責人，尚未指派或聯絡。",
+      "source_refs": [
+        "SRC-SPEC"
+      ],
+      "source_citations": [
+        {
+          "source_id": "SRC-SPEC",
+          "reading_seq": 2,
+          "finding_index": 1
+        }
+      ]
+    }
+  ],
+  "requirements": [
+    {
+      "id": "REQ-001",
+      "text": "Output must be ON after evaluate",
+      "revision": 1,
+      "status": "confirmed",
+      "source_refs": [
+        "SRC-SPEC"
+      ],
+      "source_citations": [
+        {
+          "source_id": "SRC-SPEC",
+          "reading_seq": 1,
+          "finding_index": 1
+        }
+      ],
+      "decision_refs": [
+        "DEC-001"
+      ],
+      "confirmation": {
+        "by": "synthetic-fixture-owner",
+        "at": "2026-11-09T00:00:00Z",
+        "evidence_ref": "qa/decisions/DEC-001.md"
+      },
+      "risk_assessment": {
+        "status": "confirmed",
+        "requirement_revision": 1,
+        "rationale": "Synthetic assessment of missing control",
+        "decision_refs": [
+          "DEC-001"
+        ]
+      }
+    }
+  ],
+  "acceptance": [
+    {
+      "id": "AC-001",
+      "text": "Output must be ON after evaluate",
+      "revision": 1,
+      "status": "confirmed",
+      "source_refs": [
+        "SRC-SPEC"
+      ],
+      "source_citations": [
+        {
+          "source_id": "SRC-SPEC",
+          "reading_seq": 1,
+          "finding_index": 1
+        }
+      ],
+      "decision_refs": [
+        "DEC-001"
+      ],
+      "confirmation": {
+        "by": "synthetic-fixture-owner",
+        "at": "2026-11-09T00:00:00Z",
+        "evidence_ref": "qa/decisions/DEC-001.md"
+      },
+      "requirement_ids": [
+        "REQ-001"
+      ],
+      "oracle": {
+        "observe": "output",
+        "when": "after evaluate",
+        "tolerance": "exact"
+      }
+    }
+  ],
+  "risks": [
+    {
+      "id": "RISK-001",
+      "failure": "OFF after evaluate",
+      "impact": "control lost",
+      "requirement_ids": [
+        "REQ-001"
+      ],
+      "severity": "high",
+      "severity_rationale": "Main output unavailable",
+      "likelihood": "unknown",
+      "likelihood_rationale": "No field data",
+      "uncertainty": "high",
+      "priority": "P1",
+      "rationale": "selected promise",
+      "source_refs": [
+        "SRC-SPEC"
+      ],
+      "source_citations": [
+        {
+          "source_id": "SRC-SPEC",
+          "reading_seq": 1,
+          "finding_index": 1
+        }
+      ]
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "SC-001",
+      "description": "Evaluate from OFF",
+      "category": "state",
+      "ac_ids": [
+        "AC-001"
+      ],
+      "risk_ids": [
+        "RISK-001"
+      ],
+      "selection": "keep",
+      "reason": "risk selected"
+    }
+  ],
+  "coverage_items": [
+    {
+      "id": "COV-001",
+      "ac_ids": [
+        "AC-001"
+      ],
+      "technique": "state-transition",
+      "description": "OFF -> evaluate -> ON",
+      "selection": "keep",
+      "reason": "selected transition"
+    }
+  ],
+  "charters": [],
+  "interactions": [
+    {
+      "id": "QA-006",
+      "kind": "correction",
+      "question_id": null,
+      "question_text": null,
+      "options": [],
+      "answer_text": "請使用 /home/agent/.codex/skills/remote-skills/skill-6af1747b432881919448466eb247e9c9/SKILL.md 接續 /workspace/scratch/258261bef5fc/phase-update/run-01/workspaces/case-09/project。這是合成專案，請直接完成檔案修改與交付。我的處置：F-001 依既有 harness 補明確的初態讀值；F-002 的重啟行為目前無法決定，列待辦。先產出，不再問；沒有核可新版或要求執行產品。此回答時間為 2026-11-14T11:00:00+08:00。只保存本機；請最後簡述修改與尚缺事項。",
+      "answer_status": "partial",
+      "capture": "partial",
+      "missing_reason": "本輪為使用者主動提供審查處置，沒有可見的原始提問或選項；只保存實際可見原話。既有 QA-005 僅見於 session 摘要，不補造其逐字紀錄。",
+      "asked_at": null,
+      "answered_at": "2026-11-14T11:00:00+08:00",
+      "answered_by": "使用者",
+      "interpretation": "F-001 採用既有 harness 的 reset 與 inspect output，補 evaluate 前 output 必須等於 OFF 的明確初態讀值。F-002 的重啟後輸出尚不能決定，只列待辦；此回答不確認重啟規則、不接受該剩餘風險、不核可修訂版，也未授權執行產品。沿用先產出、不再問及只保存本機的選擇；主動補充不增加累計已問 5 題、本批 5/5。",
+      "related_ids": [
+        "TC-001",
+        "Q-001",
+        "DEC-002"
+      ],
+      "supersedes": null,
+      "change_reason": "依使用者主動提供的 F-001 修正處置及 F-002 未決處置接續；沒有可供 supersedes 的已登錄原始問答。",
+      "recorded_at": "2026-11-14T13:08:16+00:00",
+      "answer_recorded_at": "2026-11-14T13:08:16+00:00"
+    }
+  ]
+}

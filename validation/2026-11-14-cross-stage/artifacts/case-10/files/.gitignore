@@ -1,0 +1,12 @@
+# Local project exclusions
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+.venv/
+node_modules/
+__pycache__/
+qa/evidence/raw/
+*.tmp

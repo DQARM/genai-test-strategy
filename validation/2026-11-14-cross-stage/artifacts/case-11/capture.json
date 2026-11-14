@@ -1,0 +1,189 @@
+{
+  "case_id": "case-11",
+  "captured_at": "2026-11-14T13:15:40.617686+00:00",
+  "before": {
+    ".gitignore": "435f2c07befca2e86a71a24f3ad7670deb592c14d7872061265ad781475d92e0",
+    ".qa-project.json": "54ecc1b088c099e82eace1d59dbf56c5ff5457430cf27d085523ed839b8c5bcc",
+    "inputs/addendum.md": "440bf8cad8af68909d13960c0ebdaa46e5613ab4107acb6bc9ce62f4c12d4987",
+    "inputs/harness.md": "6050ea2d883af7e763867cd2cc9320f8347986265482bc05f42bc28ee325c140",
+    "inputs/spec.md": "f574cfbae3eedc1dc70434c467a38a47a2b550511edfdef06c16521d9c0ba691",
+    "qa/approvals/APP-001.json": "05f136f4bbea823a87c517b091111415596dc18f8cd635937a2e2ab1f710a9df",
+    "qa/baselines/BL-001.json": "f52e782120c8191990b3382c2f60c9f9273abd94903cb805a3f02a4f7759bfba",
+    "qa/cases/TC-001.json": "552f2db382cbb63865c0f50e411001631017c19a72b4f4cf290dc4eabb26d9f4",
+    "qa/decisions/DEC-001.md": "e83e2466b7ecf10a485cf4c2cfe03bfd3142fc4dc9ee818d5de9924b8ebd9558",
+    "qa/id-glossary.md": "cbc0cecc4a2364c2f02ed06482c77069c123aefeafec8ddc4e6edc6944de9f7d",
+    "qa/interview.md": "9ed138dfe49eee54c7eea68ff54cb83c15a6a39361d163f5fe83ab35ce668298",
+    "qa/plan.md": "82de05f0b96ea35e33307058d136f8ec4a9477bfcb104cc60e3068983de569ba",
+    "qa/questions.md": "6ca531829eeec39fc69ba601c00a0a3977e01ec472cebdb2c207d596e73c0e3a",
+    "qa/registry.json": "62d9409a2ad58f9c043e87d1490c23cd9bb1a9b538a6cf1dd93136f0f2296477",
+    "qa/report.html": "ee16392d75c139e777447ce4475587ac72abe2deb6c432617bd82aa0aed4a7eb",
+    "qa/reviews/REV-001.json": "ddf0526be66bc398559a6df0a4ec9a2fd177473e6487f6c7e1e63411bf33d400",
+    "qa/risks.md": "a19f3565c35106ac7d328146dcfe44ab9b49c91a05edb1e033331cede50c25e9",
+    "qa/session.md": "7855a6fe94686d11c6e6080c7c926d31d9347ac7fe05de738b7209877343fbc5",
+    "qa/source-reading.md": "a703a87fba993f4555c883f3a6b258c31e2f86eca15cfb1c7be07ae58a61f29a",
+    "qa/spec.md": "0e27dbd8fd16b7ba4442184545d1e4edb8e54b266866a975887cf477b0d989e3",
+    "qa/strategy.md": "d73db0ec97a009b56fd9db00464c9f9f013ced9b5911be411ce9ea501d038804",
+    "qa/test-cases.md": "363353ca2797d1aa82dffd1d0e9dfbc3c8d854bc5b304bc44dcb0e634a2f4972",
+    "qa/test-design.md": "c5c71de4a6780ba8fac0aa57404a4a9f52c77e6ea00b455da7b1d4fc7825c5b6",
+    "qa/tools/qa_project.py": "9c9ecdcd661ba08ae5b9bc6f1ed5b5e44279f01e80937ae5b6c39bdae4ad46fd",
+    "qa/traceability.md": "cc7739e8d7eca7c266420f21918f8b94cb1e8d27f255deb52a8a279fd206f73b"
+  },
+  "after": {
+    ".gitignore": "435f2c07befca2e86a71a24f3ad7670deb592c14d7872061265ad781475d92e0",
+    ".qa-project.json": "54ecc1b088c099e82eace1d59dbf56c5ff5457430cf27d085523ed839b8c5bcc",
+    "inputs/addendum.md": "440bf8cad8af68909d13960c0ebdaa46e5613ab4107acb6bc9ce62f4c12d4987",
+    "inputs/harness.md": "6050ea2d883af7e763867cd2cc9320f8347986265482bc05f42bc28ee325c140",
+    "inputs/spec.md": "f574cfbae3eedc1dc70434c467a38a47a2b550511edfdef06c16521d9c0ba691",
+    "qa/approvals/APP-001.json": "05f136f4bbea823a87c517b091111415596dc18f8cd635937a2e2ab1f710a9df",
+    "qa/baselines/BL-001.json": "f52e782120c8191990b3382c2f60c9f9273abd94903cb805a3f02a4f7759bfba",
+    "qa/cases/TC-001.json": "49dd463dbca6d0699bef15f20fbe84a6342f22268f6c030ad503f9ffccd40244",
+    "qa/decisions/DEC-001.md": "e83e2466b7ecf10a485cf4c2cfe03bfd3142fc4dc9ee818d5de9924b8ebd9558",
+    "qa/delivery-draft.md": "378a37481275c2157eca334524b75adece312bff976f6ef1d04e24d19ed144ac",
+    "qa/history/session-received.md": "7855a6fe94686d11c6e6080c7c926d31d9347ac7fe05de738b7209877343fbc5",
+    "qa/id-glossary.md": "9078427bb093d847c318a75ea26fc228da6bc931de9a96943f8eb07a415b11bf",
+    "qa/interview.md": "9ed138dfe49eee54c7eea68ff54cb83c15a6a39361d163f5fe83ab35ce668298",
+    "qa/plan.md": "1af5690410f0ad2880d910e98beaedab988ab598b403629cb0abdb43932ac704",
+    "qa/questions.md": "b3799c6197e2ddadbde01453782e40d79fd9732bd206c61874c0b2a3e136b370",
+    "qa/registry.json": "957f27ebd58eb304afbe3a6aff6909c0fa45e3d778216bbc9278c1d049a208be",
+    "qa/report.html": "d4b112a3ce8a654d8d97acbc92798291cc5057dfef380ad551999be9c8f5e4cb",
+    "qa/review-focus.md": "49d206636857b7d54c620ef7ac4d02bd87bc75a005e01c79133d9445a08189d4",
+    "qa/review-handoff.json": "35e06449a140d2ee66e9befaf1a2cf57e90d904b2dd9a44582fb85c1590a6d39",
+    "qa/review-packs/REV-002/HANDOFF.md": "0880aba7d22c5692d85b170d789f81bb0b6050a08a4f23c29a8efb37c8253ff8",
+    "qa/review-packs/REV-002/PROMPT.md": "8250a0c2f32bd483ee7115f489db652ea1ec401c2e49cb64d9e1c3df88e8695d",
+    "qa/review-packs/REV-002/REVIEW_GUIDE.md": "d6d5ed79ecb03bbdc0a97301febfd68cdd140159f275df4cf32e347b055db1f6",
+    "qa/review-packs/REV-002/REVIEW_TEMPLATE.json": "aa64ba0fca602d526603cc6f71ffbe94ad51af22347c565305b7b7c987ef250b",
+    "qa/review-packs/REV-002/manifest.json": "9bc7b97aeac7475eda8d22af31c4bc2dbeed394456ab7fa6c3c43fa308ca1466",
+    "qa/review-packs/REV-002/packet.json": "d169dd0822aebf4619a5e1a6b6bcd2add74425cb176b03d60a76b76a5e01fd1a",
+    "qa/review-packs/REV-002/verify_pack.py": "9c9ecdcd661ba08ae5b9bc6f1ed5b5e44279f01e80937ae5b6c39bdae4ad46fd",
+    "qa/reviews/REV-001.json": "ddf0526be66bc398559a6df0a4ec9a2fd177473e6487f6c7e1e63411bf33d400",
+    "qa/risks.md": "5d7e4859b4375452ce9635ff1aee1b8232277f7030a2cb6a1d5f60e0b0a63128",
+    "qa/session.md": "9cc60bec6022f452b5a11bde7715d174f46acb329952fc36e8333126f0529835",
+    "qa/source-reading.md": "47edb1e0f1148adb5ad8428960b4a418f801d68ca95b264c0ba66d120f9305ad",
+    "qa/spec.md": "6add0ad785c4d66fa9c0c30593917a5f8e50e30fe6152f3a93683eb051eec39d",
+    "qa/strategy.md": "b8a86385e1022a29a09aab2840afdf113fc93f651fb3e4efa1672400b8241542",
+    "qa/test-cases.md": "7693cc1af385fac746e55a87a172ba2b6d71016d5f271f2a43d567f9ecdb2c5f",
+    "qa/test-design.md": "7f9fa65e4863725951a4fb407ce3cb7101e2250c6935d8c55bebb61272e104dc",
+    "qa/tools/qa_project.py": "9c9ecdcd661ba08ae5b9bc6f1ed5b5e44279f01e80937ae5b6c39bdae4ad46fd",
+    "qa/traceability.md": "af6fec8a561190e296543891417a4ac183f4e4fe15c3c9e093fd23f0538e7a6e"
+  },
+  "changed": {
+    "qa/cases/TC-001.json": {
+      "before": "552f2db382cbb63865c0f50e411001631017c19a72b4f4cf290dc4eabb26d9f4",
+      "after": "49dd463dbca6d0699bef15f20fbe84a6342f22268f6c030ad503f9ffccd40244"
+    },
+    "qa/delivery-draft.md": {
+      "before": null,
+      "after": "378a37481275c2157eca334524b75adece312bff976f6ef1d04e24d19ed144ac"
+    },
+    "qa/history/session-received.md": {
+      "before": null,
+      "after": "7855a6fe94686d11c6e6080c7c926d31d9347ac7fe05de738b7209877343fbc5"
+    },
+    "qa/id-glossary.md": {
+      "before": "cbc0cecc4a2364c2f02ed06482c77069c123aefeafec8ddc4e6edc6944de9f7d",
+      "after": "9078427bb093d847c318a75ea26fc228da6bc931de9a96943f8eb07a415b11bf"
+    },
+    "qa/plan.md": {
+      "before": "82de05f0b96ea35e33307058d136f8ec4a9477bfcb104cc60e3068983de569ba",
+      "after": "1af5690410f0ad2880d910e98beaedab988ab598b403629cb0abdb43932ac704"
+    },
+    "qa/questions.md": {
+      "before": "6ca531829eeec39fc69ba601c00a0a3977e01ec472cebdb2c207d596e73c0e3a",
+      "after": "b3799c6197e2ddadbde01453782e40d79fd9732bd206c61874c0b2a3e136b370"
+    },
+    "qa/registry.json": {
+      "before": "62d9409a2ad58f9c043e87d1490c23cd9bb1a9b538a6cf1dd93136f0f2296477",
+      "after": "957f27ebd58eb304afbe3a6aff6909c0fa45e3d778216bbc9278c1d049a208be"
+    },
+    "qa/report.html": {
+      "before": "ee16392d75c139e777447ce4475587ac72abe2deb6c432617bd82aa0aed4a7eb",
+      "after": "d4b112a3ce8a654d8d97acbc92798291cc5057dfef380ad551999be9c8f5e4cb"
+    },
+    "qa/review-focus.md": {
+      "before": null,
+      "after": "49d206636857b7d54c620ef7ac4d02bd87bc75a005e01c79133d9445a08189d4"
+    },
+    "qa/review-handoff.json": {
+      "before": null,
+      "after": "35e06449a140d2ee66e9befaf1a2cf57e90d904b2dd9a44582fb85c1590a6d39"
+    },
+    "qa/review-packs/REV-002/HANDOFF.md": {
+      "before": null,
+      "after": "0880aba7d22c5692d85b170d789f81bb0b6050a08a4f23c29a8efb37c8253ff8"
+    },
+    "qa/review-packs/REV-002/PROMPT.md": {
+      "before": null,
+      "after": "8250a0c2f32bd483ee7115f489db652ea1ec401c2e49cb64d9e1c3df88e8695d"
+    },
+    "qa/review-packs/REV-002/REVIEW_GUIDE.md": {
+      "before": null,
+      "after": "d6d5ed79ecb03bbdc0a97301febfd68cdd140159f275df4cf32e347b055db1f6"
+    },
+    "qa/review-packs/REV-002/REVIEW_TEMPLATE.json": {
+      "before": null,
+      "after": "aa64ba0fca602d526603cc6f71ffbe94ad51af22347c565305b7b7c987ef250b"
+    },
+    "qa/review-packs/REV-002/manifest.json": {
+      "before": null,
+      "after": "9bc7b97aeac7475eda8d22af31c4bc2dbeed394456ab7fa6c3c43fa308ca1466"
+    },
+    "qa/review-packs/REV-002/packet.json": {
+      "before": null,
+      "after": "d169dd0822aebf4619a5e1a6b6bcd2add74425cb176b03d60a76b76a5e01fd1a"
+    },
+    "qa/review-packs/REV-002/verify_pack.py": {
+      "before": null,
+      "after": "9c9ecdcd661ba08ae5b9bc6f1ed5b5e44279f01e80937ae5b6c39bdae4ad46fd"
+    },
+    "qa/risks.md": {
+      "before": "a19f3565c35106ac7d328146dcfe44ab9b49c91a05edb1e033331cede50c25e9",
+      "after": "5d7e4859b4375452ce9635ff1aee1b8232277f7030a2cb6a1d5f60e0b0a63128"
+    },
+    "qa/session.md": {
+      "before": "7855a6fe94686d11c6e6080c7c926d31d9347ac7fe05de738b7209877343fbc5",
+      "after": "9cc60bec6022f452b5a11bde7715d174f46acb329952fc36e8333126f0529835"
+    },
+    "qa/source-reading.md": {
+      "before": "a703a87fba993f4555c883f3a6b258c31e2f86eca15cfb1c7be07ae58a61f29a",
+      "after": "47edb1e0f1148adb5ad8428960b4a418f801d68ca95b264c0ba66d120f9305ad"
+    },
+    "qa/spec.md": {
+      "before": "0e27dbd8fd16b7ba4442184545d1e4edb8e54b266866a975887cf477b0d989e3",
+      "after": "6add0ad785c4d66fa9c0c30593917a5f8e50e30fe6152f3a93683eb051eec39d"
+    },
+    "qa/strategy.md": {
+      "before": "d73db0ec97a009b56fd9db00464c9f9f013ced9b5911be411ce9ea501d038804",
+      "after": "b8a86385e1022a29a09aab2840afdf113fc93f651fb3e4efa1672400b8241542"
+    },
+    "qa/test-cases.md": {
+      "before": "363353ca2797d1aa82dffd1d0e9dfbc3c8d854bc5b304bc44dcb0e634a2f4972",
+      "after": "7693cc1af385fac746e55a87a172ba2b6d71016d5f271f2a43d567f9ecdb2c5f"
+    },
+    "qa/test-design.md": {
+      "before": "c5c71de4a6780ba8fac0aa57404a4a9f52c77e6ea00b455da7b1d4fc7825c5b6",
+      "after": "7f9fa65e4863725951a4fb407ce3cb7101e2250c6935d8c55bebb61272e104dc"
+    },
+    "qa/traceability.md": {
+      "before": "cc7739e8d7eca7c266420f21918f8b94cb1e8d27f255deb52a8a279fd206f73b",
+      "after": "af6fec8a561190e296543891417a4ac183f4e4fe15c3c9e093fd23f0538e7a6e"
+    }
+  },
+  "checks": {
+    "check": {
+      "returncode": 0,
+      "stdout": "{\n  \"gate\": \"draft\",\n  \"artifact_digest\": \"5e866e68c5d418e8f3ff617ceaaa422f81d10daad18ee768fa4ca4c1fcc9abc3\",\n  \"errors\": [],\n  \"warnings\": [\n    \"REQ-002: risk assessment proposed; not evidence of no risk\",\n    \"TC-001: blocked; not a ready executable case\"\n  ],\n  \"note\": \"Structural checks only; not human approval or product test results.\"\n}\n",
+      "stderr": ""
+    },
+    "baseline-gate": {
+      "returncode": 1,
+      "stdout": "{\n  \"gate\": \"baseline\",\n  \"artifact_digest\": \"5e866e68c5d418e8f3ff617ceaaa422f81d10daad18ee768fa4ca4c1fcc9abc3\",\n  \"errors\": [\n    \"TC-001: selected case is not ready\",\n    \"TC-001: ready case has blockers\",\n    \"Q-003: unresolved blocker for this baseline\",\n    \"Missing current independent review rounds: consistency, coverage, executable, traceability\"\n  ],\n  \"warnings\": [\n    \"REQ-002: risk assessment proposed; not evidence of no risk\"\n  ],\n  \"note\": \"Structural checks only; not human approval or product test results.\"\n}\n",
+      "stderr": ""
+    },
+    "digest": {
+      "returncode": 0,
+      "stdout": "5e866e68c5d418e8f3ff617ceaaa422f81d10daad18ee768fa4ca4c1fcc9abc3\n",
+      "stderr": ""
+    }
+  },
+  "note": "File evidence from a synthetic workspace; semantic grading and authorization checks are separate."
+}

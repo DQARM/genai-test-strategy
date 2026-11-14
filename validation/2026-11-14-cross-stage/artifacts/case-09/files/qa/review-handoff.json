@@ -1,0 +1,17 @@
+{
+  "status": "verified-with-gaps",
+  "errors": [],
+  "limitations": [
+    "QA-006: incomplete original Q&A (partial); do not treat a summary as a transcript"
+  ],
+  "pack_id": "REV-002",
+  "artifact_digest": "adb98a8092ef710f77e1041cc9cd62cee1a8c9a60764b63bfb1b5ce3ebb98b5c",
+  "portable": false,
+  "version_check": "current-project",
+  "pack_path": "qa/review-packs/REV-002",
+  "pack_absolute_path": "/workspace/scratch/258261bef5fc/phase-update/run-01/workspaces/case-09/project/qa/review-packs/REV-002",
+  "handoff_path": "/workspace/scratch/258261bef5fc/phase-update/run-01/workspaces/case-09/project/qa/review-packs/REV-002/HANDOFF.md",
+  "manifest_sha256": "60726521874041267e3f983af0490b136a4181647e3821b1df6585d00a09d45e",
+  "archive_path": null,
+  "reused": false
+}

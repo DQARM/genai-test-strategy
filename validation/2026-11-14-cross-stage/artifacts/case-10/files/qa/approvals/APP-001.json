@@ -1,0 +1,9 @@
+{
+  "by": "synthetic-fixture-owner",
+  "at": "2026-11-09T00:00:00Z",
+  "evidence_ref": "qa/decisions/DEC-001.md",
+  "artifact_digest": "7e2a1f2dbafed040787d4c50534cbe81fc13d9cbdc457d10cb36f9adf94d645a",
+  "case_ids": [
+    "TC-001"
+  ]
+}

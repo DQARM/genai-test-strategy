@@ -1,0 +1,1 @@
+請使用 /home/agent/.codex/skills/remote-skills/skill-6af1747b432881919448466eb247e9c9/SKILL.md 處理 /workspace/scratch/258261bef5fc/phase-update/run-01/workspaces/case-11/project。請實讀既有規格及新增 inputs/addendum.md，接續現有資料整理可交付草稿及問題，保存本機與閱讀報告；保持原先先產出選擇，不執行產品。

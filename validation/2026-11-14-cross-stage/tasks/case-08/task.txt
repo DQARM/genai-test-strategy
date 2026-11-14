@@ -1,0 +1,1 @@
+請使用 /home/agent/.codex/skills/remote-skills/skill-6af5ae4f47bc8191bf6457cdd95a2bc7/SKILL.md，閱讀 /workspace/scratch/258261bef5fc/phase-update/run-01/tasks/case-08/rules.md 與 /workspace/scratch/258261bef5fc/phase-update/run-01/tasks/case-08/cases.md，依已確認規則完成四輪審查，只在對話交付具體發現及依據。不修改原文、不操作產品、不重新訪談。

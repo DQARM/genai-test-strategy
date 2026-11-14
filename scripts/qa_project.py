@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Local QA records and version checkpoints. Python 3.10+, stdlib + Git only."""
 import argparse
+import copy
 import hashlib
 from html import escape
 import json
@@ -16,7 +17,7 @@ import zipfile
 from datetime import datetime, timezone
 from urllib.parse import quote
 
-VERSION = "1.9.1"
+VERSION = "1.10.0"
 DESIGN_POLICY = "coverage-items-v1"
 RISK_POLICY = "requirement-risk-v1"
 READING_POLICY = "source-reading-v1"
@@ -1587,8 +1588,123 @@ def render(root):
     render_html(root, reg, cases)
 
 
+def result_records(root):
+    """Read result files independently; one damaged record must not hide the rest."""
+    rows = []
+    for group in ("reviews", "approvals", "baselines", "runs"):
+        directory = safe(root, "qa/" + group)
+        for path in sorted(directory.glob("*.json")):
+            row = {"group": group, "id": path.stem, "path": path.relative_to(root).as_posix(), "data": {}, "errors": []}
+            try:
+                data = read(safe(root, row["path"]))
+                if not isinstance(data, dict): fail("Record must be an object")
+                row["data"] = data
+                if data.get("id", path.stem) != path.stem: row["errors"].append("ID/filename mismatch")
+                if group == "runs":
+                    row["errors"] += run_problems(root, data, partial=data.get("recording_status") == "in-progress")
+                elif group == "baselines":
+                    if digest(data.get("snapshot")) != data.get("artifact_digest"):
+                        row["errors"].append("Baseline snapshot/digest mismatch")
+                elif group == "approvals" and not approval_ok(root, data):
+                    row["errors"].append("Approval metadata/evidence incomplete")
+            except (ValueError, OSError, KeyError, TypeError, AttributeError) as exc:
+                row["errors"].append(str(exc))
+            rows.append(row)
+    return rows
+
+
+def result_anchor(row):
+    return "result-" + row["path"].encode("utf-8").hex()
+
+
+def result_case_ids(row):
+    data, group = row["data"], row["group"]
+    if group == "runs": return [data.get("case_id")]
+    if group == "baselines": return data.get("snapshot", {}).get("registry", {}).get("scope", {}).get("selected_case_ids", [])
+    if group == "approvals": return data.get("case_ids", [])
+    # Legacy reviews without an explicit case scope cannot inherit today's selection.
+    return sorted(set(data.get("checked_case_ids", [])) |
+                  {cid for f in data.get("findings", []) for cid in f.get("case_ids", [])})
+
+
+def result_version(row, current):
+    version = row["data"].get("artifact_digest")
+    if row["errors"]: return "紀錄檢查有缺口；不可視為有效結論"
+    if not isinstance(version, str) or not re.fullmatch(r"[0-9a-f]{64}", version): return "版本未綁定／未知"
+    return "對應目前完整設計；不代表已核可／放行" if version == current else "歷史版本；不適用目前完整設計"
+
+
+def render_results(root, rows, current, cases):
+    e = lambda v: escape(str(v), quote=True)
+    def file_link(rel, allow_fragment=False):
+        try:
+            raw, sep, fragment = str(rel).partition("#") if allow_fragment else (str(rel), "", "")
+            path = safe(root, raw)
+            if not path.is_file(): raise ValueError("missing")
+            url = "../" + quote(Path(raw).as_posix(), safe="/") + ("#" + quote(fragment, safe="") if sep else "")
+            return '<a href="' + e(url) + '">' + e(rel) + '</a>'
+        except (ValueError, OSError):
+            return '<span class="gap">' + e(rel) + '（檔案不可用／路徑不安全）</span>'
+    def pretty(data, key=""):
+        if isinstance(data, dict):
+            return '<dl>' + ''.join('<dt>' + e(k) + '</dt><dd>' + pretty(v, k) + '</dd>' for k, v in data.items()) + '</dl>'
+        if isinstance(data, list): return '<ul>' + ''.join('<li>' + pretty(x, key) + '</li>' for x in data) + '</ul>'
+        if key in ("path", "evidence_ref") and data: return file_link(data, allow_fragment=key == "evidence_ref")
+        return e(data if data is not None else "未知／未填")
+    def case_link(cid):
+        return ('<a href="#cases-' + str(cid).encode("utf-8").hex() + '">' + e(cid) + '（目前設計）</a>') if cid in cases else e(cid) + '（目前未登錄）'
+    out = []
+    for section, title, groups in (("reviews-baselines", "審查、核可與案例基線", {"reviews", "approvals", "baselines"}),
+                                    ("test-runs", "實測紀錄與歷史版本", {"runs"})):
+        out += ['<section id="' + section + '"><h2>' + title + '</h2>',
+                '<p class="notice">目前完整設計：<code>' + e(current) + '</code>。下列為已登錄紀錄；四輪完成、案例基線與實測 PASS 均不自動代表產品放行。舊結果按原版本保留，不以最新案例覆蓋其判準。</p>']
+        selected = [r for r in rows if r["group"] in groups]
+        if not selected: out.append('<p>尚未登錄相關紀錄；不代表已審或已測。</p>')
+        for row in selected:
+            data, group = row["data"], row["group"]
+            out += ['<article class="record" id="' + result_anchor(row) + '" data-record-id="' + e(row["id"]) + '"><h3>' + e(row["id"]) + '</h3>',
+                    '<p class="badge">' + e(result_version(row, current)) + '</p>',
+                    '<p>記錄原檔：' + file_link(row["path"]) + '</p><p>紀錄版本：<code>' + e(data.get("artifact_digest", "未知")) + '</code></p>']
+            try:
+                linked = result_case_ids(row)
+                out.append('<p>已登錄的案例關聯：' + ('、'.join(case_link(c) for c in linked) or '未知／未提供；不套用目前選取範圍') + '</p>')
+                if row["errors"]:
+                    out.append('<p class="gap">' + e('；'.join(row["errors"])) + '</p>')
+                if group == "runs":
+                    state = "登錄中；尚無最終結果" if data.get("recording_status") == "in-progress" else "登錄結果：" + str(data.get("status", "未知"))
+                    out.append('<p><strong>' + e(state) + '</strong>；這是登錄者的判定，仍須核對證據。</p>')
+                    snap = data.get("case_snapshot", {})
+                    cid = data.get("case_id")
+                    same_case = cid in cases and digest(cases[cid]) == data.get("case_digest")
+                    out.append('<p>案例內容比對：' + ('與目前案例相同；完整設計版本仍須另外核對' if same_case else '與目前案例不同或無法比對') + '</p>')
+                    out.append(pretty({k: data.get(k) for k in ("sut_version", "environment", "operator", "started_at", "finished_at", "recording_status")}))
+                    frozen_steps = {s.get("n"): s for s in snap.get("steps", [])}
+                    out.append('<div class="scroll"><table><thead><tr><th>步驟</th><th>凍結操作／原判準</th><th>Actual／狀態／執行時間</th><th>證據</th></tr></thead><tbody>')
+                    for step in data.get("steps", []):
+                        original = frozen_steps.get(step.get("n"), {})
+                        out.append('<tr><td>' + e(step.get("n")) + '</td><td>' + pretty({k: original.get(k) for k in ("action", "input", "observe", "when", "checks")}) + '</td><td>' + pretty({k: step.get(k) for k in ("actual", "status", "at", "time_unknown_reason")}) + '</td><td>' + pretty(step.get("evidence", [])) + '</td></tr>')
+                    out.append('</tbody></table></div><details><summary>該次凍結案例與記錄更正歷史</summary>' + pretty(snap) + pretty(data.get("recording_events", [])) + '</details>')
+                elif group == "reviews":
+                    out.append(pretty({k: data.get(k) for k in ("reviewer", "model", "session", "at", "independence", "rounds", "limitations")}))
+                    for index, finding in enumerate(data.get("findings", [])):
+                        out.append('<div id="' + result_anchor(row) + '-finding-' + str(index) + '"><h4>' + e(finding.get("id", "未編號發現")) + '</h4>' + pretty(finding) + '</div>')
+                    out.append('<p>Finding 已標 fixed 只表示登錄了處置，不表示修改後版本已完成重審。</p>')
+                elif group == "baselines":
+                    out.append(pretty({k: data.get(k) for k in ("created_at", "approval", "meaning")}))
+                    out.append('<details><summary>基線內凍結的案例與審查</summary>' + pretty(data.get("snapshot", {}).get("cases", {})) + pretty(data.get("reviews", [])) + '</details>')
+                else:
+                    out.append(pretty(data))
+            except (ValueError, KeyError, TypeError, AttributeError) as exc:
+                out.append('<p class="gap">無法完整顯示：' + e(exc) + '</p>')
+            out.append('</article>')
+        out.append('</section>')
+    return out
+
+
 def render_html(root, reg, cases):
     """Read-only, offline view of explicit references; never infer product coverage."""
+    results = result_records(root)
+    current_version = snapshot_digest(root)
     maps = {g: {r["id"]: r for r in reg.get(g, [])} for g in GROUPS}
     maps["cases"] = cases
     labels = {
@@ -1892,10 +2008,12 @@ def render_html(root, reg, cases):
            '<div class="meta">產生時間：' + e(now()) + ' · 工具版本：' + VERSION + '</div></header>',
            '<nav aria-label="報告章節"><a href="#sources">來源清單</a><a href="#cases">案例清單</a>',
            '<a href="#risk-assessment">需求風險評估</a><a href="#coverage">設計覆蓋</a><a href="#exploration">探索任務</a>',
-           '<a href="#interview">問答紀錄</a><a href="#rules">需求與驗收</a><a href="#other">風險與待確認</a><a href="#glossary">編號說明</a><a href="#documents">其他成果</a></nav><main>',
-           '<div class="notice">這是設計資料的閱讀快照。連結表示已登錄的引用，不代表已覆蓋、已核可或已執行；本頁不產生實際測試結果。</div>',
+           '<a href="#reviews-baselines">審查與基線</a><a href="#test-runs">實測紀錄</a><a href="#interview">問答紀錄</a><a href="#rules">需求與驗收</a><a href="#other">風險與待確認</a><a href="#glossary">編號說明</a><a href="#documents">其他成果</a></nav><main>',
+           '<div class="notice">這是設計與已登錄結果的閱讀快照。連結不代表已覆蓋、已核可或已執行；本頁不產生實際測試結果，也不自動判定放行。</div>',
            '<div class="stats">' + ''.join('<div class="stat"><b>' + str(n) + '</b>' + label + '</div>' for n, label in
                                            ((len(maps["sources"]), "來源資料"), (len(cases), "測試案例"),
+                                            (sum(r["group"] == "reviews" for r in results), "審查紀錄"),
+                                            (sum(r["group"] == "runs" for r in results), "實測紀錄（非通過數）"),
                                             (sum(q.get("status") != "resolved" for q in maps["questions"].values()), "未決問題"))) + '</div>']
     out += ['<section id="glossary"><h2>編號說明</h2><p>ID＝Identifier（識別碼）。數字後綴是各類流水號，不代表優先度、版本、核可或結果；文字後綴是專案標籤。</p>',
             '<details><summary>查看英文來源、中文意思與用途</summary><table><thead><tr><th>前綴</th><th>英文來源</th><th>意思</th><th>用途</th></tr></thead><tbody>']
@@ -1968,6 +2086,15 @@ def render_html(root, reg, cases):
                    '尚未登錄具體摘錄引用；來源連結本身不證明已讀相關內容。') + '</p>')
         if gaps[cid]:
             out.append('<p class="gap">引用缺口：' + '、'.join(link(g, r) for g, r in sorted(gaps[cid])) + '</p>')
+        out.append('<h4>審查、基線與歷次實測（各自綁定版本）</h4>')
+        linked_results = []
+        for record in results:
+            try:
+                if cid not in result_case_ids(record): continue
+                linked_results.append('<li><a href="#' + result_anchor(record) + '">' + e(record['id']) + '</a> · ' + e(result_version(record, current_version)) + '</li>')
+            except (TypeError, AttributeError):
+                continue
+        out.append('<ul>' + ''.join(linked_results) + '</ul>' if linked_results else '<p>尚無明確案例關聯；不能據此認定已審／已測。</p>')
         out += ['<p class="back"><a href="#cases">返回案例清單</a> · <a href="#sources">查看全部來源</a></p></article>']
     out.append('</section>')
     out += ['<section id="risk-assessment"><h2>需求風險評估</h2>',
@@ -2023,6 +2150,7 @@ def render_html(root, reg, cases):
                         value({k: v for k, v in row.items() if k != "id"}), '<h4>相關案例</h4><p>' + case_links(group, rid) +
                         '</p>' + related_links(group, rid) + '<p class="back"><a href="#cases">返回案例清單</a></p></article>']
         out.append('</section>')
+    out += render_results(root, results, current_version, cases)
     out += ['<section id="documents"><h2>其他成果與本輪範圍</h2>', value(reg.get("scope", {}))]
     out.append('<p><a href="questions.md">下載／閱讀規格問題交接單（Markdown）</a></p>')
     for filename, label in (("strategy.md", "測試策略"), ("plan.md", "本輪計畫"), ("session.md", "工作進度")):
@@ -2490,8 +2618,153 @@ def start_run(args, root):
     print(str(path))
 
 
-def check_run(args, root):
-    run = read(safe(root, "qa/runs/" + valid_id(args.id) + ".json"))
+def execution_time(value):
+    """Real execution timestamps, never the time a result was entered."""
+    if not isinstance(value, str):
+        fail("Execution time must be an ISO 8601 string with timezone")
+    try:
+        stamp = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        fail("Invalid execution time: " + value)
+    if stamp.utcoffset() is None:
+        fail("Execution time needs a timezone: " + value)
+    return stamp
+
+
+def run_outcome(steps):
+    statuses = [s.get("status") for s in steps]
+    # A recorded product failure remains visible even when later steps were blocked.
+    for status in ("FAIL", "BLOCKED", "INCONCLUSIVE"):
+        if status in statuses:
+            return status
+    return "PASS" if statuses and all(s == "PASS" for s in statuses) else "INCONCLUSIVE"
+
+
+def record_run(args, root):
+    """Append a result event, then materialize results without editing frozen design."""
+    repo(root)
+    payload = json.load(sys.stdin) if args.input == "-" else read(safe(root, args.input))
+    allowed = {"operator", "steps", "started_at", "finished_at", "finish", "reason", "expected_revision"}
+    if not isinstance(payload, dict) or set(payload) - allowed:
+        fail("record-run accepts only operator, steps, execution times, finish, reason and expected_revision")
+    if not isinstance(payload.get("operator"), str) or not meaningful(payload["operator"]):
+        fail("Identify the actual operator; do not invent a person")
+    if type(payload.get("finish", False)) is not bool:
+        fail("finish must be a boolean")
+    updates = payload.get("steps", [])
+    if not isinstance(updates, list) or (not updates and not payload.get("finish")):
+        fail("Provide steps or an explicit finish request")
+    path = safe(root, "qa/runs/" + valid_id(args.id) + ".json")
+    lock = safe(root, path.relative_to(root).as_posix() + ".lock")
+    fd = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+    os.close(fd)
+    try:
+        original_bytes = path.read_bytes()
+        original = json.loads(original_bytes)
+        if original.get("id") != args.id:
+            fail("Run ID does not match filename")
+        problems = run_problems(root, original, partial=original.get("recording_status") == "in-progress")
+        if problems:
+            fail("Existing run is invalid; preserve it and investigate: " + "; ".join(problems))
+        revision = original.get("recording_revision", 0)
+        expected = payload.get("expected_revision", revision)
+        if type(expected) is not int or expected != revision:
+            fail("Stale recording revision; reread the run summary before retrying")
+        run = copy.deepcopy(original)
+        reason = payload.get("reason")
+        if reason is not None and (not isinstance(reason, str) or not meaningful(reason)):
+            fail("Correction/early-finish reason must be meaningful")
+        if original.get("recording_status") == "finalized" or original.get("status") != "NOT_RUN":
+            if not reason:
+                fail("Changing a completed record requires a correction reason; reruns need a new RUN")
+        by_n = {s["n"]: s for s in run["steps"]}
+        seen, changes = set(), []
+        for item in updates:
+            permitted = {"n", "status", "actual", "at", "evidence", "time_unknown_reason"}
+            if not isinstance(item, dict) or set(item) - permitted:
+                fail("Unknown step field; frozen design cannot be supplied")
+            n = item.get("n")
+            if type(n) is not int or n not in by_n or n in seen:
+                fail("Unknown or duplicate step number")
+            seen.add(n)
+            if item.get("status") not in {"PASS", "FAIL", "BLOCKED", "INCONCLUSIVE"}:
+                fail("A recorded observation needs PASS, FAIL, BLOCKED or INCONCLUSIVE")
+            if not isinstance(item.get("actual"), str) or not meaningful(item["actual"]):
+                fail("Provide the actual observation, not an empty result")
+            if item.get("at") is None:
+                if not isinstance(item.get("time_unknown_reason"), str) or not meaningful(item["time_unknown_reason"]):
+                    fail("Unknown execution time needs time_unknown_reason; do not substitute the entry time")
+            else:
+                execution_time(item["at"])
+            paths = item.get("evidence", [])
+            if not isinstance(paths, list) or any(not isinstance(x, str) for x in paths) or len(paths) != len(set(paths)):
+                fail("evidence must contain unique project-relative file paths")
+            evidence = []
+            for rel in paths:
+                p = safe(root, rel)
+                if not p.is_file() or p == path or p == lock:
+                    fail("Evidence must be an existing independent file: " + rel)
+                evidence.append({"path": p.relative_to(root).as_posix(), "sha256": file_hash(p)})
+            if item["status"] in {"PASS", "FAIL"} and not evidence:
+                fail("PASS/FAIL requires evidence; a file hash does not determine the product verdict")
+            before = copy.deepcopy(by_n[n])
+            if before.get("status") != "NOT_RUN" and not reason:
+                fail("Replacing a recorded step requires a correction reason; reruns need a new RUN")
+            after = {"n": n, "status": item["status"], "actual": item["actual"],
+                     "at": item.get("at"), "evidence": evidence}
+            if after["at"] is None:
+                after["time_unknown_reason"] = item["time_unknown_reason"]
+            by_n[n].clear(); by_n[n].update(after)
+            changes.append({"n": n, "before": before, "after": copy.deepcopy(after)})
+        for key in ("started_at", "finished_at"):
+            if key in payload:
+                execution_time(payload[key])
+                if run.get(key) is not None and run[key] != payload[key] and not reason:
+                    fail("Changing execution times requires a correction reason")
+                run[key] = payload[key]
+        if not payload.get("finish") and "finished_at" in payload:
+            fail("finished_at requires finish=true")
+        if original.get("operator") and original["operator"] != payload["operator"] and not reason:
+            fail("Changing the run operator requires a reason")
+        run["operator"] = payload["operator"]
+        run["recording_policy"] = "record-run-v1"
+        run["recording_status"] = "finalized" if payload.get("finish") else "in-progress"
+        run["status"] = run_outcome(run["steps"]) if payload.get("finish") else "NOT_RUN"
+        if not payload.get("finish"):
+            run["finished_at"] = None
+        if payload.get("finish") and any(s["status"] == "NOT_RUN" for s in run["steps"]) and not reason:
+            fail("Finishing with unexecuted steps requires an explicit reason")
+        run["recording_revision"] = revision + 1
+        event = {"seq": revision + 1, "recorded_at": now(), "operator": payload["operator"], "reason": reason,
+                 "changes": changes, "before": {k: original.get(k) for k in
+                    ("status", "operator", "started_at", "finished_at", "recording_status")},
+                 "after": {k: run.get(k) for k in
+                    ("status", "operator", "started_at", "finished_at", "recording_status")}}
+        run.setdefault("recording_events", []).append(event)
+        problems = run_problems(root, run, partial=not payload.get("finish"))
+        if problems:
+            fail("Result not saved: " + "; ".join(problems))
+        # Detect a concurrent edit, including one made outside this writer.
+        if path.read_bytes() != original_bytes:
+            fail("Run changed while recording; no update saved")
+        tmp = None
+        try:
+            with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=path.parent,
+                                             prefix=path.name + ".", suffix=".tmp", delete=False) as stream:
+                tmp = Path(stream.name)
+                stream.write(json.dumps(run, ensure_ascii=False, indent=2) + "\n")
+            tmp.replace(path)
+        finally:
+            if tmp and tmp.exists(): tmp.unlink()
+        print(json.dumps({"id": args.id, "recording_revision": run["recording_revision"],
+                          "recording_status": run["recording_status"], "status": run["status"],
+                          "steps": [{"n": s["n"], "status": s["status"], "at": s.get("at")} for s in run["steps"]],
+                          "note": "Recorded observations only; no SUT execution or product approval performed."}, ensure_ascii=False, indent=2))
+    finally:
+        lock.unlink()
+
+
+def run_problems(root, run, partial=False):
     errors = []
     allowed = {"NOT_RUN", "PASS", "FAIL", "BLOCKED", "INCONCLUSIVE"}
     if run.get("status") not in allowed:
@@ -2515,7 +2788,7 @@ def check_run(args, root):
             errors.append(f"Step {step.get('n')}: invalid status")
         if status != "NOT_RUN":
             for key in ("actual", "at"):
-                if not meaningful(step.get(key)):
+                if not meaningful(step.get(key)) and not (partial and key == "at" and meaningful(step.get("time_unknown_reason"))):
                     errors.append(f"Step {step.get('n')}: missing {key}")
         if status in ("PASS", "FAIL") and not step.get("evidence"):
             errors.append(f"Step {step.get('n')}: PASS/FAIL requires evidence")
@@ -2530,11 +2803,55 @@ def check_run(args, root):
             errors.append("Blocked/draft case cannot produce a formal PASS")
     if run.get("status") == "FAIL" and not any(s.get("status") == "FAIL" for s in run.get("steps", [])):
         errors.append("Run FAIL requires a failed step")
-    if run.get("status") != "NOT_RUN":
+    if run.get("status") != "NOT_RUN" and not partial:
         for key in ("started_at", "finished_at", "operator"):
             if not meaningful(run.get(key)):
                 errors.append("Missing " + key)
-    report = {"errors": errors, "note": "Checks record completeness only; evidence must still be reviewed."}
+    if run.get("recording_policy") == "record-run-v1":
+        try:
+            if run.get("recording_status") not in {"in-progress", "finalized"}:
+                errors.append("Invalid recording status")
+            if partial and (run.get("status") != "NOT_RUN" or run.get("finished_at") is not None):
+                errors.append("In-progress record must not claim a final verdict")
+            if not partial and run.get("status") != run_outcome(run.get("steps", [])):
+                errors.append("Run verdict differs from recorded step outcomes")
+            start = execution_time(run["started_at"]) if run.get("started_at") else None
+            end = execution_time(run["finished_at"]) if run.get("finished_at") else None
+            if start and end and end < start: errors.append("Finish precedes start")
+            for step in run.get("steps", []):
+                if step.get("at"):
+                    at = execution_time(step["at"])
+                    if (start and at < start) or (end and at > end):
+                        errors.append("Step time outside execution interval")
+            events = run.get("recording_events", [])
+            if not events or [x.get("seq") for x in events] != list(range(1, len(events) + 1)) or len(events) != run.get("recording_revision"):
+                errors.append("Invalid recording event sequence")
+            else:
+                latest = {}
+                for event in events:
+                    execution_time(event["recorded_at"])
+                    for change in event["changes"]:
+                        n = change["n"]
+                        if n in latest and latest[n] != change["before"]:
+                            errors.append("Recording correction chain mismatch")
+                        latest[n] = change["after"]
+                for step in run.get("steps", []):
+                    if step["n"] in latest and latest[step["n"]] != step:
+                        errors.append("Step differs from latest recording event")
+                if any(run.get(k) != v for k, v in events[-1]["after"].items()):
+                    errors.append("Run summary differs from latest recording event")
+        except (ValueError, KeyError, TypeError) as exc:
+            errors.append("Invalid recording metadata: " + str(exc))
+    return errors
+
+
+def check_run(args, root):
+    run = read(safe(root, "qa/runs/" + valid_id(args.id) + ".json"))
+    partial = run.get("recording_policy") == "record-run-v1" and run.get("recording_status") == "in-progress"
+    errors = run_problems(root, run, partial=partial)
+    report = {"errors": errors, "recording_status": run.get("recording_status", "legacy"),
+              "note": "In-progress observations are incomplete, not a final result." if partial else
+                      "Checks record completeness only; evidence must still be reviewed."}
     print(json.dumps(report, ensure_ascii=False, indent=2))
     return bool(errors)
 
@@ -2543,7 +2860,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--version", action="version", version=VERSION)
     sub = parser.add_subparsers(dest="cmd", required=True)
-    for name in ("init", "inventory", "check", "render", "digest", "checkpoint", "review-pack", "prepare-review", "resolve-review", "check-review-pack", "baseline", "start-run", "check-run", "record-qa", "show-qa", "record-reading", "show-source", "export-questions", "select-cases", "check-selection"):
+    for name in ("init", "inventory", "check", "render", "digest", "checkpoint", "review-pack", "prepare-review", "resolve-review", "check-review-pack", "baseline", "start-run", "record-run", "check-run", "record-qa", "show-qa", "record-reading", "show-source", "export-questions", "select-cases", "check-selection"):
         p = sub.add_parser(name)
         p.add_argument("root", help="Accessible local project root (quote paths containing spaces)")
         if name == "select-cases":
@@ -2553,7 +2870,7 @@ def main():
             p.add_argument("--save", help="New selection ID, e.g. SEL-001; save immutable proposal JSON")
         if name == "check-selection":
             p.add_argument("--id", required=True)
-        if name == "record-qa":
+        if name in ("record-qa", "record-run"):
             p.add_argument("--input", required=True, help="Project-relative JSON file, or - for standard input")
         if name == "show-qa":
             p.add_argument("--id", help="Read one original pair; omit for a compact index")
@@ -2572,7 +2889,7 @@ def main():
             p.add_argument("-m", "--message", required=True)
             p.add_argument("--include", action="append", default=[])
             p.add_argument("--tag")
-        if name in ("review-pack", "baseline", "start-run", "check-run"):
+        if name in ("review-pack", "baseline", "start-run", "record-run", "check-run"):
             p.add_argument("--id", required=True)
         if name in ("review-pack", "prepare-review"):
             p.add_argument("--portable", action="store_true", help="Copy explicitly listed inputs and create a portable ZIP")
@@ -2618,6 +2935,7 @@ def main():
             return int(bool(report["errors"]))
         elif args.cmd == "baseline": baseline(args, root)
         elif args.cmd == "start-run": start_run(args, root)
+        elif args.cmd == "record-run": record_run(args, root)
         elif args.cmd == "check-run": return int(check_run(args, root))
         return 0
     except (ValueError, OSError, KeyError, TypeError, AttributeError, zipfile.BadZipFile) as exc:
