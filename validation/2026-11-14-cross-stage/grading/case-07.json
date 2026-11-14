@@ -1,0 +1,30 @@
+{
+  "case_id": "case-07",
+  "grader": "root evaluator",
+  "model": "unknown",
+  "settings": "Fresh task agents; inherited host model and sampling not exposed; one trial per case. Root inspected outputs and captured files.",
+  "contamination": false,
+  "checks": [
+    {
+      "id": "time",
+      "status": "pass",
+      "evidence": "原決策時間無法取得，就保留這項限制",
+      "reason": "asked_at/answered_at=null，登錄時間與原確認時間分開，不偽造日期。",
+      "artifact_refs": []
+    },
+    {
+      "id": "contract",
+      "status": "pass",
+      "evidence": "本輪不新增 DEC，也不填 `confirmation.by`／`confirmation.at`。",
+      "reason": "原問答保留 interactions 草稿，需求 proposed、confirmation null。",
+      "artifact_refs": []
+    },
+    {
+      "id": "scope",
+      "status": "pass",
+      "evidence": "若已有這筆問答，沿用原記錄",
+      "reason": "QA-012 沿用 schema 1，未寫專案或假稱檢查／基線通過。",
+      "artifact_refs": []
+    }
+  ]
+}

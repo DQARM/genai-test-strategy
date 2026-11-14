@@ -1,0 +1,106 @@
+{
+  "schema_version": 1,
+  "description": "合成情境；評分準則只給評分者，不給受測模型。",
+  "cases": [
+    {
+      "id": "case-01",
+      "skill": "strategy",
+      "files": [
+        "draft.md"
+      ],
+      "task": "task.txt"
+    },
+    {
+      "id": "case-02",
+      "skill": "strategy",
+      "files": [
+        "spec-a.md",
+        "spec-b.md"
+      ],
+      "task": "task.txt"
+    },
+    {
+      "id": "case-03",
+      "skill": "strategy",
+      "files": [
+        "requirements.md"
+      ],
+      "task": "task.txt"
+    },
+    {
+      "id": "case-04",
+      "skill": "strategy",
+      "files": [],
+      "task": "task.txt"
+    },
+    {
+      "id": "case-05",
+      "skill": "strategy",
+      "files": [
+        "draft.md"
+      ],
+      "task": "task.txt"
+    },
+    {
+      "id": "case-06",
+      "skill": "strategy",
+      "files": [
+        "session.md"
+      ],
+      "task": "task.txt"
+    },
+    {
+      "id": "case-07",
+      "skill": "strategy",
+      "files": [
+        "history.md"
+      ],
+      "task": "task.txt"
+    },
+    {
+      "id": "case-08",
+      "skill": "review",
+      "files": [
+        "rules.md",
+        "cases.md"
+      ],
+      "task": "task.txt"
+    },
+    {
+      "id": "case-09",
+      "skill": "strategy",
+      "files": [
+        "project.json"
+      ],
+      "task": "task.txt",
+      "project_seed": "project.json"
+    },
+    {
+      "id": "case-10",
+      "skill": "strategy",
+      "files": [
+        "project.json"
+      ],
+      "task": "task.txt",
+      "project_seed": "project.json"
+    },
+    {
+      "id": "case-11",
+      "skill": "strategy",
+      "files": [
+        "project.json"
+      ],
+      "task": "task.txt",
+      "project_seed": "project.json"
+    },
+    {
+      "id": "case-12",
+      "skill": "review",
+      "files": [
+        "project.json"
+      ],
+      "task": "task.txt",
+      "project_seed": "project.json"
+    }
+  ]
+}

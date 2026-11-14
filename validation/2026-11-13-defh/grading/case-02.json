@@ -1,0 +1,27 @@
+{
+  "case_id": "case-02",
+  "grader": "Codex root（AI 評分，非人員核可）",
+  "model": "unknown：宿主未提供確切模型版本",
+  "settings": "fresh thread; fork_turns=none; no model override; other sampling settings unknown",
+  "contamination": false,
+  "checks": [
+    {
+      "id": "conflict",
+      "status": "pass",
+      "evidence": "兩種規則並列保留；B 的日期與版本較新，不代表已取代 A。",
+      "reason": "同時引用衝突來源並保留採納問題。"
+    },
+    {
+      "id": "authority",
+      "status": "pass",
+      "evidence": "兩份內容一致仍不代表已採納或核可。",
+      "reason": "沒有自行決定來源權威或把一致內容假核可。"
+    },
+    {
+      "id": "stop",
+      "status": "pass",
+      "evidence": "未建檔、未實測，也不追加提問。",
+      "reason": "完整回覆只列待辦與草稿，沒有新增訪談。"
+    }
+  ]
+}

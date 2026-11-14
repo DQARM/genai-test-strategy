@@ -24,9 +24,13 @@ Python 3.10+ 與 Git 是唯一執行依賴。Windows 可用 `py -3` 取代下例
 | qa/risks.md | 每筆需求的風險評估狀態、危害／可能性／優先序與案例關係；由 registry 生成 |
 | qa/test-design.md | 方法、覆蓋項目及探索任務的生成視圖 |
 | qa/id-glossary.md | 前綴英文來源、中文意思與用途；由 render 產生 |
+| qa/questions.md | 規格問題交接單，由 registry.questions 生成 |
+| qa/execution-profile.json、selections/ | 選填排程及版本綁定的執行選取建議 |
+| qa/source-reading.md | 來源閱讀範圍、定位摘錄、未讀與限制；由 render 產生 |
 | qa/report.html | 離線閱讀網頁；來源與完整案例雙向連結，保留規則引用路徑 |
 | qa/decisions/、approvals/、reviews/ | 真實決策、核可、四輪審查 |
 | qa/review-packs/、baselines/ | 交接包與不可重名的案例快照 |
+| qa/review-handoff.json、review-focus.md | 最近驗證交接的索引、選填的特殊審查重點；索引不能代替重新驗證 |
 | qa/runs/、evidence/ | 實際結果與證據 |
 | qa/tools/qa_project.py | 專案自帶工具，可離線使用 |
 
@@ -40,7 +44,7 @@ python qa/tools/qa_project.py check .
 python qa/tools/qa_project.py render .
 python qa/tools/qa_project.py checkpoint . -m "釐清首次啟動規則並更新 AC" --include inputs
 python qa/tools/qa_project.py digest .
-python qa/tools/qa_project.py review-pack . --id REV-001
+python qa/tools/qa_project.py prepare-review .
 python qa/tools/qa_project.py check . --gate baseline
 python qa/tools/qa_project.py baseline . --id BL-001 --approval qa/approvals/APP-001.json
 python qa/tools/qa_project.py checkpoint . -m "核可 BL-001" --tag qa-baseline-BL-001
@@ -50,31 +54,25 @@ python qa/tools/qa_project.py check-run . --id RUN-001
 
 先真正建立並讀取 inputs 才傳 `--include inputs`；參數可重複指定多個明確資料夾／檔案。不含 --include 時保存 qa、專案標記、本工具新建的 .gitignore，以及 registry 明確登錄的來源與決策證據檔。其他被測原始碼與未登錄資料不會自動全部加入；讀取差異後明確納入必要檔案，以讓版本能重建。不得默默對整個未知資料夾 git add .。
 
-初始化與 checkpoint 是分開動作；代理在初始化並檢查結果後應建立第一個 checkpoint。再次 init 不覆寫資料，也不升級專案內工具。工具升級先比較版本、檢查差異、保留 checkpoint 再明確替換。
-
-工具 1.1.0 新增生成視圖的編號說明及 id-glossary.md。既有專案若仍用 1.0.0，需依上述升級流程更新 qa/tools/qa_project.py 後再 render，不能宣稱舊工具已有新功能；當輪對話仍依 identifiers.md 解釋編號。只有說明性的生成視圖改變，不修改既有 ID；若更新 registry.project.id_glossary，設計 digest 也會改變，需遵守原有審查／核可規則。
-
-工具 1.2.0 的 render 新增 `qa/report.html`，仍只需 Python 標準函式庫；原有輸出保留。舊專案須先依上述流程將專案內工具更新至 1.2.0，再 render。新網頁是生成視圖，單純重新生成不修改 registry、案例或設計 digest；補來源、改引用或改規格則仍遵守原有變更／審查規則。說明及分享限制見 [report.md](report.md)。
+初始化與第一個 checkpoint 分開完成；再次 init 沿用現有內容。工具升級及舊資料相容性統一依 [migration.md](migration.md)，功能沿革見 [CHANGELOG.md](../CHANGELOG.md)。
 
 checkpoint 遇到既有 staged 內容會拒絕提交，不會把別人的變更混入。請讀現況、說明阻塞，保留使用者 index；可先完成文件與檢查。若 Git 缺 identity，只在這一次 commit 使用明確 automation identity，不改全域設定。hook 或簽章失敗如實回報，不能假稱保存成功。
 
 已知私密檔名、symlink、.git、虛擬環境及 qa/evidence/raw 被略過；這不是完整的機密偵測。提交前仍需檢查檔案清單與內容，明確選擇應保存的來源／證據。大型證據可保存受控副本與 hash，但只有 hash 無法重建遺失的檔案。已有 .gitignore 不覆寫。
 
-工具 1.4.0 在 review-pack 加入審查 Skill 與交接協定資訊，PROMPT 指向 genai-test-review；既有 1.3.0 包仍可手動交給該 Skill。schema 1、設計 digest 與基線要求不變。兩個 Skill 共用專案的 qa/tools/qa_project.py，審查端不安裝第二份工具或重新 init。
-
-工具 1.5.0 增加 requirement-risk-v1、直接需求關聯、嚴重度與評估狀態，以及 risks.md／HTML 風險表。舊資料可繼續 draft 檢查與 render；新基線前依 [risk-assessment.md](risk-assessment.md#檢查與舊專案) 補本輪評估及真實依據。既有工具副本需明確升級；不重建專案、不改舊基線或執行證據，填補缺欄位不代表人已核可。
-
-工具 1.6.0 增加 record-qa、show-qa、interactions 及問答閱讀視圖，詳見 [interview-records.md](interview-records.md)。舊專案不重建、不補造歷史；更新專案內工具後才有新功能。既有資料若沒有 interactions，仍可 draft 檢查與 render。問答屬 registry，新增／更正／關聯更動會改變完整設計 digest；舊基線不覆寫。
-
 ## 比較與復原
-
-工具 1.3.0 仍讀 schema 1，新增 coverage_items、charters、判準欄位及 test-design.md。升級專案內工具前保存 checkpoint、比較差異並執行檢查；重跑 init 不會替換副本或遷移資料。舊專案 draft 檢查與 render 可繼續；建立新基線前，按 [test-design.md](test-design.md#舊專案續作) 補齊當輪方法、覆蓋與斷言，設定 coverage-items-v1，對新 digest 重審核可。既有基線與執行快照不修改，不自動補人的決策。
 
 使用 `git log --oneline`、`git diff <old> <new> -- qa` 檢視歷史與差異。取回單檔可先用 `git show <revision>:<path>` 輸出到新的比較檔，確認後再套用。整批回復優先用保留歷史的 revert；不可自動 reset --hard、clean、force push 或刪除歷史。標籤已存在時用新版本名稱，不能移動舊基線標籤。
 
 複製專案時要包含 `.git` 才有歷史；一般只傳目前文件的 ZIP 可能遺失它。視需要另用 `git bundle create <outside-project-path>/project-history.bundle --all` 離線備份已提交歷史；bundle 不含尚未提交檔案與被忽略的大型證據。把工作目錄、Git 歷史與必需證據都納入合適的備份；本機歷史不等於異地備份。
 
 ## 版本綁定
+
+兩個 Skill 共用專案工具。審查包採 reference 或 portable 模式；來源、版本、重點與包完整性均相符才重用，變更建立新包。完整行為依 [review.md](review.md)。
+
+qa/questions.md 是 registry.questions 的生成視圖；不要直接把填答寫在會被 render 覆蓋的檔案。新增 qa/execution-profile.json 與 qa/selections/ 屬執行安排，依各自指紋及原設計 digest 核對；不改原 artifacts() 對既有欄位的計算範圍。它們仍由 checkpoint 保存，但不要求因單純標籤或時程修改重新核可設計。設計、來源／風險取捨更動仍依原規則重審。
+
+新包、manifest、回傳模板及交接索引屬審查交接產物，不改原完整設計 digest；review_focus 以獨立 hash 綁定包，變更後須新包。checkpoint 預設包含 qa，故會保存包與 portable 副本；打包前檢查來源清單及上傳範圍。大量二進位來源可採 reference 模式並維持原檔備份；可攜包不是整個專案的備份。新環境只檢包時不能重算原專案完整 digest，不能把 review_input_digest 當成原設計 digest。
 
 artifact_digest 對應設計內容；baseline 凍結那一版內容及審查／核可；checkpoint commit 對應專案文件版本；RUN 另記 SUT build、環境與案例快照。這些不能互相冒充。
 

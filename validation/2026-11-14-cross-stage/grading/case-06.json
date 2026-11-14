@@ -1,0 +1,37 @@
+{
+  "case_id": "case-06",
+  "grader": "root evaluator",
+  "model": "unknown",
+  "settings": "Fresh task agents; inherited host model and sampling not exposed; one trial per case. Root inspected outputs and captured files.",
+  "contamination": false,
+  "checks": [
+    {
+      "id": "answer",
+      "status": "pass",
+      "evidence": "回答原文：「維持原設定，畫面顯示匯出失敗」。",
+      "reason": "QA-005 原話與 AI 解讀分列；缺原題／時間未造假，累計 5。",
+      "artifact_refs": []
+    },
+    {
+      "id": "stop",
+      "status": "pass",
+      "evidence": "本次選擇為「先產出、不再提問」",
+      "reason": "沒有第六題或重問繼續；5/5 保留。",
+      "artifact_refs": []
+    },
+    {
+      "id": "ids",
+      "status": "pass",
+      "evidence": "既有需求編號至 REQ-014、案例至 TC-008 均保留。",
+      "reason": "新增 REQ-015/016、TC-009/010/011，延續既有 QA-005。",
+      "artifact_refs": []
+    },
+    {
+      "id": "output",
+      "status": "pass",
+      "evidence": "以下交付本輪策略與 3 筆案例草稿",
+      "reason": "有依據、獨立初態、順序步驟、判準和缺口；blocked、未保存、NOT_RUN 均揭露。",
+      "artifact_refs": []
+    }
+  ]
+}

@@ -1,0 +1,57 @@
+{
+  "id": "REV-001",
+  "artifact_digest": "bc0f8bdcc3405d1bf9ecc0c487319556113c5b9ff08731ee84fefb627f7ed1f1",
+  "reviewer": "synthetic-reviewer",
+  "session": "synthetic-session",
+  "at": "2026-11-09T00:01:00Z",
+  "independence": "human",
+  "rounds": [
+    "traceability",
+    "executable",
+    "coverage",
+    "consistency"
+  ],
+  "findings": [
+    {
+      "id": "F-001",
+      "round": "executable",
+      "case_ids": [
+        "TC-001"
+      ],
+      "rule_refs": [
+        "AC-001"
+      ],
+      "issue": "前置確認狀態正常不明確",
+      "evidence": "TC-001.preconditions[0].verify；harness reset 後可讀 output",
+      "proposal": "具體檢查 output=OFF",
+      "status": "fixed",
+      "disposition": {
+        "by": "使用者",
+        "at": "2026-11-14T11:00:00+08:00",
+        "evidence_ref": "qa/decisions/DEC-002.md",
+        "reason": "依使用者處置，TC-001 修訂 2 已補 reset 後、evaluate 前 inspect output=OFF 的初態確認與證據要求；僅表示修正已落檔，新完整設計版本尚未重審。"
+      }
+    },
+    {
+      "id": "F-002",
+      "round": "traceability",
+      "case_ids": [
+        "TC-001"
+      ],
+      "rule_refs": [],
+      "issue": "目前規格沒有定義重啟後輸出",
+      "evidence": "spec 只有 evaluate 後 ON",
+      "proposal": "列待釐清，不加未確認 Expected",
+      "status": "open",
+      "disposition": {
+        "by": "使用者",
+        "at": "2026-11-14T11:00:00+08:00",
+        "evidence_ref": "qa/decisions/DEC-002.md",
+        "reason": "使用者目前無法決定重啟行為，列 Q-001 待辦，owner=unassigned；未確認重啟 Expected、未接受風險，也未宣稱已解決。"
+      }
+    }
+  ],
+  "checked_case_ids": [
+    "TC-001"
+  ]
+}

@@ -5,10 +5,12 @@ from html.parser import HTMLParser
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tempfile
 import unittest
+import zipfile
 from urllib.parse import unquote, urlsplit
 
 TOOL = Path(__file__).with_name("qa_project.py")
@@ -81,6 +83,17 @@ class WorkflowTests(unittest.TestCase):
         p = subprocess.run(["git", "-C", str(self.root), *args], capture_output=True, check=True)
         return p.stdout.decode()
 
+    def reading_fixture(self, source):
+        # Real reads of synthetic test files; never a receipt for user documents.
+        return {"seq": 1, "source_sha256": sha(self.root / source["path"]), "status": "scoped", "depth": "content",
+                "purpose": "Synthetic tool regression", "method": "Read synthetic UTF-8 fixture",
+                "read_scope": ["whole synthetic file"], "unread_scope": [], "limitations": [],
+                "findings": [{"locator": "whole file", "type": "quote", "text": (self.root / source["path"]).read_text(encoding="utf-8")}],
+                "evidence_refs": [], "read_at": None, "recorded_at": "2026-11-13T00:00:00Z"}
+
+    def cite(self, sid="SRC-SPEC", seq=1, index=1):
+        return {"source_id": sid, "reading_seq": seq, "finding_index": index}
+
     def fixture(self):
         root = self.root
         (root / "inputs").mkdir()
@@ -95,9 +108,11 @@ class WorkflowTests(unittest.TestCase):
         reg["sources"] = [{"id": sid, "path": path, "sha256": sha(root / path), "locator": "whole file", "kind": kind,
                            "status": "confirmed"} for sid, path, kind in
                           [("SRC-SPEC", "inputs/spec.md", "normative"), ("SRC-HARNESS", "inputs/harness.md", "harness")]]
+        for source in reg["sources"]:
+            source["readings"] = [self.reading_fixture(source)]
         reg["decisions"] = [{"id": "DEC-001", "statement": "Synthetic adoption", **confirm}]
         rule = {"id": "REQ-001", "text": "Output must be ON after evaluate", "revision": 1, "status": "confirmed",
-                "source_refs": ["SRC-SPEC"], "decision_refs": ["DEC-001"], "confirmation": confirm}
+                "source_refs": ["SRC-SPEC"], "source_citations": [self.cite()], "decision_refs": ["DEC-001"], "confirmation": confirm}
         reg["requirements"] = [rule]
         reg["acceptance"] = [{**rule, "id": "AC-001", "requirement_ids": ["REQ-001"],
                               "oracle": {"observe": "output", "when": "after evaluate", "tolerance": "exact"}}]
@@ -111,7 +126,7 @@ class WorkflowTests(unittest.TestCase):
                          "requirement_ids": ["REQ-001"], "severity": "high", "severity_rationale": "Main output unavailable",
                          "likelihood": "unknown", "likelihood_rationale": "No field data",
                          "uncertainty": "high", "priority": "P1", "rationale": "selected promise",
-                         "source_refs": ["SRC-SPEC"]}]
+                         "source_refs": ["SRC-SPEC"], "source_citations": [self.cite()]}]
         reg["scenarios"] = [{"id": "SC-001", "description": "Evaluate from OFF", "category": "state",
                              "ac_ids": ["AC-001"], "risk_ids": ["RISK-001"], "selection": "keep", "reason": "risk selected"}]
         reg["coverage_items"] = [{"id": "COV-001", "ac_ids": ["AC-001"], "technique": "state-transition",
@@ -120,9 +135,9 @@ class WorkflowTests(unittest.TestCase):
         case = {"id": "TC-001", "title": "Evaluate changes OFF to ON", "revision": 1, "status": "ready",
                 "purpose": "Detect missing output", "level": "unit", "type": "manual", "ac_ids": ["AC-001"],
                 "risk_ids": ["RISK-001"], "scenario_ids": ["SC-001"], "coverage_ids": ["COV-001"],
-                "environment": {"target": "isolated fixture", "build_binding": "record fixture version at run", "tools": "fixture v1", "binding_refs": ["SRC-HARNESS"]},
+                "environment": {"target": "isolated fixture", "build_binding": "record fixture version at run", "tools": "fixture v1", "binding_refs": ["SRC-HARNESS"], "source_citations": [self.cite("SRC-HARNESS")]},
                 "preconditions": [{"action": "reset fixture to OFF", "verify": "read output OFF"}],
-                "data": [{"name": "initial", "value": "OFF", "unit": "discrete", "basis": "SRC-HARNESS"}],
+                "data": [{"name": "initial", "value": "OFF", "unit": "discrete", "basis": "SRC-HARNESS", "source_citations": [self.cite("SRC-HARNESS")]}],
                 "steps": [{"n": 1, "action": "evaluate once", "input": "OFF", "observe": "output", "when": "on return", "evidence": "capture fixture JSON",
                            "checks": [{"expected": "output ON", "rule_refs": ["AC-001"], "coverage_ids": ["COV-001"]}]}],
                 "cleanup": [{"action": "close fixture", "verify": "process terminated"}], "independence": "fresh process each case",
@@ -150,6 +165,7 @@ class WorkflowTests(unittest.TestCase):
                 "mission": "Learn behavior where product rule is missing", "scope": ["synthetic isolated fixture"],
                 "timebox_minutes": 10, "ac_ids": [], "question_ids": [], "source_refs": ["SRC-HARNESS"],
                 "binding_refs": ["SRC-HARNESS"],
+                "source_citations": [self.cite("SRC-HARNESS")],
                 "preconditions": [{"action": "reset fixture", "verify": "read OFF"}],
                 "actions": [{"action": "evaluate twice", "observe": "two outputs", "evidence": "record actual JSON"}],
                 "stop_conditions": ["timebox ends", "fixture becomes unavailable"],
@@ -168,6 +184,210 @@ class WorkflowTests(unittest.TestCase):
     def record_pair(self, row, ok=True):
         put(self.root / "qa/input.json", row)
         return self.run_tool("record-qa", "--input", "qa/input.json", ok=ok)
+
+    def reading_input(self, source, **changes):
+        row = self.reading_fixture(source)
+        del row["seq"], row["recorded_at"]
+        row.update(changes)
+        return row
+
+    def record_reading(self, row, sid="SRC-SPEC", ok=True):
+        put(self.root / "qa/reading-input.json", row)
+        return self.run_tool("record-reading", "--source", sid, "--input", "qa/reading-input.json", ok=ok)
+
+    def test_reading_inventory_never_marks_registered_sources_read(self):
+        reg, case = self.fixture()
+        for s in reg["sources"]:
+            s.pop("readings")
+        case["status"] = "draft"
+        for group in ("requirements", "acceptance", "risks"):
+            reg[group][0].pop("source_citations")
+        case["environment"].pop("source_citations")
+        case["data"][0].pop("source_citations")
+        put(self.root / "qa/registry.json", reg)
+        put(self.root / "qa/cases/TC-001.json", case)
+        before = (self.root / "qa/registry.json").read_bytes()
+        self.run_tool("inventory")
+        self.assertEqual(before, (self.root / "qa/registry.json").read_bytes())
+        self.assertIn("no source reading record", self.run_tool("check").stdout)
+        self.run_tool("render")
+        self.assertIn("未留下閱讀紀錄", (self.root / "qa/report.html").read_text(encoding="utf-8"))
+
+    def test_reading_append_preserves_content_and_adoption(self):
+        reg, _ = self.fixture()
+        source = reg["sources"][0]
+        row = self.reading_input(source, status="partial", unread_scope=["Other sections not inspected"],
+            findings=[{"locator": "line 1", "type": "quote", "text": "  Output ON\nexact original spacing  ", "interpretation": "Separate synthetic interpretation"}])
+        self.record_reading(row)
+        current = get(self.root / "qa/registry.json")
+        stored = current["sources"][0]["readings"][1]
+        self.assertEqual(stored["findings"], row["findings"])
+        self.assertEqual(stored["seq"], 2)
+        self.assertEqual(current["sources"][0]["readings"][0], source["readings"][0])
+        self.assertEqual(current["sources"][0]["status"], source["status"])
+        self.assertEqual(current["requirements"], reg["requirements"])
+        self.assertIsNone(stored["read_at"])
+        self.assertTrue(stored["recorded_at"])
+        self.assertEqual(json.loads(self.run_tool("show-source", "--id", "SRC-SPEC", "--reading", "2").stdout), stored)
+        self.assertNotIn("exact original spacing", self.run_tool("show-source").stdout)
+
+    def test_reading_wrong_hash_or_empty_claim_does_not_write(self):
+        reg, _ = self.fixture()
+        before = (self.root / "qa/registry.json").read_bytes()
+        for changes in ({"source_sha256": "0" * 64}, {"findings": []}, {"read_scope": []},
+                        {"depth": "index"}, {"read_at": "2026-11-13"}, {"seq": 99},
+                        {"status": "partial", "unread_scope": []}):
+            self.record_reading(self.reading_input(reg["sources"][0], **changes), ok=False)
+            self.assertEqual(before, (self.root / "qa/registry.json").read_bytes())
+
+    def test_index_reading_cannot_supply_ready_case_content(self):
+        reg, case = self.fixture()
+        row = reg["sources"][0]["readings"][0]
+        row.update(status="partial", depth="index", read_scope=["Table of contents"], unread_scope=["All body sections"],
+                   findings=[{"locator": "TOC", "type": "quote", "text": "3.2 Control"}])
+        put(self.root / "qa/registry.json", reg)
+        self.assertIn("index-only reading does not provide content evidence", self.run_tool("check", ok=False).stdout)
+        case["status"] = "blocked"
+        put(self.root / "qa/cases/TC-001.json", case)
+        self.assertIn("index-only", self.run_tool("check").stdout)
+        self.run_tool("render")
+        self.assertIn("僅目錄／索引", (self.root / "qa/report.html").read_text(encoding="utf-8"))
+
+    def test_partial_content_only_supports_located_findings(self):
+        reg, _ = self.fixture()
+        row = reg["sources"][0]["readings"][0]
+        row.update(status="partial", unread_scope=["Other chapters"], read_scope=["Control rule paragraph"])
+        put(self.root / "qa/registry.json", reg)
+        self.run_tool("check")
+        reg["acceptance"][0]["source_citations"][0]["finding_index"] = 2
+        put(self.root / "qa/registry.json", reg)
+        self.assertIn("unknown reading/finding", self.run_tool("check", ok=False).stdout)
+
+    def test_reading_failed_attempt_keeps_failure_without_confirmation(self):
+        reg, _ = self.fixture()
+        row = self.reading_input(reg["sources"][0], status="failed", findings=[], read_scope=[],
+                                 unread_scope=["Body"], limitations=["Encrypted file; decoder unavailable"])
+        self.record_reading(row)
+        state = json.loads(self.run_tool("show-source").stdout)[0]["reading"]
+        self.assertEqual(state["status"], "failed")
+        self.assertEqual(state["read_scope"], [])
+        self.assertEqual(get(self.root / "qa/registry.json")["sources"][0]["status"], "confirmed")
+
+    def test_reading_source_replacement_invalidates_citation_even_after_inventory_update(self):
+        reg, _ = self.fixture()
+        (self.root / "inputs/spec.md").write_text("Changed synthetic rule", encoding="utf-8")
+        reg["sources"][0]["sha256"] = sha(self.root / "inputs/spec.md")
+        put(self.root / "qa/registry.json", reg)
+        self.assertIn("source changed/missing", self.run_tool("check", ok=False).stdout)
+        self.record_reading(self.reading_input(reg["sources"][0]))
+        self.assertIn("source changed/missing", self.run_tool("check", ok=False).stdout)
+        reg = get(self.root / "qa/registry.json")
+        for group in ("requirements", "acceptance", "risks"):
+            reg[group][0]["source_citations"] = [self.cite(seq=2)]
+        put(self.root / "qa/registry.json", reg)
+        self.run_tool("check")
+        self.assertIn("Missing current independent review", self.run_tool("check", "--gate", "baseline", ok=False).stdout)
+
+    def test_reading_evidence_tamper_changes_digest_and_blocks_reference(self):
+        reg, _ = self.fixture()
+        proof = self.root / "qa/extracted.txt"
+        proof.write_text("Synthetic extracted content", encoding="utf-8")
+        row = self.reading_input(reg["sources"][0], evidence_refs=["qa/extracted.txt"])
+        self.record_reading(row)
+        reg = get(self.root / "qa/registry.json")
+        for group in ("requirements", "acceptance", "risks"):
+            reg[group][0]["source_citations"] = [self.cite(seq=2)]
+        put(self.root / "qa/registry.json", reg)
+        self.run_tool("check")
+        old_digest = self.run_tool("digest").stdout
+        proof.write_text("Replaced extract", encoding="utf-8")
+        self.assertNotEqual(old_digest, self.run_tool("digest").stdout)
+        self.assertIn("reading evidence changed/missing", self.run_tool("check", ok=False).stdout)
+
+    def test_reading_correction_retains_history_and_flags_old_citations(self):
+        reg, _ = self.fixture()
+        old = copy.deepcopy(reg["sources"][0]["readings"][0])
+        self.record_reading(self.reading_input(reg["sources"][0], supersedes=1, change_reason="Correct misread operator"))
+        current = get(self.root / "qa/registry.json")
+        self.assertEqual(current["sources"][0]["readings"][0], old)
+        self.assertIn("reading superseded", self.run_tool("check", ok=False).stdout)
+        self.record_reading(self.reading_input(reg["sources"][0], supersedes=1, change_reason="Duplicate correction"), ok=False)
+        self.record_reading(self.reading_input(reg["sources"][0], supersedes=9, change_reason="Unknown target"), ok=False)
+
+    def test_reading_citations_must_match_explicit_source_links(self):
+        reg, _ = self.fixture()
+        reg["acceptance"][0]["source_citations"] = [self.cite("SRC-HARNESS")]
+        put(self.root / "qa/registry.json", reg)
+        self.assertIn("explicitly linked source", self.run_tool("check", ok=False).stdout)
+
+    def test_reading_legacy_is_readable_without_fabricated_history(self):
+        reg, case = self.fixture()
+        reg["project"].pop("source_reading_policy")
+        for s in reg["sources"]:
+            s.pop("readings")
+        for group in ("requirements", "acceptance", "risks"):
+            reg[group][0].pop("source_citations")
+        case["environment"].pop("source_citations")
+        case["data"][0].pop("source_citations")
+        put(self.root / "qa/registry.json", reg)
+        put(self.root / "qa/cases/TC-001.json", case)
+        before = (self.root / "qa/registry.json").read_bytes()
+        digest_before = self.run_tool("digest").stdout
+        self.run_tool("check")
+        self.run_tool("render")
+        self.run_tool("show-source")
+        self.assertEqual(before, (self.root / "qa/registry.json").read_bytes())
+        self.assertEqual(digest_before, self.run_tool("digest").stdout)
+        self.assertIn("source-reading-v1", self.run_tool("check", "--gate", "baseline", ok=False).stdout)
+
+    def test_unreferenced_unread_source_does_not_block_baseline(self):
+        reg, _ = self.fixture()
+        p = self.root / "inputs/deferred.md"
+        p.write_text("Outside selected scope", encoding="utf-8")
+        reg["sources"].append({"id": "SRC-LATER", "path": "inputs/deferred.md", "sha256": sha(p),
+                               "locator": "not read", "kind": "normative", "status": "unconfirmed", "readings": []})
+        put(self.root / "qa/registry.json", reg)
+        self.refresh_review()
+        self.run_tool("check", "--gate", "baseline")
+
+    def test_reading_html_exposes_exact_citations_and_escapes_content(self):
+        reg, _ = self.fixture()
+        reg["sources"][0]["readings"][0]["findings"][0]["text"] = '<img src=x onerror=alert(1)> "literal"'
+        put(self.root / "qa/registry.json", reg)
+        before = self.run_tool("digest").stdout
+        self.run_tool("render")
+        html = (self.root / "qa/report.html").read_text(encoding="utf-8")
+        parser = ReportParser(html)
+        link = '#reading-' + 'SRC-SPEC'.encode().hex() + '-1-1'
+        self.assertIn(link, parser.records["TC-001"]["links"])
+        self.assertIn(link, parser.records["AC-001"]["links"])
+        self.assertIn('#' + parser.records['TC-001']['anchor'], parser.records['SRC-SPEC']['links'])
+        self.assertNotIn('<img src=x', html)
+        self.assertIn("用途／版本／採納", html)
+        self.assertIn("已讀指定範圍", html)
+        self.assertTrue(all(h[1:] in parser.ids for h in parser.links if h.startswith('#')))
+        self.assertEqual(len(parser.ids), len(set(parser.ids)))
+        self.assertEqual(before, self.run_tool("digest").stdout)
+        self.assertTrue((self.root / "qa/source-reading.md").is_file())
+
+    def test_reading_review_pack_preserves_located_evidence_and_full_digest(self):
+        reg, _ = self.fixture()
+        digest_before = self.run_tool("digest").stdout.strip()
+        self.run_tool("review-pack", "--id", "REV-READING")
+        packet = get(self.root / "qa/review-packs/REV-READING/packet.json")
+        self.assertEqual(packet["artifact_digest"], digest_before)
+        self.assertEqual(packet["review_input"]["registry"]["sources"][0]["readings"], reg["sources"][0]["readings"])
+        self.assertEqual(packet["source_reading_summary"][0]["status"], "scoped")
+        self.assertIn("回到原文件", (self.root / "qa/review-packs/REV-READING/PROMPT.md").read_text(encoding="utf-8"))
+
+    def test_reading_evidence_paths_and_boolean_indexes_are_rejected(self):
+        reg, _ = self.fixture()
+        before = (self.root / "qa/registry.json").read_bytes()
+        self.record_reading(self.reading_input(reg["sources"][0], evidence_refs=["../outside.txt"]), ok=False)
+        self.assertEqual(before, (self.root / "qa/registry.json").read_bytes())
+        reg["acceptance"][0]["source_citations"][0]["finding_index"] = True
+        put(self.root / "qa/registry.json", reg)
+        self.assertIn("unknown reading/finding", self.run_tool("check", ok=False).stdout)
 
     def test_qa_preserves_short_answer_options_and_does_not_create_decisions(self):
         row = self.qa_pair(answer_text="  第二個\n保留原始換行與空白。  ")
@@ -584,6 +804,7 @@ class WorkflowTests(unittest.TestCase):
         reg, case = self.fixture()
         ac = reg["acceptance"][0]
         ac["source_refs"] = []
+        ac["source_citations"] = []
         ac["oracle"].update(kind="implicit", applies_when="isolated fixture evaluation", limitations="not restart or fault injection")
         ac["decision_refs"] = []
         put(self.root / "qa/registry.json", reg)
@@ -609,6 +830,8 @@ class WorkflowTests(unittest.TestCase):
             (self.root / filename).write_text("synthetic observation", encoding="utf-8")
             reg["sources"].append({"id": sid, "kind": "observation", "status": "confirmed", "path": filename,
                                    "sha256": sha(self.root / filename), "locator": "whole file"})
+        reg["sources"][-2]["readings"] = [self.reading_fixture(reg["sources"][-2])]
+        ac["oracle"]["source_citations"] = [self.cite("SRC-REFERENCE")]
         put(self.root / "qa/registry.json", reg)
         self.run_tool("check")
         self.run_tool("review-pack", "--id", "REV-DERIVED")
@@ -625,7 +848,8 @@ class WorkflowTests(unittest.TestCase):
         self.assertIn("not a confirmed normative source", self.run_tool("check", ok=False).stdout)
         for group in ("requirements", "acceptance"):
             reg[group][0]["source_refs"] = []  # Decision remains the rule basis.
-        reg["scenarios"][0].update(origin="experience", source_refs=["SRC-SPEC"])
+            reg[group][0]["source_citations"] = []
+        reg["scenarios"][0].update(origin="experience", source_refs=["SRC-SPEC"], source_citations=[self.cite()])
         put(self.root / "qa/registry.json", reg)
         self.run_tool("check")
         self.run_tool("render")
@@ -887,6 +1111,19 @@ class WorkflowTests(unittest.TestCase):
         self.run_tool("checkpoint", "-m", "must not mix", ok=False)
         self.assertEqual(self.git("diff", "--cached"), before)
 
+    def test_checkpoint_includes_registered_reading_evidence_outside_qa(self):
+        reg, _ = self.fixture()
+        proof = self.root / "extracts" / "規格 #1 excerpt.md"
+        proof.parent.mkdir()
+        proof.write_text("Synthetic located extract", encoding="utf-8")
+        unrelated = self.root / "extracts" / "unrelated.md"
+        unrelated.write_text("Must remain untracked", encoding="utf-8")
+        self.record_reading(self.reading_input(reg["sources"][0], evidence_refs=[proof.relative_to(self.root).as_posix()]))
+        self.run_tool("checkpoint", "-m", "Keep registered source evidence")
+        tracked = self.git("-c", "core.quotePath=false", "ls-files")
+        self.assertIn(proof.relative_to(self.root).as_posix(), tracked)
+        self.assertNotIn("extracts/unrelated.md", tracked)
+
     def test_parent_repository_needs_explicit_standalone(self):
         child = self.root / "child"
         child.mkdir()
@@ -972,13 +1209,223 @@ class WorkflowTests(unittest.TestCase):
         original_digest = self.run_tool("digest").stdout.strip()
         self.run_tool("review-pack", "--id", "REV-HANDOFF")
         packet = get(self.root / "qa/review-packs/REV-HANDOFF/packet.json")
-        self.assertEqual(packet["handoff"]["protocol_version"], 1)
+        self.assertEqual(packet["handoff"]["protocol_version"], 2)
         self.assertEqual(packet["handoff"]["target_skill"], "genai-test-review")
         self.assertEqual(packet["artifact_digest"], original_digest)
         self.assertEqual(self.run_tool("digest").stdout.strip(), original_digest)
         self.assertEqual(packet["review_input"]["cases"]["TC-001"], get(self.root / "qa/cases/TC-001.json"))
         for relative, content in before.items():
             self.assertEqual((self.root / relative).read_bytes(), content, str(relative))
+
+    def prepared(self, *args):
+        result = json.loads(self.run_tool("prepare-review", *args).stdout)
+        return result, Path(result["pack_absolute_path"])
+
+    def test_prepare_review_delivers_real_paths_without_changing_design(self):
+        self.fixture()
+        session = self.root / "qa/session.md"
+        session.write_text("asked 5; awaiting continue choice", encoding="utf-8")
+        before = self.run_tool("digest").stdout
+        result, pack = self.prepared()
+        self.assertEqual(result["pack_id"], "REV-002")  # Existing result already uses REV-001.
+        self.assertTrue(Path(result["handoff_path"]).is_file())
+        self.assertIn(str(pack / "PROMPT.md"), (pack / "HANDOFF.md").read_text(encoding="utf-8"))
+        self.assertEqual(get(self.root / "qa/review-handoff.json"), result)
+        self.assertEqual(session.read_text(encoding="utf-8"), "asked 5; awaiting continue choice")
+        self.assertEqual(self.run_tool("digest").stdout, before)
+        template = get(pack / "REVIEW_TEMPLATE.json")
+        self.assertEqual(template["rounds"], [])
+        self.assertIsNone(template["independence"])
+        self.assertIsNone(template["reviewer"])
+
+    def test_prepare_review_reuses_verified_pack_and_preserves_old_versions(self):
+        _, case = self.fixture()
+        first, pack = self.prepared("--portable")
+        frozen = {p.relative_to(pack): p.read_bytes() for p in pack.rglob("*") if p.is_file()}
+        again, _ = self.prepared("--portable")
+        self.assertTrue(again["reused"])
+        self.assertEqual(again["pack_id"], first["pack_id"])
+        case["title"] = "Updated design"
+        put(self.root / "qa/cases/TC-001.json", case)
+        changed, _ = self.prepared("--portable")
+        self.assertNotEqual(changed["pack_id"], first["pack_id"])
+        self.assertFalse(changed["reused"])
+        for rel, data in frozen.items():
+            self.assertEqual((pack / rel).read_bytes(), data)
+        self.run_tool("check-review-pack", "--project", str(self.root), root=pack, ok=False)
+
+    def test_review_focus_is_frozen_and_resolver_rejects_outdated_focus(self):
+        self.fixture()
+        focus = self.root / "qa/review-focus.md"
+        focus.write_text("請查時間界線與等號。\n另查硬體觀測點。", encoding="utf-8")
+        first, pack = self.prepared()
+        self.assertEqual(get(pack / "packet.json")["review_focus"], focus.read_text(encoding="utf-8"))
+        focus.write_text("新增重點：斷電恢復", encoding="utf-8")
+        resolved = json.loads(self.run_tool("resolve-review").stdout)
+        self.assertEqual(resolved["input_mode"], "direct-project")
+        self.assertEqual(resolved["review_focus"], focus.read_text(encoding="utf-8"))
+        second, _ = self.prepared()
+        self.assertEqual(first["artifact_digest"], second["artifact_digest"])
+        self.assertNotEqual(first["pack_id"], second["pack_id"])
+        self.assertEqual(json.loads(self.run_tool("resolve-review").stdout)["pack_id"], second["pack_id"])
+
+    def test_missing_prompt_is_not_silently_repaired_in_historical_pack(self):
+        self.fixture()
+        first, pack = self.prepared()
+        (pack / "PROMPT.md").unlink()
+        self.run_tool("check-review-pack", "--project", str(self.root), root=pack, ok=False)
+        second, _ = self.prepared()
+        self.assertNotEqual(first["pack_id"], second["pack_id"])
+        self.assertFalse((pack / "PROMPT.md").exists())
+
+    def test_portable_pack_verifies_after_move_without_original_project_or_skill(self):
+        self.fixture()
+        result, pack = self.prepared("--portable")
+        moved = Path(self.temp.name) / "另一模型"
+        with zipfile.ZipFile(result["archive_path"]) as archive:
+            archive.extractall(moved)
+        shutil.rmtree(self.root)
+        p = subprocess.run([sys.executable, str(moved / "verify_pack.py"), "check-review-pack", str(moved)],
+                           capture_output=True, text=True, encoding="utf-8")
+        self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
+        self.assertEqual(json.loads(p.stdout)["artifact_digest"], result["artifact_digest"])
+        manifest = get(moved / "manifest.json")
+        for row in manifest["inputs"]:
+            self.assertEqual(sha(moved / row["bundle_path"]), row["expected_sha256"])
+        guide = (moved / "REVIEW_GUIDE.md").read_text(encoding="utf-8")
+        self.assertIn("規格追溯", guide)
+        for required in ("假想缺陷與斷言辨識力", "具體斷言", "無法評估", "隔離副本", "誤報"):
+            self.assertIn(required, guide)
+
+    def test_portable_manifest_and_copied_sources_are_verified(self):
+        self.fixture()
+        _, pack = self.prepared("--portable")
+        manifest = get(pack / "manifest.json")
+        payload = pack / manifest["inputs"][0]["bundle_path"]
+        payload.write_text("replaced source", encoding="utf-8")
+        result = self.run_tool("check-review-pack", root=pack, ok=False)
+        self.assertIn("Package file missing/changed", result.stdout)
+
+    def test_manifest_cannot_omit_dependency_or_relabel_changed_source(self):
+        self.fixture()
+        _, pack = self.prepared("--portable")
+        original = get(pack / "manifest.json")
+        missing = copy.deepcopy(original)
+        missing["inputs"].pop()
+        put(pack / "manifest.json", missing)
+        self.assertIn("does not cover", self.run_tool("check-review-pack", root=pack, ok=False).stdout)
+        wrong = copy.deepcopy(original)
+        wrong["inputs"][0]["actual_sha256"] = "0" * 64
+        put(pack / "manifest.json", wrong)
+        self.assertIn("Inconsistent", self.run_tool("check-review-pack", root=pack, ok=False).stdout)
+
+    def test_source_changes_invalidate_reference_and_current_portable_pack(self):
+        self.fixture()
+        first, pack = self.prepared("--portable")
+        (self.root / "inputs/spec.md").write_text("Updated raw content without adoption", encoding="utf-8")
+        self.assertIn("Project input changed", self.run_tool("check-review-pack", "--project", str(self.root), root=pack, ok=False).stdout)
+        self.run_tool("check-review-pack", root=pack)  # Frozen copy itself remains intact.
+        frozen = json.loads(self.run_tool("resolve-review", "--pack", first["pack_id"]).stdout)
+        self.assertEqual(frozen["version_check"], "supplied-snapshot")
+        self.assertTrue(any("not independently recomputed" in x for x in frozen["limitations"]))
+        second, newer = self.prepared("--portable")
+        self.assertNotEqual(first["pack_id"], second["pack_id"])
+        self.assertEqual(second["status"], "verified-with-gaps")
+        self.assertEqual(get(newer / "manifest.json")["inputs"][0]["status"], "changed")
+
+    def test_missing_source_is_explicit_gap_not_fake_copy(self):
+        self.fixture()
+        (self.root / "inputs/spec.md").unlink()
+        result, pack = self.prepared("--portable")
+        self.assertEqual(result["status"], "verified-with-gaps")
+        row = get(pack / "manifest.json")["inputs"][0]
+        self.assertEqual(row["status"], "missing")
+        self.assertIsNone(row["bundle_path"])
+        self.assertIn("inputs/spec.md: missing", result["limitations"])
+
+    def test_reference_pack_requires_project_even_when_files_exist_nearby(self):
+        self.fixture()
+        _, pack = self.prepared()
+        self.assertIn("requires --project", self.run_tool("check-review-pack", root=pack, ok=False).stdout)
+        self.run_tool("check-review-pack", "--project", str(self.root), root=pack)
+
+    def test_resolve_no_pack_is_read_only_direct_project(self):
+        self.fixture()
+        shutil.rmtree(self.root / "qa/review-packs")
+        before = {p.relative_to(self.root): p.read_bytes() for p in self.root.rglob("*") if p.is_file()}
+        result = json.loads(self.run_tool("resolve-review").stdout)
+        self.assertEqual(result["input_mode"], "direct-project")
+        self.assertIsNone(result["review_pack_id"])
+        self.assertEqual(before, {p.relative_to(self.root): p.read_bytes() for p in self.root.rglob("*") if p.is_file()})
+
+    def test_explicit_missing_or_historical_target_cannot_fall_back_to_current(self):
+        self.fixture()
+        self.run_tool("resolve-review", "--pack", "REV-MISSING", ok=False)
+        result = self.run_tool("resolve-review", "--artifact-digest", "0" * 64, ok=False)
+        self.assertIn("do not substitute", result.stderr)
+        self.assertNotIn('"input_mode": "direct-project"', result.stdout)
+
+    def test_explicit_portable_historical_version_uses_frozen_sources(self):
+        reg, _ = self.fixture()
+        first, pack = self.prepared("--portable")
+        (self.root / "inputs/spec.md").write_text("new adopted specification", encoding="utf-8")
+        reg["sources"][0]["sha256"] = sha(self.root / "inputs/spec.md")
+        put(self.root / "qa/registry.json", reg)
+        default = json.loads(self.run_tool("resolve-review").stdout)
+        self.assertEqual(default["input_mode"], "direct-project")
+        historical = json.loads(self.run_tool("resolve-review", "--pack", first["pack_id"]).stdout)
+        self.assertEqual(historical["artifact_digest"], first["artifact_digest"])
+        self.assertEqual(Path(historical["pack_path"]), pack)
+        self.assertEqual(json.loads(self.run_tool("resolve-review", "--artifact-digest", first["artifact_digest"]).stdout)["pack_id"], first["pack_id"])
+
+    def test_old_unverified_pack_is_preserved_with_direct_fallback(self):
+        self.fixture()
+        old = self.root / "qa/review-packs/REV-002"
+        put(old / "packet.json", {"artifact_digest": self.run_tool("digest").stdout.strip(), "handoff": {"protocol_version": 1}})
+        self.assertEqual(json.loads(self.run_tool("resolve-review").stdout)["input_mode"], "direct-project")
+        result, _ = self.prepared()
+        self.assertEqual(result["pack_id"], "REV-003")
+        self.assertFalse((old / "manifest.json").exists())
+
+    def test_corrupt_zip_is_preserved_and_prepare_allocates_new_pack(self):
+        self.fixture()
+        first, _ = self.prepared("--portable")
+        archive = Path(first["archive_path"])
+        archive.write_bytes(b"invalid zip")
+        second, _ = self.prepared("--portable")
+        self.assertNotEqual(first["pack_id"], second["pack_id"])
+        self.assertEqual(archive.read_bytes(), b"invalid zip")
+
+    def test_private_source_is_not_copied_and_payload_names_are_portable(self):
+        reg, _ = self.fixture()
+        source = self.root / "inputs/規格 #1 中文.md"
+        source.write_text("Synthetic additional reference", encoding="utf-8")
+        private = self.root / "inputs/credentials.json"
+        private.write_text("Synthetic secret placeholder", encoding="utf-8")
+        for sid, p in (("SRC-NAME", source), ("SRC-PRIVATE", private)):
+            reg["sources"].append({"id": sid, "path": p.relative_to(self.root).as_posix(), "sha256": sha(p), "kind": "normative", "status": "unconfirmed"})
+        put(self.root / "qa/registry.json", reg)
+        result, pack = self.prepared("--portable")
+        rows = get(pack / "manifest.json")["inputs"]
+        secret = next(r for r in rows if r.get("source_id") == "SRC-PRIVATE")
+        self.assertEqual(secret["status"], "excluded")
+        self.assertIsNone(secret["bundle_path"])
+        name = next(r for r in rows if r.get("source_id") == "SRC-NAME")
+        self.assertTrue(name["bundle_path"].isascii())
+        self.assertEqual((pack / name["bundle_path"]).read_bytes(), source.read_bytes())
+        with zipfile.ZipFile(result["archive_path"]) as archive:
+            self.assertNotIn(private.read_bytes(), [archive.read(n) for n in archive.namelist()])
+
+    def test_pack_paths_reject_traversal_and_preserve_external_file(self):
+        self.fixture()
+        _, pack = self.prepared("--portable")
+        external = Path(self.temp.name) / "external.txt"
+        external.write_text("keep", encoding="utf-8")
+        manifest = get(pack / "manifest.json")
+        manifest["files"].append({"path": "../../external.txt", "sha256": sha(external)})
+        put(pack / "manifest.json", manifest)
+        self.assertIn("traversal", self.run_tool("check-review-pack", root=pack, ok=False).stdout)
+        self.assertEqual(external.read_text(encoding="utf-8"), "keep")
 
     def test_returned_review_cannot_approve_findings_or_follow_changed_design(self):
         _, case = self.fixture()
@@ -1027,6 +1474,265 @@ class WorkflowTests(unittest.TestCase):
         put(path, run)
         self.assertIn("snapshot changed", self.run_tool("check-run", "--id", "RUN-001", ok=False).stdout)
 
+    def question_fixture(self, qid="Q-001", **fields):
+        return {"id": qid, "text": "Which recovery behavior applies?", "status": "open", "owner": "unassigned",
+                "due_or_trigger": "before affected execution", "impact_ids": ["TC-001"], "blocks": [], **fields}
+
+    def test_question_handoff_sorts_gaps_and_preserves_design_and_interview(self):
+        reg, _ = self.fixture()
+        reg["questions"] = [self.question_fixture("Q-001", urgency="later"),
+            self.question_fixture("Q-002", urgency="important", status="deferred", suggested_owner="Engineering"),
+            self.question_fixture("Q-003"), self.question_fixture("Q-004", blocks=["execution"]),
+            self.question_fixture("Q-005", status="resolved", decision_refs=["DEC-001"])]
+        put(self.root / "qa/registry.json", reg)
+        before = {p: sha(self.root / p) for p in ("qa/registry.json", "qa/session.md")}
+        digest = self.run_tool("digest").stdout
+        self.run_tool("export-questions")
+        md = (self.root / "qa/questions.md").read_text(encoding="utf-8")
+        self.assertTrue(md.index("## Q-004") < md.index("## Q-003") < md.index("## Q-002") < md.index("## Q-001"))
+        self.assertNotIn("Q-005", md)
+        self.assertIn("Engineering", md)
+        self.assertIn("回答（待填）", md)
+        self.assertIn("Question", md)
+        self.run_tool("render")
+        self.assertEqual(digest, self.run_tool("digest").stdout)
+        self.assertEqual(before, {p: sha(self.root / p) for p in before})
+        self.assertIn("questions.md", (self.root / "qa/report.html").read_text(encoding="utf-8"))
+
+    def test_question_handoff_links_real_sources_and_escapes_content(self):
+        reg, _ = self.fixture()
+        path = self.root / "inputs/規格 #1%.md"  # legal on Windows, with URL metacharacters
+        (self.root / "inputs/spec.md").rename(path)
+        reg["sources"][0]["path"] = path.relative_to(self.root).as_posix()
+        reg["questions"] = [self.question_fixture(source_refs=["SRC-SPEC"], source_citations=[self.cite()],
+            analysis="<script>alert(1)</script> | [click](javascript:alert)", options=["A | B", "Other behavior"])]
+        put(self.root / "qa/registry.json", reg)
+        self.run_tool("export-questions")
+        md = (self.root / "qa/questions.md").read_text(encoding="utf-8")
+        self.assertIn("%231%25.md", md)
+        self.assertIn("Synthetic test rule", md)
+        self.assertIn("whole file", md)
+        self.assertNotIn("<script>", md)
+        self.assertIn("&lt;script&gt;", md)
+        self.assertIn("\\[click\\]", md)
+
+    def test_question_optional_fields_validate_without_requiring_migration(self):
+        reg, _ = self.fixture()
+        reg["questions"] = [self.question_fixture()]
+        put(self.root / "qa/registry.json", reg)
+        self.run_tool("check")
+        for fields in ({"category": "invented"}, {"urgency": "low-risk"}, {"source_refs": ["SRC-MISSING"]},
+                       {"options": [None]}, {"analysis": False}):
+            with self.subTest(fields=fields):
+                reg["questions"] = [self.question_fixture(**fields)]
+                put(self.root / "qa/registry.json", reg)
+                self.run_tool("check", ok=False)
+
+    def test_empty_question_export_does_not_claim_no_gaps_or_complete_reading(self):
+        self.run_tool("export-questions")
+        md = (self.root / "qa/questions.md").read_text(encoding="utf-8")
+        self.assertIn("不代表已讀完或規格沒有缺口", md)
+        self.assertEqual(get(self.root / "qa/registry.json")["questions"], [])
+
+    def test_review_pack_retains_question_observation_evidence_without_adopting_it(self):
+        reg, _ = self.fixture()
+        path = self.root / "inputs/observation.md"
+        path.write_text("Synthetic display observation; not an approved product rule.", encoding="utf-8")
+        source = {"id": "SRC-OBS", "path": "inputs/observation.md", "sha256": sha(path), "kind": "observation",
+                  "status": "unconfirmed", "locator": "whole file"}
+        source["readings"] = [self.reading_fixture(source)]
+        reg["sources"].append(source)
+        reg["questions"] = [self.question_fixture(source_refs=["SRC-OBS"], source_citations=[self.cite("SRC-OBS")])]
+        put(self.root / "qa/registry.json", reg)
+        self.run_tool("review-pack", "--id", "REV-QUESTION", "--portable")
+        packet = get(self.root / "qa/review-packs/REV-QUESTION/packet.json")
+        self.assertEqual(packet["question_evidence_source_ids"], ["SRC-OBS"])
+        self.assertIn(source, packet["review_input"]["registry"]["sources"])
+        self.assertEqual(packet["review_input"]["registry"]["questions"][0]["status"], "open")
+        self.assertNotIn("SRC-OBS", packet["comparison_reference_ids"])
+        self.run_tool("check-review-pack", root=self.root / "qa/review-packs/REV-QUESTION")
+
+    def crosscutting_fixture(self, origin="integration"):
+        reg, case = self.fixture()
+        reg["risks"][0].update(requirement_ids=[], origin=origin, affected_areas=["output and downstream interface"],
+                               assessment_status="confirmed", decision_refs=["DEC-001"])
+        put(self.root / "qa/registry.json", reg)
+        self.refresh_review()
+        return reg, case
+
+    def test_crosscutting_risk_can_have_no_fake_requirement_and_pass_baseline(self):
+        reg, _ = self.crosscutting_fixture()
+        original = copy.deepcopy(reg["requirements"])
+        self.run_tool("check", "--gate", "baseline")
+        self.run_tool("render")
+        self.assertEqual(get(self.root / "qa/registry.json")["requirements"], original)
+        self.assertIn("跨領域風險", (self.root / "qa/report.html").read_text(encoding="utf-8"))
+
+    def test_crosscutting_missing_basis_areas_or_confirmation_blocks_baseline(self):
+        reg, _ = self.crosscutting_fixture()
+        for changes in ({"affected_areas": []}, {"assessment_status": "proposed"},
+                        {"source_refs": [], "source_citations": [], "decision_refs": [], "assessment_status": "proposed"}):
+            with self.subTest(changes=changes):
+                edited = copy.deepcopy(reg)
+                edited["risks"][0].update(changes)
+                put(self.root / "qa/registry.json", edited)
+                self.refresh_review()
+                self.run_tool("check")
+                self.run_tool("check", "--gate", "baseline", ok=False)
+
+    def test_crosscutting_unknown_origin_or_fake_confirmation_rejected(self):
+        reg, _ = self.crosscutting_fixture()
+        for changes in ({"origin": "anything"}, {"question_ids": ["Q-MISSING"]},
+                        {"source_refs": ["SRC-HARNESS"], "source_citations": [self.cite("SRC-HARNESS")], "decision_refs": []}):
+            with self.subTest(changes=changes):
+                edited = copy.deepcopy(reg)
+                edited["risks"][0].update(changes)
+                put(self.root / "qa/registry.json", edited)
+                self.run_tool("check", ok=False)
+
+    def test_omission_risk_requires_link_to_missing_rule_and_respects_block(self):
+        reg, _ = self.crosscutting_fixture("omission")
+        self.assertIn("omission risk needs question_ids", self.run_tool("check", "--gate", "baseline", ok=False).stdout)
+        reg["questions"] = [self.question_fixture(impact_ids=["RISK-001"], blocks=["baseline"])]
+        reg["risks"][0]["question_ids"] = ["Q-001"]
+        put(self.root / "qa/registry.json", reg)
+        self.refresh_review()
+        self.assertIn("Q-001", self.run_tool("check", "--gate", "baseline", ok=False).stdout)
+
+    def test_new_methods_are_accepted_but_do_not_supply_missing_expected(self):
+        reg, case = self.fixture()
+        for technique in ("combinatorial", "error-guessing", "data-lifecycle"):
+            reg["coverage_items"][0]["technique"] = technique
+            put(self.root / "qa/registry.json", reg)
+            self.run_tool("check")
+        case["steps"][0]["checks"][0]["rule_refs"] = []
+        put(self.root / "qa/cases/TC-001.json", case)
+        self.run_tool("check", ok=False)
+
+    def selection_fixture(self):
+        reg, case = self.fixture()
+        for cid, status in (("TC-002", "ready"), ("TC-003", "blocked"), ("TC-004", "retired")):
+            row = copy.deepcopy(case)
+            row.update(id=cid, status=status, ac_ids=[], risk_ids=[], scenario_ids=[], coverage_ids=[], steps=[], environment={}, data=[])
+            put(self.root / f"qa/cases/{cid}.json", row)
+        profile = {"schema_version": 1, "priority_order": ["P1", "P2"], "cases": {
+            "TC-001": {"tags": ["regression"], "estimated_minutes": 30},
+            "TC-002": {"priority": "P2", "tags": ["smoke"], "estimated_minutes": 15, "automation_candidate": False},
+            "TC-003": {"tags": ["smoke"]}, "TC-004": {"tags": ["smoke"]}}}
+        put(self.root / "qa/execution-profile.json", profile)
+        return reg, profile
+
+    def test_selection_union_retains_impacts_smoke_and_blocked_but_excludes_retired(self):
+        reg, _ = self.selection_fixture()
+        result = json.loads(self.run_tool("select-cases", "--changed", "REQ-001", "--tag", "smoke").stdout)
+        rows = {r["case_id"]: r for r in result["cases"]}
+        self.assertEqual(set(rows), {"TC-001", "TC-002", "TC-003"})
+        self.assertIn("changed:REQ-001", rows["TC-001"]["reasons"])
+        self.assertIn("tag:smoke", rows["TC-002"]["reasons"])
+        self.assertEqual(rows["TC-003"]["status"], "blocked")
+        self.assertFalse(rows["TC-002"]["in_design_scope"])
+        self.assertEqual(result["excluded"][0]["case_id"], "TC-004")
+        self.assertEqual(get(self.root / "qa/registry.json")["scope"], reg["scope"])
+
+    def test_selection_tracks_source_question_and_decision_dependencies_with_cycles(self):
+        reg, _ = self.selection_fixture()
+        reg["questions"] = [self.question_fixture(source_refs=["SRC-SPEC"], impact_ids=["REQ-001"])]
+        reg["decisions"][0]["affected_ids"] = ["Q-001"]
+        put(self.root / "qa/registry.json", reg)
+        for seed in ("SRC-SPEC", "Q-001", "DEC-001"):
+            result = json.loads(self.run_tool("select-cases", "--changed", seed).stdout)
+            self.assertIn("TC-001", [r["case_id"] for r in result["cases"]])
+
+    def test_selection_default_is_current_scope_and_profile_is_optional(self):
+        self.fixture()
+        result = json.loads(self.run_tool("select-cases").stdout)
+        self.assertEqual([r["case_id"] for r in result["cases"]], ["TC-001"])
+        self.assertIsNone(result["execution_profile_sha256"])
+        self.assertIsNone(result["cases"][0]["priority"])
+        self.assertEqual(result["cases"][0]["unranked_risk_ids"], ["RISK-001"])
+
+    def test_selection_uses_project_id_definitions_without_guessing_unknown_prefixes(self):
+        reg, _ = self.fixture()
+        reg["project"]["id_glossary"] = {"TC": {"english": None, "meaning": None, "purpose": None},
+                                         "SEL": {"english": "Selection", "meaning": "本輪安排", "purpose": "人工建議清單"}}
+        put(self.root / "qa/registry.json", reg)
+        result = json.loads(self.run_tool("select-cases").stdout)
+        self.assertEqual(result["id_legend"]["TC"]["english"], "待確認")
+        self.assertEqual(result["id_legend"]["SEL"]["meaning"], "本輪安排")
+
+    def test_selection_budget_does_not_drop_cases_or_claim_unknown_estimates_fit(self):
+        self.selection_fixture()
+        result = json.loads(self.run_tool("select-cases", "--changed", "REQ-001", "--tag", "smoke", "--budget-minutes", "20").stdout)
+        self.assertEqual(len(result["cases"]), 3)
+        self.assertEqual(result["known_estimated_minutes"], 45)
+        self.assertEqual(result["budget_state"], "exceeded")
+        self.assertEqual(result["unknown_duration_case_ids"], ["TC-003"])
+        result = json.loads(self.run_tool("select-cases", "--tag", "smoke", "--budget-minutes", "60").stdout)
+        self.assertEqual(result["budget_state"], "unknown")
+        self.assertEqual(result["uncovered_selected_risk_ids"], ["RISK-001"])
+
+    def test_execution_metadata_change_preserves_design_but_stales_selection(self):
+        self.fixture()
+        before = self.run_tool("digest").stdout
+        self.run_tool("select-cases", "--save", "SEL-001")
+        self.run_tool("check-selection", "--id", "SEL-001")
+        put(self.root / "qa/execution-profile.json", {"schema_version": 1, "cases": {"TC-001": {"tags": ["smoke"]}}})
+        self.assertEqual(before, self.run_tool("digest").stdout)
+        self.run_tool("check", "--gate", "baseline")
+        result = json.loads(self.run_tool("check-selection", "--id", "SEL-001", ok=False).stdout)
+        self.assertFalse(result["checks"]["execution_profile"])
+        self.assertTrue(result["checks"]["design"])
+
+    def test_existing_case_fields_still_invalidate_design_and_saved_selection(self):
+        _, case = self.fixture()
+        self.run_tool("select-cases", "--save", "SEL-001")
+        old = self.run_tool("digest").stdout
+        case["tags"] = ["legacy-field-remains-design"]
+        put(self.root / "qa/cases/TC-001.json", case)
+        self.assertNotEqual(old, self.run_tool("digest").stdout)
+        self.assertFalse(json.loads(self.run_tool("check-selection", "--id", "SEL-001", ok=False).stdout)["checks"]["design"])
+        self.run_tool("check", "--gate", "baseline", ok=False)
+
+    def test_selection_checks_source_bytes_even_if_registry_not_updated(self):
+        self.fixture()
+        self.run_tool("select-cases", "--save", "SEL-001")
+        (self.root / "inputs/spec.md").write_text("Changed fixture bytes", encoding="utf-8")
+        result = json.loads(self.run_tool("check-selection", "--id", "SEL-001", ok=False).stdout)
+        self.assertFalse(result["checks"]["source_files"])
+        self.assertIn("SRC-SPEC", json.loads(self.run_tool("select-cases").stdout)["warnings"][-1])
+
+    def test_selection_rejects_unknown_changes_and_reports_unmapped_changes(self):
+        reg, _ = self.fixture()
+        self.run_tool("select-cases", "--changed", "REQ-MISSING", ok=False)
+        reg["questions"] = [self.question_fixture(impact_ids=[])]
+        put(self.root / "qa/registry.json", reg)
+        result = json.loads(self.run_tool("select-cases", "--changed", "Q-001", "--budget-minutes", "60").stdout)
+        self.assertEqual(result["cases"], [])
+        self.assertEqual(result["unmapped_changed_ids"], ["Q-001"])
+        self.assertEqual(result["budget_state"], "empty")
+
+    def test_execution_profile_rejects_bad_types_and_design_overrides(self):
+        self.fixture()
+        for row in ({"estimated_minutes": True}, {"estimated_minutes": -1}, {"estimated_minutes": float("inf")},
+                    {"tags": ["smoke", "smoke"]}, {"automation_candidate": "yes"}, {"priority": "P1"},
+                    {"expected": "invented"}):
+            with self.subTest(row=row):
+                put(self.root / "qa/execution-profile.json", {"schema_version": 1, "cases": {"TC-001": row}})
+                self.run_tool("select-cases", ok=False)
+        put(self.root / "qa/execution-profile.json", {"schema_version": 1, "cases": {"TC-MISSING": {}}})
+        self.run_tool("select-cases", ok=False)
+
+    def test_selection_saved_proposal_is_immutable_and_rejects_path_escape(self):
+        self.fixture()
+        self.run_tool("select-cases", "--save", "SEL-001")
+        path = self.root / "qa/selections/SEL-001.json"
+        before = path.read_bytes()
+        self.run_tool("select-cases", "--save", "SEL-001", ok=False)
+        self.assertEqual(path.read_bytes(), before)
+        self.run_tool("select-cases", "--save", "../outside", ok=False)
+        self.run_tool("select-cases", "--budget-minutes", "nan", ok=False)
+        self.run_tool("select-cases", "--budget-minutes", "0", ok=False)
+
     def test_path_escape_and_symlink_rejected(self):
         self.fixture()
         self.run_tool("baseline", "--id", "../oops", "--approval", "qa/approvals/APP-001.json", ok=False)
@@ -1036,6 +1742,161 @@ class WorkflowTests(unittest.TestCase):
             self.skipTest("Symlinks unavailable")
         self.run_tool("checkpoint", "-m", "reject symlink", "--include", "outside", ok=False)
         self.assertEqual(self.git("diff", "--cached"), "")
+
+    def begin_recording(self, two_steps=False):
+        _, case = self.fixture()
+        if two_steps:
+            case['steps'].append({**copy.deepcopy(case['steps'][0]), 'n': 2})
+            put(self.root / 'qa/cases/TC-001.json', case)
+        self.run_tool('start-run', '--id', 'RUN-001', '--case', 'TC-001', '--sut-version', 'synthetic-build', '--environment', 'isolated fixture')
+        evidence = self.root / 'qa/evidence/觀測 #1.log'
+        evidence.write_text('Synthetic observation ON', encoding='utf-8')
+        return get(self.root / 'qa/runs/RUN-001.json')
+
+    def observation(self, n=1, **changes):
+        row = {'n': n, 'status': 'PASS', 'actual': 'Observed ON in synthetic fixture',
+               'at': '2026-11-14T10:00:01+08:00', 'evidence': ['qa/evidence/觀測 #1.log']}
+        row.update(changes)
+        return row
+
+    def record_result(self, steps=None, ok=True, **extra):
+        data = {'operator': 'synthetic-operator', 'steps': steps if steps is not None else [self.observation()], **extra}
+        put(self.root / 'qa/result-input.json', data)
+        return self.run_tool('record-run', '--id', 'RUN-001', '--input', 'qa/result-input.json', ok=ok)
+
+    def test_record_run_progress_finalization_preserves_all_snapshots(self):
+        before = self.begin_recording(two_steps=True)
+        first = json.loads(self.record_result(started_at='2026-11-14T10:00:00+08:00', expected_revision=0).stdout)
+        self.assertEqual(first['recording_status'], 'in-progress')
+        self.assertEqual(first['status'], 'NOT_RUN')
+        self.assertNotIn('design_snapshot', first)
+        self.run_tool('check-run', '--id', 'RUN-001')
+        self.record_result([self.observation(2, at='2026-11-14T10:00:02+08:00')], finish=True,
+                           finished_at='2026-11-14T10:00:03+08:00', expected_revision=1)
+        after = get(self.root / 'qa/runs/RUN-001.json')
+        self.assertEqual(after['status'], 'PASS')
+        self.assertEqual(after['recording_revision'], 2)
+        for k in ('design_snapshot', 'case_snapshot', 'registry_snapshot', 'artifact_digest', 'case_digest', 'registry_digest'):
+            self.assertEqual(before[k], after[k])
+        self.assertEqual(after['steps'][0]['evidence'][0]['sha256'], sha(self.root / 'qa/evidence/觀測 #1.log'))
+        self.run_tool('check-run', '--id', 'RUN-001')
+
+    def test_record_run_unknown_time_is_incomplete_not_current_time(self):
+        self.begin_recording()
+        self.record_result([self.observation(at=None, time_unknown_reason='Historical log has no time')])
+        path = self.root / 'qa/runs/RUN-001.json'
+        run = get(path)
+        self.assertIsNone(run['steps'][0]['at'])
+        self.assertTrue(run['recording_events'][0]['recorded_at'])
+        original = path.read_bytes()
+        self.record_result([], finish=True, started_at='2026-11-14T10:00:00+08:00', finished_at='2026-11-14T10:00:03+08:00', ok=False)
+        self.assertEqual(original, path.read_bytes())
+
+    def test_record_run_rejects_forged_fields_missing_evidence_and_stale_writes(self):
+        self.begin_recording()
+        path = self.root / 'qa/runs/RUN-001.json'
+        original = path.read_bytes()
+        for changes in ({'design_snapshot': {}}, {'expected_revision': 9}, {'finish': 'yes'}):
+            self.record_result(ok=False, **changes)
+            self.assertEqual(original, path.read_bytes())
+        for step in (self.observation(n=99), self.observation(evidence=[]), self.observation(evidence=['../outside']),
+                     self.observation(at='2026-11-14T10:00:01'), self.observation(status='NOT_RUN'),
+                     self.observation(evidence=['qa/evidence/missing.log'])):
+            self.record_result([step], ok=False)
+            self.assertEqual(original, path.read_bytes())
+        self.assertFalse((self.root / 'qa/runs/RUN-001.json.lock').exists())
+
+    def test_record_run_correction_preserves_old_actual_and_requires_reason(self):
+        self.begin_recording()
+        self.record_result(finish=True, started_at='2026-11-14T10:00:00+08:00', finished_at='2026-11-14T10:00:03+08:00')
+        path = self.root / 'qa/runs/RUN-001.json'
+        original = path.read_bytes()
+        corrected = self.observation(actual='Corrected transcription: output OFF', status='FAIL')
+        self.record_result([corrected], ok=False)
+        self.assertEqual(original, path.read_bytes())
+        self.record_result([corrected], finish=True, reason='Transcription correction; not a rerun', expected_revision=1)
+        run = get(path)
+        self.assertEqual(run['status'], 'FAIL')
+        self.assertIn('ON', run['recording_events'][1]['changes'][0]['before']['actual'])
+        self.assertEqual(run['recording_events'][0], json.loads(original)['recording_events'][0])
+        self.run_tool('check-run', '--id', 'RUN-001')
+
+    def test_record_run_early_stop_and_time_order(self):
+        self.begin_recording(two_steps=True)
+        self.record_result([self.observation(status='BLOCKED', actual='Fixture power unavailable', evidence=[])],
+                           started_at='2026-11-14T10:00:00+08:00')
+        path = self.root / 'qa/runs/RUN-001.json'; original = path.read_bytes()
+        self.record_result([], finish=True, finished_at='2026-11-14T10:00:03+08:00', ok=False)
+        self.record_result([], finish=True, reason='Cannot continue', finished_at='2026-11-14T09:00:03+08:00', ok=False)
+        self.assertEqual(original, path.read_bytes())
+        self.record_result([], finish=True, reason='Fixture unavailable; remaining step not executed', finished_at='2026-11-14T10:00:03+08:00')
+        run = get(path)
+        self.assertEqual(run['status'], 'BLOCKED')
+        self.assertEqual(run['steps'][1]['status'], 'NOT_RUN')
+
+    def test_record_run_lock_and_changed_evidence_do_not_overwrite(self):
+        self.begin_recording()
+        path = self.root / 'qa/runs/RUN-001.json'; original = path.read_bytes()
+        lock = self.root / 'qa/runs/RUN-001.json.lock'; lock.write_text('other writer')
+        self.record_result(ok=False)
+        self.assertEqual(lock.read_text(), 'other writer')
+        self.assertEqual(original, path.read_bytes())
+        lock.unlink()
+        self.record_result()
+        original = path.read_bytes()
+        (self.root / 'qa/evidence/觀測 #1.log').write_text('Changed evidence')
+        self.record_result([], finish=True, started_at='2026-11-14T10:00:00+08:00', finished_at='2026-11-14T10:00:03+08:00', ok=False)
+        self.assertEqual(original, path.read_bytes())
+
+    def test_report_results_show_history_frozen_expected_and_bidirectional_links(self):
+        self.begin_recording()
+        self.record_result(finish=True, started_at='2026-11-14T10:00:00+08:00', finished_at='2026-11-14T10:00:03+08:00')
+        rev = get(self.root / 'qa/reviews/REV-001.json')
+        rev['checked_case_ids'] = ['TC-001']
+        rev['findings'] = [{'id': 'F-001', 'case_ids': ['TC-001'], 'issue': 'Synthetic finding', 'status': 'fixed'}]
+        put(self.root / 'qa/reviews/REV-001.json', rev)
+        case = get(self.root / 'qa/cases/TC-001.json'); case['revision'] = 2
+        case['steps'][0]['checks'][0]['expected'] = 'NEW DRAFT EXPECTED'
+        put(self.root / 'qa/cases/TC-001.json', case)
+        historical = {str(p): p.read_bytes() for p in (self.root / 'qa/runs').glob('*.json')}
+        self.run_tool('render')
+        page = ReportParser((self.root / 'qa/report.html').read_text(encoding='utf-8'))
+        run = page.records['RUN-001']
+        self.assertIn('歷史版本', run['text'])
+        self.assertIn('output ON', run['text'])
+        self.assertNotIn('NEW DRAFT EXPECTED', run['text'])
+        self.assertIn('#' + run['anchor'], page.records['TC-001']['links'])
+        self.assertIn('#' + page.records['TC-001']['anchor'], run['links'])
+        self.assertIn('F-001', page.records['REV-001']['text'])
+        self.assertTrue(any('%23' in x for x in run['links']))
+        self.assertTrue(all(x[1:] in page.ids for x in page.links if x.startswith('#')))
+        for path, content in historical.items(): self.assertEqual(Path(path).read_bytes(), content)
+
+    def test_report_invalid_results_and_unsafe_evidence_are_visible_not_executed(self):
+        self.begin_recording()
+        self.record_result([self.observation(actual='<script>alert(1)</script>')])
+        path = self.root / 'qa/runs/RUN-001.json'
+        run = get(path); run['steps'][0]['evidence'][0]['path'] = '../outside'
+        put(path, run)
+        (self.root / 'qa/reviews/REV-BROKEN.json').write_text('{broken')
+        self.run_tool('render')
+        text = (self.root / 'qa/report.html').read_text(encoding='utf-8')
+        page = ReportParser(text)
+        self.assertFalse(page.scripts)
+        self.assertIn('紀錄檢查有缺口', page.records['RUN-001']['text'])
+        self.assertIn('登錄中', page.records['RUN-001']['text'])
+        self.assertIn('REV-BROKEN', page.records)
+        self.assertNotIn('../../outside', page.links)
+
+    def test_report_baseline_binding_and_legacy_review_scope(self):
+        self.fixture()
+        self.run_tool('baseline', '--id', 'BL-001', '--approval', 'qa/approvals/APP-001.json')
+        self.run_tool('render')
+        page = ReportParser((self.root / 'qa/report.html').read_text(encoding='utf-8'))
+        self.assertIn('對應目前完整設計', page.records['BL-001']['text'])
+        self.assertIn('未知／未提供', page.records['REV-001']['text'])
+        self.assertIn('#' + page.records['BL-001']['anchor'], page.records['TC-001']['links'])
+        self.assertNotIn('#' + page.records['REV-001']['anchor'], page.records['TC-001']['links'])
 
 
 if __name__ == "__main__":

@@ -1,0 +1,30 @@
+{
+  "case_id": "case-03",
+  "grader": "root evaluator",
+  "model": "unknown",
+  "settings": "Fresh task agents; inherited host model and sampling not exposed; one trial per case. Root inspected outputs and captured files.",
+  "contamination": false,
+  "checks": [
+    {
+      "id": "blocked",
+      "status": "pass",
+      "evidence": "狀態皆為 blocked（受阻）",
+      "reason": "兩案皆列明缺操作入口、格式、初態、讀回與清理依據，沒有稱可執行。",
+      "artifact_refs": []
+    },
+    {
+      "id": "interface",
+      "status": "pass",
+      "evidence": "沒有假定選單、命令、檔案格式或等待秒數",
+      "reason": "逐步動作是受阻設計意圖；未虛構真實介面。",
+      "artifact_refs": []
+    },
+    {
+      "id": "useful",
+      "status": "pass",
+      "evidence": "成功匯出後，原設定維持不變。",
+      "reason": "兩案有獨立初態、順序步驟、原設定比對／秘密檔案檢查的已確認判準；Actual 未填，NOT_RUN。",
+      "artifact_refs": []
+    }
+  ]
+}

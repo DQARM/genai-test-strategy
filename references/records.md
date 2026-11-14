@@ -14,7 +14,7 @@
 
 ID＝Identifier（識別碼）。向人展示編號時，依 identifiers.md 提供英文來源、中文意思、用途與後綴說明；JSON 的 id／參照欄位仍只放原 ID。
 
-人工決策共同欄位：`{"by":"實際決策人或使用者","at":"2026-11-09T15:00:00+08:00","evidence_ref":"qa/decisions/DEC-001.md"}`。evidence_ref 須存在並記錄實際回答或正式文件的確認依據。by 不得假填人名；沒有真實核可保持 pending，不執行 baseline。這是稽核記錄，並非身分驗證或電子簽章。
+人工決策共同欄位：`{"by":"實際決策人或使用者","at":"2026-11-09T15:00:00+08:00","evidence_ref":"qa/decisions/DEC-001.md"}`。evidence_ref 須存在並記錄實際回答或正式文件的確認依據。by 不得假填人名；沒有真實核可保持 pending，不執行 baseline。這是稽核記錄，並非身分驗證或電子簽章。歷史時間未知時先在 interactions 保存原話及未知時間，規則保留 proposed 與待補項；不要為通過檢查新增缺資料的 DEC、偽填 confirmed 或把登錄時間當原決策時間。既有不完整紀錄保留並揭露檢查限制。
 
 ## Registry
 
@@ -28,11 +28,14 @@ init 產生 `qa/registry.json`，保留以下欄位：
 - `project.risk_policy`：新專案為 `requirement-risk-v1`。`project.risk_criteria` 保存 severity／likelihood／priority 各自的等級定義、status（proposed／confirmed）、source_refs、decision_refs；unknown 是資料不足，不能作最低等級。完整契約與舊資料處理見 [risk-assessment.md](risk-assessment.md)。
 - `scope`: objective、in、out（沒有排除就明寫）、selected_ac_ids、selected_risk_ids、selected_scenario_ids、selected_case_ids、decision_ref。只有選定項目作為本輪覆蓋分母；所有未選風險仍須有取捨與剩餘風險。
 - `sources`: `{id, path, sha256, locator, kind, status, version, note}`。kind 是 normative／harness／observation／experience；status 是 confirmed／unconfirmed。normative 是應然規則；harness 是可驗證操作介面；observation 是現狀；experience 是缺陷歷史或經驗線索，後兩者不可直接作 Expected 的規則依據。locator 提供頁碼／段落。使用 hashlib 或 inventory 取得真實 sha256，不手編。
+  支援選填 `readings`：逐次保存實際閱讀範圍、正文／索引深度、定位摘錄、未讀部分、限制及版本。以 `record-reading` 追加或更正，舊紀錄不覆寫；缺欄位是未留下閱讀紀錄，空陣列是未讀。契約與 `source_citations` 例子見 [source-reading.md](source-reading.md)。來源 confirmed 不表示已讀；`note`／舊 `excerpt` 不自動轉為閱讀證據。
   可加 `title`（方便閱讀的名稱）及 `excerpt`（實際讀取的相關摘錄，須保留 locator）；均非必填，不能為了網頁完整而編造摘錄。報告顯示這些已登錄欄位，不自行解析或完整嵌入原始 PDF／Word。新增欄位仍會改變 registry 的設計 digest。
   案例另引用的操作指南、輸入資料檔、自動化腳本及其依賴鎖定檔也登錄為來源並記 hash；尚未驗證的輔助內容標 unconfirmed，不因自動產生就當作已驗證。未登錄的外部依賴變化不會被 digest 自動察覺，必須先補足版本綁定。
 - `decisions`: `{id, statement, by, at, evidence_ref, affected_ids, interaction_refs?, supersedes?}`。實際決策寫在對應 Markdown，interaction_refs 指回原始 QA（Question and Answer，問答紀錄；後綴為流水號）。同一回答可支持多項規則；原話與 AI 解讀分開，不以解讀冒充原話。
 - `interactions`：選填陣列，保存 QA 的 question_text、options、answer_text、answer_status、capture、interpretation、question_id、related_ids、真實已知時間／回答者及更正鏈。完整契約、pending 完成與缺原文處理見 [interview-records.md](interview-records.md)。record-qa 不會自動建立決策、增加需求題數或核可。
+- `project.source_reading_policy`：新專案採 `source-reading-v1`。在有 `source_refs`／`binding_refs`／`oracle.reference_refs`／資料 `basis` 的同一物件加 `source_citations`，每項為 `{source_id, reading_seq, finding_index}`，指向該來源某次閱讀的某則摘錄。ready 的引用鏈需要有效正文證據；新基線要求政策及已選範圍依據完整。歷史專案可先草擬／閱讀，移轉規則見 source-reading.md。
 - `questions`: `{id, text, status, owner, due_or_trigger, impact_ids, blocks, decision_refs}`。status 是 open／resolved／deferred。owner 不知填 unassigned。blocks 可為 baseline、execution、release；impact_ids 可含 ALL 或具體 ID。resolved 必須有 DEC 依據；deferred 仍是未解問題。
+  另可選填 category、urgency、analysis、suggested_owner、options、source_refs／source_citations，支援規格缺口排序與轉交。完整定義見 [spec-review.md](spec-review.md)；qa/questions.md 是衍生視圖，不是第二份主資料或已訪談紀錄。
 - `requirements`: `{id, text, revision, status, source_refs, decision_refs, confirmation, supersedes?}`。status 是 proposed／confirmed／superseded。confirmed 必須有 confirmed normative source 或 DEC，並有真實 confirmation。
   需求另有 `risk_assessment: {status, requirement_revision, rationale, source_refs, decision_refs}`，status 為 unassessed／proposed／confirmed，與需求本身的 status 分開；缺欄位視為未評估。評估版次綁需求 revision，confirmed 需真實決策或已確認 normative 來源。未辨識風險仍須留下檢視範圍與理由，不能當成零風險。
 - `acceptance`: 同 requirement 欄位，增加 `requirement_ids` 及 `oracle: {observe, when, tolerance}`。每個 AC 是可判定的規則；父需求必須已確認。容差不適用寫明「不適用：離散值須完全相等」。AC 不得加入來源未支持的新限制。
@@ -44,6 +47,10 @@ init 產生 `qa/registry.json`，保留以下欄位：
 - `charters`: 探索任務設計，EXP 取自 Exploration。欄位為 id、title、status（draft／ready／retired）、mission、scope、timebox_minutes、source_refs、binding_refs、ac_ids、question_ids、preconditions、actions、stop_conditions、cleanup。ready 需要正整數時間上限、已確認的操作來源，以及具體初態、操作／觀察／證據、停止及清理方式；actions 每項含 action、observe、evidence，前置及清理每項含 action、verify。ac_ids 可以為空；有引用則須已確認。觀察／發現另存 evidence，不寫入任務設計。模板及紀錄要求見 oracles-exploration.md。
 
 coverage_items、charters 在舊 schema 1 檔案可省略，不必為續作先重建全部專案；它們若存在會納入設計 digest，變動須重審對應新版本。
+
+工具的風險可加 origin、affected_areas、assessment_status、question_ids，明列整合／變更／環境等非需求來源；缺省仍沿用原直接需求關聯，不自動豁免孤立風險，見 [risk-assessment.md](risk-assessment.md#不強迫所有風險源自需求)。覆蓋方法另支援 combinatorial、error-guessing、data-lifecycle，契約及判準要求不變。
+
+選填排程資料放 qa/execution-profile.json，選取建議放 qa/selections/SEL-*.json；不納入設計 digest，但綁定各自指紋並可 check-selection。不得將現有設計欄位移出以規避審查；格式及命令見 [execution-selection.md](execution-selection.md)。
 
 尚未確認的通用 AC 模板（不代表已核可；依專案填好並取得真實依據後才改 confirmed）：
 
@@ -107,6 +114,8 @@ coverage_items、charters 在舊 schema 1 檔案可省略，不必為續作先�
 
 independence 僅可如實填 fresh-session、human、same-session；same-session 不滿足正式基線的獨立審查要求。rounds 只記真正完成的輪次，來源或範圍不足則保留未完成並在 limitations 說明。沒有 findings 僅在實際審查後使用，不能預設填入以通過檢查。
 
+交接另保留 `input_mode`（review-pack／direct-project）、`review_pack_id`（直接審專案填 null）、`review_input_digest`（包內過濾輸入的 hash，不能代替 artifact_digest）、`checked_case_ids`、`read_sources`（source_id／path、sha256、locator、read_scope、limitations）、`review_focus_checked` 及 `limitations`。舊結果可讀，不補造過往閱讀紀錄；新增審查依實際情形填。可攜包的 REVIEW_TEMPLATE.json 是空白結構，不能直接存進 reviews 冒充已審。僅驗證包時不能宣稱重算原專案完整 digest；審查結果須保留此限制。
+
 Finding 欄位：id、round、case_ids、rule_refs、issue、evidence、proposal、status（open／fixed／dismissed／accepted-risk）、disposition（by／at／evidence_ref／reason）。accepted-risk 另附 residual_risk。修正造成內容改變，須對新 digest 重審；不是把舊 finding 的狀態改 fixed 就代表已重審。
 
 `qa/approvals/APP-001.json`：by、at、evidence_ref、artifact_digest、case_ids。這份記錄只在使用者明確核可本次內容後產生。若人在同一回覆已確認規則、選取範圍並核可案例，可一次記錄各項授權；但未做獨立審查不能假造審查證據。
@@ -115,8 +124,47 @@ Finding 欄位：id、round、case_ids、rule_refs、issue、evidence、proposal
 
 ## 執行記錄
 
-`start-run` 建立 `qa/runs/RUN-001.json` 並凍結 case／registry／digest／Git 狀態。填實際執行人、started_at、finished_at，逐步填 actual、status、at、evidence。證據格式：`{"path":"qa/evidence/RUN-001-step2.log","sha256":"真實檔案 hash"}`。
+`start-run` 建立 `qa/runs/RUN-001.json` 並凍結 case／registry／digest／Git 狀態。填實際執行人、started_at、finished_at，由 record-run 逐步登錄 actual、status、at、evidence，避免手改整份凍結快照。證據格式：`{"path":"qa/evidence/RUN-001-step2.log","sha256":"真實檔案 hash"}`。
 
 狀態為 NOT_RUN／PASS／FAIL／BLOCKED／INCONCLUSIVE。只完成準備或沒有判準就不標 PASS。run PASS 必須所有步驟有證據且為 PASS；FAIL 要有失敗步驟；未測步驟保留 NOT_RUN。重新跑建立新 RUN ID，不覆寫前次 Actual。
 
 工具不會替你執行 SUT。使用 check-run 檢查紀錄完整性，再人工檢查證據與結論是否相符。不可修改 case_snapshot 或 registry_snapshot 來讓舊結果符合新規格。
+
+### 使用 record-run
+
+先將小型輸入 JSON 保存於專案內，例如 qa/run-input.json，再執行：
+
+```bash
+python3 qa/tools/qa_project.py record-run . --id RUN-001 --input qa/run-input.json
+```
+
+輸入示例是格式示意；操作人、Actual、時間、路徑及判定必須換成真實資料，不能直接當實測：
+
+```json
+{
+  "operator": "實際執行人",
+  "expected_revision": 0,
+  "started_at": "2026-11-14T10:00:00+08:00",
+  "steps": [{
+    "n": 1, "status": "PASS", "actual": "實際觀察內容及判定依據",
+    "at": "2026-11-14T10:00:01+08:00",
+    "evidence": ["qa/evidence/RUN-001-step1.log"]
+  }],
+  "finish": true,
+  "finished_at": "2026-11-14T10:00:03+08:00"
+}
+```
+
+- 步驟 n 必須存在且不重複；只接受登錄欄位，不能傳入或改動 snapshot／digest／案例步驟。PASS／FAIL 要有現存證據，工具自算 SHA-256；不從檔案存在、hash 相符或關鍵字推論產品成功。
+- 預設 finish=false，只存觀察。recording_status=in-progress，頂層 status 暫留 NOT_RUN（相容舊狀態列舉），報告顯示「登錄中；尚無最終結果」，不可當完全未測或正式通過。recording_policy=record-run-v1 為選填契約，不改 schema 1。
+- 明確 finish=true 才彙總：存在 FAIL 優先，其次 BLOCKED、INCONCLUSIVE；所有步驟 PASS 且原案例 ready 才可 PASS。尚有 NOT_RUN 則不能 PASS，提前結束須 reason；僅剩 PASS 與 NOT_RUN 時結果為 INCONCLUSIVE。BLOCKED 指環境／操作阻塞，不能掩蓋已觀測的產品 FAIL。
+- 實際 started_at、finished_at 及有結果步驟的 at 用含時區 ISO 8601；步驟須位於執行區間。缺實際步驟時間時用 at=null 與 time_unknown_reason 保存未完成觀察，不能 finish；不要用 now 補造。recording_events.recorded_at 才是工具自動產生的登錄時間。
+- expected_revision 是選填的併發檢查值，取上一回覆的 recording_revision（初始為 0）。每次成功登錄自增、追加 recording_events，保留變更前後的結果及人員／理由；工具回覆只列精簡摘要。既有快照及設計 digest 不變。
+- 覆寫已記步驟、修改已有時間／執行人或更正已結束紀錄，必須提供 reason，舊觀察保留於事件鏈。這僅供登錄更正，真正重跑一定建新 RUN。更正後未明確 finish 時回到未完成狀態。
+- 寫入前檢查快照、證據、欄位及時間，再原子替換；無效輸入不保存。偵測到另一寫入者／版本衝突時停止並保留原檔。遺留 .lock 先查有無作業中程序，不自動刪鎖。
+- 舊 RUN 沒有 recording_* 欄位仍沿用原 check-run 規則；不回填歷史。新工具不是身分驗證或防惡意竄改簽章，檔案、事件及判定仍需查核。
+
+
+## 分析附表與相容性
+
+品質適用性表放 strategy.md，實測回顧／可選度量放 plan.md；沿用原設計 digest，不另設必填 registry 欄位。假想缺陷檢查寫在審查報告及既有 finding.evidence／proposal，無法評估寫 limitations；它不是產品執行結果。工具 1.10.0 增加選填的實測登錄事件與版本化結果視圖；schema 1、既有快照及原設計 digest 範圍不變。舊包保留，新準則需升級專案工具後建立新包；不回寫歷史包。

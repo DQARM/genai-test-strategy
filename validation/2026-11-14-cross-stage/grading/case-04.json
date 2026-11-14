@@ -1,0 +1,30 @@
+{
+  "case_id": "case-04",
+  "grader": "root evaluator",
+  "model": "unknown",
+  "settings": "Fresh task agents; inherited host model and sampling not exposed; one trial per case. Root inspected outputs and captured files.",
+  "contamination": false,
+  "checks": [
+    {
+      "id": "oral",
+      "status": "pass",
+      "evidence": "目前已知規則是「同一間會議室不能有重疊時段」",
+      "reason": "承接口頭規則，不重問規格概況。",
+      "artifact_refs": []
+    },
+    {
+      "id": "single",
+      "status": "pass",
+      "evidence": "另一筆 10:00–11:00 的預約可以成立嗎？",
+      "reason": "只釐清首尾相接的單一邊界。",
+      "artifact_refs": []
+    },
+    {
+      "id": "light",
+      "status": "pass",
+      "evidence": "本次只在對話釐清，不建專案檔案。",
+      "reason": "未問資料夾或版控，沒有假稱保存。",
+      "artifact_refs": []
+    }
+  ]
+}

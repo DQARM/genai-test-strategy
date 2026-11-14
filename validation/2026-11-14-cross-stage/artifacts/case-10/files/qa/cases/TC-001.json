@@ -1,0 +1,91 @@
+{
+  "id": "TC-001",
+  "title": "Evaluate changes OFF to ON",
+  "revision": 1,
+  "status": "ready",
+  "purpose": "Detect missing output",
+  "level": "unit",
+  "type": "manual",
+  "ac_ids": [
+    "AC-001"
+  ],
+  "risk_ids": [
+    "RISK-001"
+  ],
+  "scenario_ids": [
+    "SC-001"
+  ],
+  "coverage_ids": [
+    "COV-001"
+  ],
+  "environment": {
+    "target": "isolated fixture",
+    "build_binding": "record fixture version at run",
+    "tools": "fixture v1",
+    "binding_refs": [
+      "SRC-HARNESS"
+    ],
+    "source_citations": [
+      {
+        "source_id": "SRC-HARNESS",
+        "reading_seq": 1,
+        "finding_index": 1
+      }
+    ]
+  },
+  "preconditions": [
+    {
+      "action": "reset fixture to OFF",
+      "verify": "read output OFF"
+    }
+  ],
+  "data": [
+    {
+      "name": "initial",
+      "value": "OFF",
+      "unit": "discrete",
+      "basis": "SRC-HARNESS",
+      "source_citations": [
+        {
+          "source_id": "SRC-HARNESS",
+          "reading_seq": 1,
+          "finding_index": 1
+        }
+      ]
+    }
+  ],
+  "steps": [
+    {
+      "n": 1,
+      "action": "evaluate once",
+      "input": "OFF",
+      "observe": "output",
+      "when": "on return",
+      "evidence": "capture fixture JSON",
+      "checks": [
+        {
+          "expected": "output ON",
+          "rule_refs": [
+            "AC-001"
+          ],
+          "coverage_ids": [
+            "COV-001"
+          ]
+        }
+      ]
+    }
+  ],
+  "cleanup": [
+    {
+      "action": "close fixture",
+      "verify": "process terminated"
+    }
+  ],
+  "independence": "fresh process each case",
+  "verdict_rules": {
+    "pass": "ON",
+    "fail": "not ON with valid input",
+    "inconclusive": "no output"
+  },
+  "blockers": []
+}

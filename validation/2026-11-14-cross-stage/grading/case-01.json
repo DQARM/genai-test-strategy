@@ -1,0 +1,30 @@
+{
+  "case_id": "case-01",
+  "grader": "root evaluator",
+  "model": "unknown",
+  "settings": "Fresh task agents; inherited host model and sampling not exposed; one trial per case. Root inspected outputs and captured files.",
+  "contamination": false,
+  "checks": [
+    {
+      "id": "boundary",
+      "status": "pass",
+      "evidence": "第 1 題：感測值恰好為 70.0°C 時，告警應顯示、清除，還是維持進入此溫度前的告警狀態？",
+      "reason": "辨識等號歧義，只有一個決策問題。",
+      "artifact_refs": []
+    },
+    {
+      "id": "oracle",
+      "status": "pass",
+      "evidence": "這三項只是待選規則，尚未採納",
+      "reason": "未把任一候選分支當 Expected。",
+      "artifact_refs": []
+    },
+    {
+      "id": "entry",
+      "status": "pass",
+      "evidence": "先以對話草稿釐清，不建立專案或測試檔案。",
+      "reason": "沿用已給來源與對話入口，無初始化阻塞。",
+      "artifact_refs": []
+    }
+  ]
+}

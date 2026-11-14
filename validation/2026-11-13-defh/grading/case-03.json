@@ -1,0 +1,27 @@
+{
+  "case_id": "case-03",
+  "grader": "Codex root（AI 評分，非人員核可）",
+  "model": "unknown：宿主未提供確切模型版本",
+  "settings": "fresh thread; fork_turns=none; no model override; other sampling settings unknown",
+  "contamination": false,
+  "checks": [
+    {
+      "id": "blocked",
+      "status": "pass",
+      "evidence": "2 份人工 Test Case 草稿，均為 blocked（執行受阻）",
+      "reason": "具體缺操作入口、觀測、格式與初態，保持受阻。"
+    },
+    {
+      "id": "interface",
+      "status": "pass",
+      "evidence": "下列為操作意圖，尚不是可照做的介面程序。",
+      "reason": "未捏造按鈕、命令、介面或宣稱步驟已可執行。"
+    },
+    {
+      "id": "useful",
+      "status": "pass",
+      "evidence": "匯出成功後，原設定與匯出前一致",
+      "reason": "仍提供有依據的前後比較判準、步驟與清理意圖，未填 Actual。"
+    }
+  ]
+}

@@ -1,0 +1,135 @@
+{
+  "core_total": 12,
+  "selected_total": 12,
+  "not_selected": [],
+  "counts": {
+    "PASS": 12,
+    "FAIL": 0,
+    "INCOMPLETE": 0,
+    "NOT_RUN": 0,
+    "CONTAMINATED": 0
+  },
+  "cases": [
+    {
+      "id": "case-01",
+      "outcome": "PASS",
+      "transcript_sha256": "9e7d4d2d4ee87df87dad906c8e70bab2f00e65812806bf131de350f1e993bcc5",
+      "checks": {
+        "pass": 3,
+        "fail": 0,
+        "unassessed": 0
+      }
+    },
+    {
+      "id": "case-02",
+      "outcome": "PASS",
+      "transcript_sha256": "fef9e3ddcc85eaa97150e289d5b126678a6deb2719daf99c47d095f329dfeafa",
+      "checks": {
+        "pass": 3,
+        "fail": 0,
+        "unassessed": 0
+      }
+    },
+    {
+      "id": "case-03",
+      "outcome": "PASS",
+      "transcript_sha256": "a170a9a22773a9e1df879f4a465a157fde7970876e5175a2a89c77f1fc7cb766",
+      "checks": {
+        "pass": 3,
+        "fail": 0,
+        "unassessed": 0
+      }
+    },
+    {
+      "id": "case-04",
+      "outcome": "PASS",
+      "transcript_sha256": "fb0e4247484b0a0c5134758da4a7311ba4844b4aa51140333531a77f899e9a14",
+      "checks": {
+        "pass": 3,
+        "fail": 0,
+        "unassessed": 0
+      }
+    },
+    {
+      "id": "case-05",
+      "outcome": "PASS",
+      "transcript_sha256": "f8ef65c22b8c1b9009a6e73fa8ec0e54e80063fbc84aed54eadaa647017812dc",
+      "checks": {
+        "pass": 4,
+        "fail": 0,
+        "unassessed": 0
+      }
+    },
+    {
+      "id": "case-06",
+      "outcome": "PASS",
+      "transcript_sha256": "fde208d9bbda3a0d9020b2f6c2aa0881107d86c96078a9f73d3837c0287dba1d",
+      "checks": {
+        "pass": 4,
+        "fail": 0,
+        "unassessed": 0
+      }
+    },
+    {
+      "id": "case-07",
+      "outcome": "PASS",
+      "transcript_sha256": "e366fc8021081f3a63bad08a1b434d74a38a26f9cb53be622aa506f052e504fa",
+      "checks": {
+        "pass": 3,
+        "fail": 0,
+        "unassessed": 0
+      }
+    },
+    {
+      "id": "case-08",
+      "outcome": "PASS",
+      "transcript_sha256": "089025dc84ee122028208a6928861f1265a946d2b3e4ad71aa90bbf76b4ed786",
+      "checks": {
+        "pass": 4,
+        "fail": 0,
+        "unassessed": 0
+      }
+    },
+    {
+      "id": "case-09",
+      "outcome": "PASS",
+      "transcript_sha256": "b3ebdc8782f3be6b3dbda2dbbb239258274d79262e55a925cbd1fa606fc13bde",
+      "checks": {
+        "pass": 4,
+        "fail": 0,
+        "unassessed": 0
+      }
+    },
+    {
+      "id": "case-10",
+      "outcome": "PASS",
+      "transcript_sha256": "21194576e62ea887b5069a9c43993db6c74218cd5668da835d1e53e949f3ba90",
+      "checks": {
+        "pass": 4,
+        "fail": 0,
+        "unassessed": 0
+      }
+    },
+    {
+      "id": "case-11",
+      "outcome": "PASS",
+      "transcript_sha256": "c5d85bc3815a151b9ecd24a5759e0580013215708b1c8fcd6e73ed0152fe24b7",
+      "checks": {
+        "pass": 4,
+        "fail": 0,
+        "unassessed": 0
+      }
+    },
+    {
+      "id": "case-12",
+      "outcome": "PASS",
+      "transcript_sha256": "4d70ab77380cf3cc0dd56c3051961ab377ba90a5b94266136d313a7d1d8a38fb",
+      "checks": {
+        "pass": 4,
+        "fail": 0,
+        "unassessed": 0
+      }
+    }
+  ],
+  "note": "Evidence linkage and evaluator grades only; not automatic semantic validation or product test results."
+}
