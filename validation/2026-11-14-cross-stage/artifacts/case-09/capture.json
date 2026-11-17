@@ -1,0 +1,190 @@
+{
+  "case_id": "case-09",
+  "captured_at": "2026-11-14T13:13:06.118413+00:00",
+  "before": {
+    ".gitignore": "435f2c07befca2e86a71a24f3ad7670deb592c14d7872061265ad781475d92e0",
+    ".qa-project.json": "bf4874ab560e12bc9670b8e735d993ed5b049441a532a5cd20fdcc1f234577e2",
+    "inputs/harness.md": "6050ea2d883af7e763867cd2cc9320f8347986265482bc05f42bc28ee325c140",
+    "inputs/spec.md": "f574cfbae3eedc1dc70434c467a38a47a2b550511edfdef06c16521d9c0ba691",
+    "qa/approvals/APP-001.json": "05f136f4bbea823a87c517b091111415596dc18f8cd635937a2e2ab1f710a9df",
+    "qa/baselines/BL-001.json": "aa759d910d57777ef41faa530eed5dec45bde66790c7c4c916a0a5a90b20787a",
+    "qa/cases/TC-001.json": "05eeb567daebed3d62167545a475955d4cbcaac3614c045c90503a2b8b6cf1c2",
+    "qa/decisions/DEC-001.md": "e83e2466b7ecf10a485cf4c2cfe03bfd3142fc4dc9ee818d5de9924b8ebd9558",
+    "qa/id-glossary.md": "cbc0cecc4a2364c2f02ed06482c77069c123aefeafec8ddc4e6edc6944de9f7d",
+    "qa/interview.md": "9ed138dfe49eee54c7eea68ff54cb83c15a6a39361d163f5fe83ab35ce668298",
+    "qa/plan.md": "82de05f0b96ea35e33307058d136f8ec4a9477bfcb104cc60e3068983de569ba",
+    "qa/questions.md": "6ca531829eeec39fc69ba601c00a0a3977e01ec472cebdb2c207d596e73c0e3a",
+    "qa/registry.json": "5a871a98b02a94563b93c88de808adcd61030dd9e8c22a602c3edcba4d8062e5",
+    "qa/report.html": "c9bab75b11dcfd4c577e598791c5d560f4319f3c9bb266ca30a8aafe37145824",
+    "qa/reviews/REV-001.json": "caf42dc8aad5cd1508b4c7847f88542067eb41ba258a6cf5bf36b67a1b2a343e",
+    "qa/risks.md": "a19f3565c35106ac7d328146dcfe44ab9b49c91a05edb1e033331cede50c25e9",
+    "qa/session.md": "7855a6fe94686d11c6e6080c7c926d31d9347ac7fe05de738b7209877343fbc5",
+    "qa/source-reading.md": "a703a87fba993f4555c883f3a6b258c31e2f86eca15cfb1c7be07ae58a61f29a",
+    "qa/spec.md": "0e27dbd8fd16b7ba4442184545d1e4edb8e54b266866a975887cf477b0d989e3",
+    "qa/strategy.md": "d73db0ec97a009b56fd9db00464c9f9f013ced9b5911be411ce9ea501d038804",
+    "qa/test-cases.md": "363353ca2797d1aa82dffd1d0e9dfbc3c8d854bc5b304bc44dcb0e634a2f4972",
+    "qa/test-design.md": "c5c71de4a6780ba8fac0aa57404a4a9f52c77e6ea00b455da7b1d4fc7825c5b6",
+    "qa/tools/qa_project.py": "9c9ecdcd661ba08ae5b9bc6f1ed5b5e44279f01e80937ae5b6c39bdae4ad46fd",
+    "qa/traceability.md": "cc7739e8d7eca7c266420f21918f8b94cb1e8d27f255deb52a8a279fd206f73b"
+  },
+  "after": {
+    ".gitignore": "435f2c07befca2e86a71a24f3ad7670deb592c14d7872061265ad781475d92e0",
+    ".qa-project.json": "bf4874ab560e12bc9670b8e735d993ed5b049441a532a5cd20fdcc1f234577e2",
+    "inputs/harness.md": "6050ea2d883af7e763867cd2cc9320f8347986265482bc05f42bc28ee325c140",
+    "inputs/spec.md": "f574cfbae3eedc1dc70434c467a38a47a2b550511edfdef06c16521d9c0ba691",
+    "qa/approvals/APP-001.json": "05f136f4bbea823a87c517b091111415596dc18f8cd635937a2e2ab1f710a9df",
+    "qa/baselines/BL-001.json": "aa759d910d57777ef41faa530eed5dec45bde66790c7c4c916a0a5a90b20787a",
+    "qa/cases/TC-001.json": "a301ab13d95a9bda20a55f43fa55a6e3b79b2a251a9820d51209dd9580521269",
+    "qa/decisions/DEC-001.md": "e83e2466b7ecf10a485cf4c2cfe03bfd3142fc4dc9ee818d5de9924b8ebd9558",
+    "qa/decisions/DEC-002.md": "8540805c042ebe26aa51a0bf23396d0bd651257db2de80cfc5df41a098957b98",
+    "qa/id-glossary.md": "cd113435870961dca644f902889129243e0fbec45b5d3ecc1b3e1c194b9156cd",
+    "qa/interview.md": "173097f9e46e1fa3752a36431700d08d97d3e2cbf12a96c5f85e4a672fb96b35",
+    "qa/plan.md": "7aa6de420010e267da2bf81031711f4b6210e7932b4656b9cc54f8df66f78bc3",
+    "qa/questions.md": "bc868e71f40f11ec3e60195426f74b607983870fce652e7b0a512a618cc645ce",
+    "qa/registry.json": "bb41a3fc349287b5bf9458d55b771527e862100ac37c0f660cb422453ede0bc9",
+    "qa/report.html": "4a803757f795a074b8f90a989b3c7389c93a81fd61afd7db90863495a57c09bc",
+    "qa/review-focus.md": "a3f5c260b1c73bc3b0a3115a21a39dcfd00a01e7800c373f2119d271c7804b15",
+    "qa/review-handoff.json": "5205a11e13cb57fddbf45c1cd5bc93fe06784c693a659f6d10eefd23924fb4f6",
+    "qa/review-packs/REV-002/HANDOFF.md": "b64f47c9f3f629df2ed8f1a742fc2c918aba254601c1f1a7473c49cc1e660e09",
+    "qa/review-packs/REV-002/PROMPT.md": "8250a0c2f32bd483ee7115f489db652ea1ec401c2e49cb64d9e1c3df88e8695d",
+    "qa/review-packs/REV-002/REVIEW_GUIDE.md": "d6d5ed79ecb03bbdc0a97301febfd68cdd140159f275df4cf32e347b055db1f6",
+    "qa/review-packs/REV-002/REVIEW_TEMPLATE.json": "ddfd561f38f70e25c761a77866d363f98b061ff580c16544021c40a3e66571a5",
+    "qa/review-packs/REV-002/manifest.json": "60726521874041267e3f983af0490b136a4181647e3821b1df6585d00a09d45e",
+    "qa/review-packs/REV-002/packet.json": "3457fec2bc58fb2cc01b84cffd9abe6fcefcf17384b8b248671fe256e7c7b4f1",
+    "qa/review-packs/REV-002/verify_pack.py": "9c9ecdcd661ba08ae5b9bc6f1ed5b5e44279f01e80937ae5b6c39bdae4ad46fd",
+    "qa/reviews/REV-001.json": "347a01edc0e89aa5e9c82c06a823aaafdf5e5a46fc5efd8f03fecdc8e0ef184e",
+    "qa/risks.md": "c0b1c615ee117594106dbbe1d03ee447e24af68189736dcef2b2f814d3de4dec",
+    "qa/session.md": "5953f1341c0de0cc887b0fba4d3b3e6682327544af501d09a7996b946c479016",
+    "qa/source-reading.md": "c91fa8fed46ffeaeff558d2db2e68cc2ea10213df270b1b70af7403d8b16f9d1",
+    "qa/spec.md": "1f985ba1bf3aa649590f24a90af4028742aac199d1b1ac581133d65b467b3332",
+    "qa/strategy.md": "35f0fe1a668898e2b966c4ae4c23d95df144ac2a5546e61a33581f01b21dc035",
+    "qa/test-cases.md": "53aaba15a26e355426bc90ceb5cb51ddf464125570f5c0452883664bd935c2cb",
+    "qa/test-design.md": "9b7d9439bf911cc865ed4d15221f36c3839edd05a83183de787ff605108bd1dc",
+    "qa/tools/qa_project.py": "9c9ecdcd661ba08ae5b9bc6f1ed5b5e44279f01e80937ae5b6c39bdae4ad46fd",
+    "qa/traceability.md": "1b16b43271e793854c8e218e42d3070b6bb0b46dee3f3fec811700e13f24ebb7"
+  },
+  "changed": {
+    "qa/cases/TC-001.json": {
+      "before": "05eeb567daebed3d62167545a475955d4cbcaac3614c045c90503a2b8b6cf1c2",
+      "after": "a301ab13d95a9bda20a55f43fa55a6e3b79b2a251a9820d51209dd9580521269"
+    },
+    "qa/decisions/DEC-002.md": {
+      "before": null,
+      "after": "8540805c042ebe26aa51a0bf23396d0bd651257db2de80cfc5df41a098957b98"
+    },
+    "qa/id-glossary.md": {
+      "before": "cbc0cecc4a2364c2f02ed06482c77069c123aefeafec8ddc4e6edc6944de9f7d",
+      "after": "cd113435870961dca644f902889129243e0fbec45b5d3ecc1b3e1c194b9156cd"
+    },
+    "qa/interview.md": {
+      "before": "9ed138dfe49eee54c7eea68ff54cb83c15a6a39361d163f5fe83ab35ce668298",
+      "after": "173097f9e46e1fa3752a36431700d08d97d3e2cbf12a96c5f85e4a672fb96b35"
+    },
+    "qa/plan.md": {
+      "before": "82de05f0b96ea35e33307058d136f8ec4a9477bfcb104cc60e3068983de569ba",
+      "after": "7aa6de420010e267da2bf81031711f4b6210e7932b4656b9cc54f8df66f78bc3"
+    },
+    "qa/questions.md": {
+      "before": "6ca531829eeec39fc69ba601c00a0a3977e01ec472cebdb2c207d596e73c0e3a",
+      "after": "bc868e71f40f11ec3e60195426f74b607983870fce652e7b0a512a618cc645ce"
+    },
+    "qa/registry.json": {
+      "before": "5a871a98b02a94563b93c88de808adcd61030dd9e8c22a602c3edcba4d8062e5",
+      "after": "bb41a3fc349287b5bf9458d55b771527e862100ac37c0f660cb422453ede0bc9"
+    },
+    "qa/report.html": {
+      "before": "c9bab75b11dcfd4c577e598791c5d560f4319f3c9bb266ca30a8aafe37145824",
+      "after": "4a803757f795a074b8f90a989b3c7389c93a81fd61afd7db90863495a57c09bc"
+    },
+    "qa/review-focus.md": {
+      "before": null,
+      "after": "a3f5c260b1c73bc3b0a3115a21a39dcfd00a01e7800c373f2119d271c7804b15"
+    },
+    "qa/review-handoff.json": {
+      "before": null,
+      "after": "5205a11e13cb57fddbf45c1cd5bc93fe06784c693a659f6d10eefd23924fb4f6"
+    },
+    "qa/review-packs/REV-002/HANDOFF.md": {
+      "before": null,
+      "after": "b64f47c9f3f629df2ed8f1a742fc2c918aba254601c1f1a7473c49cc1e660e09"
+    },
+    "qa/review-packs/REV-002/PROMPT.md": {
+      "before": null,
+      "after": "8250a0c2f32bd483ee7115f489db652ea1ec401c2e49cb64d9e1c3df88e8695d"
+    },
+    "qa/review-packs/REV-002/REVIEW_GUIDE.md": {
+      "before": null,
+      "after": "d6d5ed79ecb03bbdc0a97301febfd68cdd140159f275df4cf32e347b055db1f6"
+    },
+    "qa/review-packs/REV-002/REVIEW_TEMPLATE.json": {
+      "before": null,
+      "after": "ddfd561f38f70e25c761a77866d363f98b061ff580c16544021c40a3e66571a5"
+    },
+    "qa/review-packs/REV-002/manifest.json": {
+      "before": null,
+      "after": "60726521874041267e3f983af0490b136a4181647e3821b1df6585d00a09d45e"
+    },
+    "qa/review-packs/REV-002/packet.json": {
+      "before": null,
+      "after": "3457fec2bc58fb2cc01b84cffd9abe6fcefcf17384b8b248671fe256e7c7b4f1"
+    },
+    "qa/review-packs/REV-002/verify_pack.py": {
+      "before": null,
+      "after": "9c9ecdcd661ba08ae5b9bc6f1ed5b5e44279f01e80937ae5b6c39bdae4ad46fd"
+    },
+    "qa/reviews/REV-001.json": {
+      "before": "caf42dc8aad5cd1508b4c7847f88542067eb41ba258a6cf5bf36b67a1b2a343e",
+      "after": "347a01edc0e89aa5e9c82c06a823aaafdf5e5a46fc5efd8f03fecdc8e0ef184e"
+    },
+    "qa/risks.md": {
+      "before": "a19f3565c35106ac7d328146dcfe44ab9b49c91a05edb1e033331cede50c25e9",
+      "after": "c0b1c615ee117594106dbbe1d03ee447e24af68189736dcef2b2f814d3de4dec"
+    },
+    "qa/session.md": {
+      "before": "7855a6fe94686d11c6e6080c7c926d31d9347ac7fe05de738b7209877343fbc5",
+      "after": "5953f1341c0de0cc887b0fba4d3b3e6682327544af501d09a7996b946c479016"
+    },
+    "qa/source-reading.md": {
+      "before": "a703a87fba993f4555c883f3a6b258c31e2f86eca15cfb1c7be07ae58a61f29a",
+      "after": "c91fa8fed46ffeaeff558d2db2e68cc2ea10213df270b1b70af7403d8b16f9d1"
+    },
+    "qa/spec.md": {
+      "before": "0e27dbd8fd16b7ba4442184545d1e4edb8e54b266866a975887cf477b0d989e3",
+      "after": "1f985ba1bf3aa649590f24a90af4028742aac199d1b1ac581133d65b467b3332"
+    },
+    "qa/strategy.md": {
+      "before": "d73db0ec97a009b56fd9db00464c9f9f013ced9b5911be411ce9ea501d038804",
+      "after": "35f0fe1a668898e2b966c4ae4c23d95df144ac2a5546e61a33581f01b21dc035"
+    },
+    "qa/test-cases.md": {
+      "before": "363353ca2797d1aa82dffd1d0e9dfbc3c8d854bc5b304bc44dcb0e634a2f4972",
+      "after": "53aaba15a26e355426bc90ceb5cb51ddf464125570f5c0452883664bd935c2cb"
+    },
+    "qa/test-design.md": {
+      "before": "c5c71de4a6780ba8fac0aa57404a4a9f52c77e6ea00b455da7b1d4fc7825c5b6",
+      "after": "9b7d9439bf911cc865ed4d15221f36c3839edd05a83183de787ff605108bd1dc"
+    },
+    "qa/traceability.md": {
+      "before": "cc7739e8d7eca7c266420f21918f8b94cb1e8d27f255deb52a8a279fd206f73b",
+      "after": "1b16b43271e793854c8e218e42d3070b6bb0b46dee3f3fec811700e13f24ebb7"
+    }
+  },
+  "checks": {
+    "check": {
+      "returncode": 0,
+      "stdout": "{\n  \"gate\": \"draft\",\n  \"artifact_digest\": \"adb98a8092ef710f77e1041cc9cd62cee1a8c9a60764b63bfb1b5ce3ebb98b5c\",\n  \"errors\": [],\n  \"warnings\": [\n    \"QA-006: incomplete original Q&A (partial); do not treat a summary as a transcript\"\n  ],\n  \"note\": \"Structural checks only; not human approval or product test results.\"\n}\n",
+      "stderr": ""
+    },
+    "baseline-gate": {
+      "returncode": 1,
+      "stdout": "{\n  \"gate\": \"baseline\",\n  \"artifact_digest\": \"adb98a8092ef710f77e1041cc9cd62cee1a8c9a60764b63bfb1b5ce3ebb98b5c\",\n  \"errors\": [\n    \"Missing current independent review rounds: consistency, coverage, executable, traceability\"\n  ],\n  \"warnings\": [\n    \"QA-006: incomplete original Q&A (partial); do not treat a summary as a transcript\"\n  ],\n  \"note\": \"Structural checks only; not human approval or product test results.\"\n}\n",
+      "stderr": ""
+    },
+    "digest": {
+      "returncode": 0,
+      "stdout": "adb98a8092ef710f77e1041cc9cd62cee1a8c9a60764b63bfb1b5ce3ebb98b5c\n",
+      "stderr": ""
+    }
+  },
+  "note": "File evidence from a synthetic workspace; semantic grading and authorization checks are separate."
+}

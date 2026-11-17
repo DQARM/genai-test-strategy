@@ -1,0 +1,95 @@
+{
+  "core_total": 8,
+  "selected_total": 8,
+  "not_selected": [],
+  "counts": {
+    "PASS": 8,
+    "FAIL": 0,
+    "INCOMPLETE": 0,
+    "NOT_RUN": 0,
+    "CONTAMINATED": 0
+  },
+  "cases": [
+    {
+      "id": "case-01",
+      "outcome": "PASS",
+      "transcript_sha256": "57e7fcee9b1abff64a711be2b9650a349fb676ae09a2fb81bbd6aa27c2b76b3f",
+      "checks": {
+        "pass": 3,
+        "fail": 0,
+        "unassessed": 0
+      }
+    },
+    {
+      "id": "case-02",
+      "outcome": "PASS",
+      "transcript_sha256": "5d341c5eadac86480dd5a537cc1b627621ad324b8fd39cc0e47c6e7b687a9a3a",
+      "checks": {
+        "pass": 3,
+        "fail": 0,
+        "unassessed": 0
+      }
+    },
+    {
+      "id": "case-03",
+      "outcome": "PASS",
+      "transcript_sha256": "02dafd7f56df55aae92bac0085ca8c7bfdc19493f486de44b4fb0355b45759e8",
+      "checks": {
+        "pass": 3,
+        "fail": 0,
+        "unassessed": 0
+      }
+    },
+    {
+      "id": "case-04",
+      "outcome": "PASS",
+      "transcript_sha256": "63a3228628e36efb98efcbece69bee7687d6d909b8463b4be3ff5aaacfa3c8ff",
+      "checks": {
+        "pass": 3,
+        "fail": 0,
+        "unassessed": 0
+      }
+    },
+    {
+      "id": "case-05",
+      "outcome": "PASS",
+      "transcript_sha256": "79c72998d8b7dbecf30115734fa71bba7a9ee46b44b9e6c5b2990a8c100c3478",
+      "checks": {
+        "pass": 4,
+        "fail": 0,
+        "unassessed": 0
+      }
+    },
+    {
+      "id": "case-06",
+      "outcome": "PASS",
+      "transcript_sha256": "4366ea7230c06dd76de7ac9105db0ebceb8b2a0432a7c2fab1c4f1185631a10b",
+      "checks": {
+        "pass": 4,
+        "fail": 0,
+        "unassessed": 0
+      }
+    },
+    {
+      "id": "case-07",
+      "outcome": "PASS",
+      "transcript_sha256": "9bc2da33d437d8afdd94a84f5981cb86b2246611af382d69e3cdb68e3051f10c",
+      "checks": {
+        "pass": 3,
+        "fail": 0,
+        "unassessed": 0
+      }
+    },
+    {
+      "id": "case-08",
+      "outcome": "PASS",
+      "transcript_sha256": "b8ad3bda730958a88c958adf165529453335ab9fc3081883c542a3b2d4e0b491",
+      "checks": {
+        "pass": 4,
+        "fail": 0,
+        "unassessed": 0
+      }
+    }
+  ],
+  "note": "Evidence linkage and evaluator grades only; not automatic semantic validation or product test results."
+}

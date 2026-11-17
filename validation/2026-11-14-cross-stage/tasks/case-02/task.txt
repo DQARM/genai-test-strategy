@@ -1,0 +1,1 @@
+請使用 /home/agent/.codex/skills/remote-skills/skill-6af1747b432881919448466eb247e9c9/SKILL.md，讀 /workspace/scratch/258261bef5fc/phase-update/run-01/tasks/case-02/spec-a.md 與 /workspace/scratch/258261bef5fc/phase-update/run-01/tasks/case-02/spec-b.md。這兩份目前都是需求輸入，尚未指定採納優先序。請整理衝突與可先做的部分；這次不再追問，先在對話產出草稿，不建檔。

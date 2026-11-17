@@ -1,0 +1,289 @@
+{
+  "schema_version": 1,
+  "created_at": "2026-11-14T13:04:56.506883+00:00",
+  "rubric_sha256": "bde1182872dcfcf0b106bc170cae1cec50dc4f46d8b650e0c530520820f6b04f",
+  "suite_sha256": "c72d5ed1f59041a4793a3d920a0ec220405b922ff9a0fa70d7fbbf9278b80d53",
+  "skills": {
+    "strategy": {
+      "path": "/home/agent/.codex/skills/remote-skills/skill-6af1747b432881919448466eb247e9c9",
+      "files": {
+        "SKILL.md": "f7cac3975cd1810be28b7d45e01b71c76f0650a7a65255a627e4c84302727ab2",
+        "references/domain-adaptation.md": "373b0601e0e66cfa270ab71a5b9795388117c1e9a1cb14e24e8829bda23168c0",
+        "references/execution-selection.md": "cf75da74bb884ad9153534f1ec5f6248e66e8606183902a3f93bf8c2d434ee76",
+        "references/failure-modes.md": "880262c6ec53310da26df4a6bb64c341d1ab32f5571d8af5f54097ece78f526c",
+        "references/feedback.md": "92134c8cd2d784a8738c6bc2ffa571cc552aed4b783b91d8c428c10545383c39",
+        "references/git-server.md": "85e8bb5dd1f96d086350ea8d5c0981b7d2db4a2f3592666a3a61e397fc4a9ede",
+        "references/identifiers.md": "9df67303f76d97d39339ef393cdc9ef199d5aa4eafc65a9c119695ccef068c9e",
+        "references/interview-records.md": "1e7f290d721a267c5be438fffc935950064f21f4601d05fc8202c6570b2842c2",
+        "references/local-versioning.md": "f984e8e536db3f3a8848c25e5b3932c7fd148050a1f60396e0e6113fde3a4b87",
+        "references/migration.md": "706470506316dbc0eb51ec44ff7afabcb0da25b5f4b5a66c87f61284722a00fd",
+        "references/oracles-exploration.md": "8a406434eafd41cd15ac7704104e6d1994865903cae91fda13af981aa4a60ce5",
+        "references/quality-characteristics.md": "8e34dc49e0c032253d9e144c56e85ba2405fa0db514e330ea31074e03dd98d9b",
+        "references/records.md": "04eb0f5ddb71de6d443ad6c93b032ba56ffa4701a9568be9d4115296a4d389f1",
+        "references/report.md": "74be40b1e4f6782148fb4f32f392be088b10f42557605906000543faf4fc0aed",
+        "references/review.md": "b2bb9c7a46dac1f23f54c65c5eb539714a748af61d0046a5ea50e0da0851844f",
+        "references/risk-assessment.md": "0b07927a205e067150f219e0d9eb2ff31362ca68ea0c8c6180b752aa58d19212",
+        "references/source-reading.md": "ab109bf486ddaacb90ec74632db85b060d66e0ba75104f02c21aa350bd68cebd",
+        "references/spec-review.md": "4385ece9583fb9395a3819ecb5e39e4e1d06af7ed696622045dce962c2473f92",
+        "references/templates.md": "ebecf544df203d2cbab146b82df40cd3deb5de33ef167970925e586c1da61b0d",
+        "references/test-design.md": "e9b7aa5fe999cb9bee5e837848757b70fa650e19fffab1632f2ae51192703e03",
+        "references/worked-example.md": "13d28a9ef7c85bd1eecfdfb788e11256523ee11ff0b1cd5eca579623af327ffd",
+        "references/workflow.md": "774e605c71e9060f0b3156ea0d06c4c5f8e2e3f8d01b2b5ae65a036a74ef429b",
+        "scripts/demo_counter.py": "d7ab57794df96b6c60f403e35ebeed3a76dd974858eaaadb4774e71db6667f03",
+        "scripts/qa_project.py": "9c9ecdcd661ba08ae5b9bc6f1ed5b5e44279f01e80937ae5b6c39bdae4ad46fd",
+        "scripts/test_qa_project.py": "c421bb7624bc289cd6ae91561069368d4eeb41321243601e9abfe9f25b4ffe70"
+      }
+    },
+    "review": {
+      "path": "/home/agent/.codex/skills/remote-skills/skill-6af5ae4f47bc8191bf6457cdd95a2bc7",
+      "files": {
+        "SKILL.md": "da6f47cc76e868fa0a2bcff6fdd2c85cb83b381cbbaa228c6c413905ee1499c2",
+        "references/calibration.md": "b2b7517ff33a063436922580d0968d5ca3d8ec2696b006bca90926a17223842e",
+        "references/criteria.md": "ad305d34bcd903e760fb751f7f48b734d757932ba6283afe1fdd9b3145c005f4",
+        "references/handoff.md": "3209a54f9a065f96c8dff5fb175cfcb9cc2eead885f172eda475622212f323af"
+      }
+    }
+  },
+  "core_case_ids": [
+    "case-01",
+    "case-02",
+    "case-03",
+    "case-04",
+    "case-05",
+    "case-06",
+    "case-07",
+    "case-08",
+    "case-09",
+    "case-10",
+    "case-11",
+    "case-12"
+  ],
+  "cases": [
+    {
+      "id": "case-01",
+      "skill": "strategy",
+      "inputs": {
+        "tasks/case-01/draft.md": "5b29c7f3edd4d29db2c45943c77d2146ad04103644b246ff931b1030e93e8d15",
+        "tasks/case-01/task.txt": "0b9b84062008f1188778c31b6754a0d9a66b991f3311b45f99abb2bf10835811"
+      },
+      "workspace": null
+    },
+    {
+      "id": "case-02",
+      "skill": "strategy",
+      "inputs": {
+        "tasks/case-02/spec-b.md": "421cdd1e5dd905cf9368378838e5ef27a2ac36c6c5d9169c127bccbc038af232",
+        "tasks/case-02/spec-a.md": "165a5002f33270278c2e64a9087986e7cc84c83d40526bd84967a8b8dcb171fa",
+        "tasks/case-02/task.txt": "b87c6e4fc275d138c47777d53eb2f159e985adb17ceb8080a8b0f3f87951b95c"
+      },
+      "workspace": null
+    },
+    {
+      "id": "case-03",
+      "skill": "strategy",
+      "inputs": {
+        "tasks/case-03/requirements.md": "46f8cc1420e9e967e93031427a8bd73e4d0cef2ce5d68c8681fd10a49f44d028",
+        "tasks/case-03/task.txt": "d37e31944f5bdb28c10cd3b66eb662855285d69554235665dbf33d0ff04ef73f"
+      },
+      "workspace": null
+    },
+    {
+      "id": "case-04",
+      "skill": "strategy",
+      "inputs": {
+        "tasks/case-04/task.txt": "2d3114a05f698c5b6e8c9219ec317834f558ccc4fe6b33614b211e8f81a8f512"
+      },
+      "workspace": null
+    },
+    {
+      "id": "case-05",
+      "skill": "strategy",
+      "inputs": {
+        "tasks/case-05/draft.md": "b320fdf5a3a6487b850cb933bf416b6e009ac2fe902b18d2ef71b950382f187b",
+        "tasks/case-05/task.txt": "b16627867223f56c98afe6c35f00383665a54b884eab3aeb7d63dc33fe72c861"
+      },
+      "workspace": null
+    },
+    {
+      "id": "case-06",
+      "skill": "strategy",
+      "inputs": {
+        "tasks/case-06/session.md": "2ed502b09123d9e7aebbd892d177fa73fbcf6640c79e9fc89d2942cadb872198",
+        "tasks/case-06/task.txt": "a0d941a078da715421f21c1a0065a407669ce61115650e5058e01b299a9ea6eb"
+      },
+      "workspace": null
+    },
+    {
+      "id": "case-07",
+      "skill": "strategy",
+      "inputs": {
+        "tasks/case-07/history.md": "290b3100c148d5a9a796fb44581b881ad61062448e19af800891e6d2bb7f25cf",
+        "tasks/case-07/task.txt": "492f7bfdef91ed5fe1c887458f973a1a0605b101a8f23d7ffc0f944d02f62447"
+      },
+      "workspace": null
+    },
+    {
+      "id": "case-08",
+      "skill": "review",
+      "inputs": {
+        "tasks/case-08/rules.md": "74aa3c6deb07a2896b16563c70dc907e44608462601b8de464cff03420bad1b3",
+        "tasks/case-08/cases.md": "b7c8f7ca1c1594b4a3fa31f3e4f73f6396f3dce6ea792a762ea58668479736dc",
+        "tasks/case-08/task.txt": "a29bdd991d91c3e15ce9143d33b1f85d333a8efdb0ece4afe54ac4712bff62af"
+      },
+      "workspace": null
+    },
+    {
+      "id": "case-09",
+      "skill": "strategy",
+      "inputs": {
+        "tasks/case-09/task.txt": "96613ce1e89bb1c38c5e859f5f9e327a8f5d6eee7ed9a6ab2db8bc7a1595f847",
+        "tasks/case-09/project.json": "553f23142bedafa9fa66674c8c3fca4570d2468502aadfba21b9d7def62520a1"
+      },
+      "workspace": {
+        "path": "workspaces/case-09/project",
+        "before": {
+          ".gitignore": "435f2c07befca2e86a71a24f3ad7670deb592c14d7872061265ad781475d92e0",
+          ".qa-project.json": "bf4874ab560e12bc9670b8e735d993ed5b049441a532a5cd20fdcc1f234577e2",
+          "inputs/harness.md": "6050ea2d883af7e763867cd2cc9320f8347986265482bc05f42bc28ee325c140",
+          "inputs/spec.md": "f574cfbae3eedc1dc70434c467a38a47a2b550511edfdef06c16521d9c0ba691",
+          "qa/approvals/APP-001.json": "05f136f4bbea823a87c517b091111415596dc18f8cd635937a2e2ab1f710a9df",
+          "qa/baselines/BL-001.json": "aa759d910d57777ef41faa530eed5dec45bde66790c7c4c916a0a5a90b20787a",
+          "qa/cases/TC-001.json": "05eeb567daebed3d62167545a475955d4cbcaac3614c045c90503a2b8b6cf1c2",
+          "qa/decisions/DEC-001.md": "e83e2466b7ecf10a485cf4c2cfe03bfd3142fc4dc9ee818d5de9924b8ebd9558",
+          "qa/id-glossary.md": "cbc0cecc4a2364c2f02ed06482c77069c123aefeafec8ddc4e6edc6944de9f7d",
+          "qa/interview.md": "9ed138dfe49eee54c7eea68ff54cb83c15a6a39361d163f5fe83ab35ce668298",
+          "qa/plan.md": "82de05f0b96ea35e33307058d136f8ec4a9477bfcb104cc60e3068983de569ba",
+          "qa/questions.md": "6ca531829eeec39fc69ba601c00a0a3977e01ec472cebdb2c207d596e73c0e3a",
+          "qa/registry.json": "5a871a98b02a94563b93c88de808adcd61030dd9e8c22a602c3edcba4d8062e5",
+          "qa/report.html": "c9bab75b11dcfd4c577e598791c5d560f4319f3c9bb266ca30a8aafe37145824",
+          "qa/reviews/REV-001.json": "caf42dc8aad5cd1508b4c7847f88542067eb41ba258a6cf5bf36b67a1b2a343e",
+          "qa/risks.md": "a19f3565c35106ac7d328146dcfe44ab9b49c91a05edb1e033331cede50c25e9",
+          "qa/session.md": "7855a6fe94686d11c6e6080c7c926d31d9347ac7fe05de738b7209877343fbc5",
+          "qa/source-reading.md": "a703a87fba993f4555c883f3a6b258c31e2f86eca15cfb1c7be07ae58a61f29a",
+          "qa/spec.md": "0e27dbd8fd16b7ba4442184545d1e4edb8e54b266866a975887cf477b0d989e3",
+          "qa/strategy.md": "d73db0ec97a009b56fd9db00464c9f9f013ced9b5911be411ce9ea501d038804",
+          "qa/test-cases.md": "363353ca2797d1aa82dffd1d0e9dfbc3c8d854bc5b304bc44dcb0e634a2f4972",
+          "qa/test-design.md": "c5c71de4a6780ba8fac0aa57404a4a9f52c77e6ea00b455da7b1d4fc7825c5b6",
+          "qa/tools/qa_project.py": "9c9ecdcd661ba08ae5b9bc6f1ed5b5e44279f01e80937ae5b6c39bdae4ad46fd",
+          "qa/traceability.md": "cc7739e8d7eca7c266420f21918f8b94cb1e8d27f255deb52a8a279fd206f73b"
+        }
+      }
+    },
+    {
+      "id": "case-10",
+      "skill": "strategy",
+      "inputs": {
+        "tasks/case-10/task.txt": "d7fc159c0389dbccc51766710a3ed8606a9ff64b463eac4236a0cc2aeca35f3b",
+        "tasks/case-10/project.json": "2d5323c7a33d2fa4771863fafccdbff6f5cc9299f4723733bec31a4c86f10094"
+      },
+      "workspace": {
+        "path": "workspaces/case-10/project",
+        "before": {
+          ".gitignore": "435f2c07befca2e86a71a24f3ad7670deb592c14d7872061265ad781475d92e0",
+          ".qa-project.json": "bf4874ab560e12bc9670b8e735d993ed5b049441a532a5cd20fdcc1f234577e2",
+          "inputs/harness.md": "6050ea2d883af7e763867cd2cc9320f8347986265482bc05f42bc28ee325c140",
+          "inputs/spec.md": "f574cfbae3eedc1dc70434c467a38a47a2b550511edfdef06c16521d9c0ba691",
+          "qa/approvals/APP-001.json": "05f136f4bbea823a87c517b091111415596dc18f8cd635937a2e2ab1f710a9df",
+          "qa/baselines/BL-001.json": "f52e782120c8191990b3382c2f60c9f9273abd94903cb805a3f02a4f7759bfba",
+          "qa/cases/TC-001.json": "552f2db382cbb63865c0f50e411001631017c19a72b4f4cf290dc4eabb26d9f4",
+          "qa/decisions/DEC-001.md": "e83e2466b7ecf10a485cf4c2cfe03bfd3142fc4dc9ee818d5de9924b8ebd9558",
+          "qa/evidence/failure.log": "077d6fb7d0c5ffb3f1fcea0048d592131a4c6d1d9e1043c51667b1293d53793c",
+          "qa/id-glossary.md": "cbc0cecc4a2364c2f02ed06482c77069c123aefeafec8ddc4e6edc6944de9f7d",
+          "qa/interview.md": "9ed138dfe49eee54c7eea68ff54cb83c15a6a39361d163f5fe83ab35ce668298",
+          "qa/plan.md": "82de05f0b96ea35e33307058d136f8ec4a9477bfcb104cc60e3068983de569ba",
+          "qa/questions.md": "6ca531829eeec39fc69ba601c00a0a3977e01ec472cebdb2c207d596e73c0e3a",
+          "qa/registry.json": "5a871a98b02a94563b93c88de808adcd61030dd9e8c22a602c3edcba4d8062e5",
+          "qa/report.html": "c9bab75b11dcfd4c577e598791c5d560f4319f3c9bb266ca30a8aafe37145824",
+          "qa/reviews/REV-001.json": "ddf0526be66bc398559a6df0a4ec9a2fd177473e6487f6c7e1e63411bf33d400",
+          "qa/risks.md": "a19f3565c35106ac7d328146dcfe44ab9b49c91a05edb1e033331cede50c25e9",
+          "qa/runs/RUN-001.json": "7c1bc0f9a10f3e9657e449a65c82a7461d1d291737bb7367f4bedc2475314042",
+          "qa/runs/RUN-002.json": "105eb1557b22496fb0749908ccfc3177d788ab3ba41e6b1e1d344d6116ccc596",
+          "qa/session.md": "7855a6fe94686d11c6e6080c7c926d31d9347ac7fe05de738b7209877343fbc5",
+          "qa/source-reading.md": "a703a87fba993f4555c883f3a6b258c31e2f86eca15cfb1c7be07ae58a61f29a",
+          "qa/spec.md": "0e27dbd8fd16b7ba4442184545d1e4edb8e54b266866a975887cf477b0d989e3",
+          "qa/strategy.md": "d73db0ec97a009b56fd9db00464c9f9f013ced9b5911be411ce9ea501d038804",
+          "qa/test-cases.md": "363353ca2797d1aa82dffd1d0e9dfbc3c8d854bc5b304bc44dcb0e634a2f4972",
+          "qa/test-design.md": "c5c71de4a6780ba8fac0aa57404a4a9f52c77e6ea00b455da7b1d4fc7825c5b6",
+          "qa/tools/qa_project.py": "9c9ecdcd661ba08ae5b9bc6f1ed5b5e44279f01e80937ae5b6c39bdae4ad46fd",
+          "qa/traceability.md": "cc7739e8d7eca7c266420f21918f8b94cb1e8d27f255deb52a8a279fd206f73b"
+        }
+      }
+    },
+    {
+      "id": "case-11",
+      "skill": "strategy",
+      "inputs": {
+        "tasks/case-11/task.txt": "7f268b763ae77df1cb385e57b1ad7abed1e649848b9d551ed038667808b74797",
+        "tasks/case-11/project.json": "7be8e296a7ad4476ae31821fc65b5d1fa8fb039def6c295c66acc43ad6d1a377"
+      },
+      "workspace": {
+        "path": "workspaces/case-11/project",
+        "before": {
+          ".gitignore": "435f2c07befca2e86a71a24f3ad7670deb592c14d7872061265ad781475d92e0",
+          ".qa-project.json": "54ecc1b088c099e82eace1d59dbf56c5ff5457430cf27d085523ed839b8c5bcc",
+          "inputs/addendum.md": "440bf8cad8af68909d13960c0ebdaa46e5613ab4107acb6bc9ce62f4c12d4987",
+          "inputs/harness.md": "6050ea2d883af7e763867cd2cc9320f8347986265482bc05f42bc28ee325c140",
+          "inputs/spec.md": "f574cfbae3eedc1dc70434c467a38a47a2b550511edfdef06c16521d9c0ba691",
+          "qa/approvals/APP-001.json": "05f136f4bbea823a87c517b091111415596dc18f8cd635937a2e2ab1f710a9df",
+          "qa/baselines/BL-001.json": "f52e782120c8191990b3382c2f60c9f9273abd94903cb805a3f02a4f7759bfba",
+          "qa/cases/TC-001.json": "552f2db382cbb63865c0f50e411001631017c19a72b4f4cf290dc4eabb26d9f4",
+          "qa/decisions/DEC-001.md": "e83e2466b7ecf10a485cf4c2cfe03bfd3142fc4dc9ee818d5de9924b8ebd9558",
+          "qa/id-glossary.md": "cbc0cecc4a2364c2f02ed06482c77069c123aefeafec8ddc4e6edc6944de9f7d",
+          "qa/interview.md": "9ed138dfe49eee54c7eea68ff54cb83c15a6a39361d163f5fe83ab35ce668298",
+          "qa/plan.md": "82de05f0b96ea35e33307058d136f8ec4a9477bfcb104cc60e3068983de569ba",
+          "qa/questions.md": "6ca531829eeec39fc69ba601c00a0a3977e01ec472cebdb2c207d596e73c0e3a",
+          "qa/registry.json": "62d9409a2ad58f9c043e87d1490c23cd9bb1a9b538a6cf1dd93136f0f2296477",
+          "qa/report.html": "ee16392d75c139e777447ce4475587ac72abe2deb6c432617bd82aa0aed4a7eb",
+          "qa/reviews/REV-001.json": "ddf0526be66bc398559a6df0a4ec9a2fd177473e6487f6c7e1e63411bf33d400",
+          "qa/risks.md": "a19f3565c35106ac7d328146dcfe44ab9b49c91a05edb1e033331cede50c25e9",
+          "qa/session.md": "7855a6fe94686d11c6e6080c7c926d31d9347ac7fe05de738b7209877343fbc5",
+          "qa/source-reading.md": "a703a87fba993f4555c883f3a6b258c31e2f86eca15cfb1c7be07ae58a61f29a",
+          "qa/spec.md": "0e27dbd8fd16b7ba4442184545d1e4edb8e54b266866a975887cf477b0d989e3",
+          "qa/strategy.md": "d73db0ec97a009b56fd9db00464c9f9f013ced9b5911be411ce9ea501d038804",
+          "qa/test-cases.md": "363353ca2797d1aa82dffd1d0e9dfbc3c8d854bc5b304bc44dcb0e634a2f4972",
+          "qa/test-design.md": "c5c71de4a6780ba8fac0aa57404a4a9f52c77e6ea00b455da7b1d4fc7825c5b6",
+          "qa/tools/qa_project.py": "9c9ecdcd661ba08ae5b9bc6f1ed5b5e44279f01e80937ae5b6c39bdae4ad46fd",
+          "qa/traceability.md": "cc7739e8d7eca7c266420f21918f8b94cb1e8d27f255deb52a8a279fd206f73b"
+        }
+      }
+    },
+    {
+      "id": "case-12",
+      "skill": "review",
+      "inputs": {
+        "tasks/case-12/task.txt": "8faf34b8bb903d6e85d1fede0dfe42c1b716c689f6637eb2af5c758d092e2bbd",
+        "tasks/case-12/project.json": "7be8e296a7ad4476ae31821fc65b5d1fa8fb039def6c295c66acc43ad6d1a377"
+      },
+      "workspace": {
+        "path": "workspaces/case-12/project",
+        "before": {
+          ".gitignore": "435f2c07befca2e86a71a24f3ad7670deb592c14d7872061265ad781475d92e0",
+          ".qa-project.json": "54ecc1b088c099e82eace1d59dbf56c5ff5457430cf27d085523ed839b8c5bcc",
+          "inputs/addendum.md": "440bf8cad8af68909d13960c0ebdaa46e5613ab4107acb6bc9ce62f4c12d4987",
+          "inputs/harness.md": "6050ea2d883af7e763867cd2cc9320f8347986265482bc05f42bc28ee325c140",
+          "inputs/spec.md": "f574cfbae3eedc1dc70434c467a38a47a2b550511edfdef06c16521d9c0ba691",
+          "qa/approvals/APP-001.json": "05f136f4bbea823a87c517b091111415596dc18f8cd635937a2e2ab1f710a9df",
+          "qa/baselines/BL-001.json": "f52e782120c8191990b3382c2f60c9f9273abd94903cb805a3f02a4f7759bfba",
+          "qa/cases/TC-001.json": "552f2db382cbb63865c0f50e411001631017c19a72b4f4cf290dc4eabb26d9f4",
+          "qa/decisions/DEC-001.md": "e83e2466b7ecf10a485cf4c2cfe03bfd3142fc4dc9ee818d5de9924b8ebd9558",
+          "qa/id-glossary.md": "cbc0cecc4a2364c2f02ed06482c77069c123aefeafec8ddc4e6edc6944de9f7d",
+          "qa/interview.md": "9ed138dfe49eee54c7eea68ff54cb83c15a6a39361d163f5fe83ab35ce668298",
+          "qa/plan.md": "82de05f0b96ea35e33307058d136f8ec4a9477bfcb104cc60e3068983de569ba",
+          "qa/questions.md": "6ca531829eeec39fc69ba601c00a0a3977e01ec472cebdb2c207d596e73c0e3a",
+          "qa/registry.json": "62d9409a2ad58f9c043e87d1490c23cd9bb1a9b538a6cf1dd93136f0f2296477",
+          "qa/report.html": "ee16392d75c139e777447ce4475587ac72abe2deb6c432617bd82aa0aed4a7eb",
+          "qa/reviews/REV-001.json": "ddf0526be66bc398559a6df0a4ec9a2fd177473e6487f6c7e1e63411bf33d400",
+          "qa/risks.md": "a19f3565c35106ac7d328146dcfe44ab9b49c91a05edb1e033331cede50c25e9",
+          "qa/session.md": "7855a6fe94686d11c6e6080c7c926d31d9347ac7fe05de738b7209877343fbc5",
+          "qa/source-reading.md": "a703a87fba993f4555c883f3a6b258c31e2f86eca15cfb1c7be07ae58a61f29a",
+          "qa/spec.md": "0e27dbd8fd16b7ba4442184545d1e4edb8e54b266866a975887cf477b0d989e3",
+          "qa/strategy.md": "d73db0ec97a009b56fd9db00464c9f9f013ced9b5911be411ce9ea501d038804",
+          "qa/test-cases.md": "363353ca2797d1aa82dffd1d0e9dfbc3c8d854bc5b304bc44dcb0e634a2f4972",
+          "qa/test-design.md": "c5c71de4a6780ba8fac0aa57404a4a9f52c77e6ea00b455da7b1d4fc7825c5b6",
+          "qa/tools/qa_project.py": "9c9ecdcd661ba08ae5b9bc6f1ed5b5e44279f01e80937ae5b6c39bdae4ad46fd",
+          "qa/traceability.md": "cc7739e8d7eca7c266420f21918f8b94cb1e8d27f255deb52a8a279fd206f73b"
+        }
+      }
+    }
+  ]
+}

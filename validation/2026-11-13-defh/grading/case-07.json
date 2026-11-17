@@ -1,0 +1,27 @@
+{
+  "case_id": "case-07",
+  "grader": "Codex root（AI 評分，非人員核可）",
+  "model": "unknown：宿主未提供確切模型版本",
+  "settings": "fresh thread; fork_turns=none; no model override; other sampling settings unknown",
+  "contamination": false,
+  "checks": [
+    {
+      "id": "time",
+      "status": "pass",
+      "evidence": "不以登錄時間代填",
+      "reason": "保留 null，將原時間與登錄時間分開。"
+    },
+    {
+      "id": "contract",
+      "status": "pass",
+      "evidence": "\"status\": \"proposed\"",
+      "reason": "未建立不完整 DEC 或 confirmation，沒有用 unknown 字串假充時間。"
+    },
+    {
+      "id": "scope",
+      "status": "pass",
+      "evidence": "沿用 schema_version=1",
+      "reason": "保留 QA-012；其他編號用明示佔位，不假稱已入庫或基線通過。"
+    }
+  ]
+}

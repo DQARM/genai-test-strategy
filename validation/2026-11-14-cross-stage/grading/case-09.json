@@ -1,0 +1,57 @@
+{
+  "case_id": "case-09",
+  "grader": "root evaluator",
+  "model": "unknown",
+  "settings": "Fresh task agents; inherited host model and sampling not exposed; one trial per case. Root inspected outputs and captured files.",
+  "contamination": false,
+  "checks": [
+    {
+      "id": "change",
+      "status": "pass",
+      "evidence": "案例修訂 2 明確要求 reset 後、evaluate 前讀到 `output=OFF`",
+      "reason": "已讀實際 TC：revision 1→2、初態 verify 改為具體 OFF。由原 seed 比對，requirements/acceptance 完全未變。",
+      "artifact_refs": [
+        {
+          "path": "artifacts/case-09/capture.json",
+          "sha256": "68dc21e8dc94fd596ab51906510ea5e049d573a796d0a1254d0097212cef91e6"
+        }
+      ]
+    },
+    {
+      "id": "history",
+      "status": "pass",
+      "evidence": "舊核可與基線保留",
+      "reason": "核對 capture 的原／後雜湊及 REV JSON：APP/BL 原檔未變，REV-001 只更新 finding 處置，artifact_digest 保留；baseline gate 因缺新版四輪審查拒絕。",
+      "artifact_refs": [
+        {
+          "path": "artifacts/case-09/capture.json",
+          "sha256": "68dc21e8dc94fd596ab51906510ea5e049d573a796d0a1254d0097212cef91e6"
+        }
+      ]
+    },
+    {
+      "id": "stop",
+      "status": "pass",
+      "evidence": "F-002 的重啟行為保留為待辦",
+      "reason": "實讀 registry Q-001 與 session：累計 5、5/5、先產出不再問保留；無重啟 Expected。",
+      "artifact_refs": [
+        {
+          "path": "artifacts/case-09/capture.json",
+          "sha256": "68dc21e8dc94fd596ab51906510ea5e049d573a796d0a1254d0097212cef91e6"
+        }
+      ]
+    },
+    {
+      "id": "delivery",
+      "status": "pass",
+      "evidence": "已更新 [report.html]",
+      "reason": "capture 中 report.html 改動，REV-002 HANDOFF/PROMPT/packet/manifest 實存；固定工具 check 成功，新 digest 與歷史不同。無冒充完成重審。",
+      "artifact_refs": [
+        {
+          "path": "artifacts/case-09/capture.json",
+          "sha256": "68dc21e8dc94fd596ab51906510ea5e049d573a796d0a1254d0097212cef91e6"
+        }
+      ]
+    }
+  ]
+}

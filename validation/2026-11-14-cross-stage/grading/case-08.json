@@ -1,0 +1,37 @@
+{
+  "case_id": "case-08",
+  "grader": "root evaluator",
+  "model": "unknown",
+  "settings": "Fresh task agents; inherited host model and sampling not exposed; one trial per case. Root inspected outputs and captured files.",
+  "contamination": false,
+  "checks": [
+    {
+      "id": "witness",
+      "status": "pass",
+      "evidence": "將 ≤ 2.0 寫成 < 2.0",
+      "reason": "具體指出應用 2.0 才區分錯誤，1.9 測不出；找出已知等號缺口。",
+      "artifact_refs": []
+    },
+    {
+      "id": "assertion",
+      "status": "pass",
+      "evidence": "當次正確拒絕或錯誤允許都可能通過",
+      "reason": "指出 TC-02 讀舊 cycle 的 true，與本次 2.1 應 false 無關。",
+      "artifact_refs": []
+    },
+    {
+      "id": "control",
+      "status": "pass",
+      "evidence": "第三案在已檢範圍內未發現問題。",
+      "reason": "TC-03 有效正向對照保留；未引入持久化或物理解鎖要求。",
+      "artifact_refs": []
+    },
+    {
+      "id": "truth",
+      "status": "pass",
+      "evidence": "設計推演，並非實際產品測試",
+      "reason": "四輪審查如實記 fresh-session 與版本限制，沒有注入、實測、核可或基線。",
+      "artifact_refs": []
+    }
+  ]
+}

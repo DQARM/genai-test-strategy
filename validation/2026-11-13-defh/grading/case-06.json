@@ -1,0 +1,33 @@
+{
+  "case_id": "case-06",
+  "grader": "Codex root（AI 評分，非人員核可）",
+  "model": "unknown：宿主未提供確切模型版本",
+  "settings": "fresh thread; fork_turns=none; no model override; other sampling settings unknown",
+  "contamination": false,
+  "checks": [
+    {
+      "id": "answer",
+      "status": "pass",
+      "evidence": "「維持原設定，畫面顯示匯出失敗」",
+      "reason": "保留第五答原文並分別整理兩項需求；未知歷史時間不補造。"
+    },
+    {
+      "id": "stop",
+      "status": "pass",
+      "evidence": "累計已問 5 題，本批起算 0、已問 5 題；第五答已處理，未新增問題",
+      "reason": "沒有第六題或重問續問選擇，保留原計數。"
+    },
+    {
+      "id": "ids",
+      "status": "pass",
+      "evidence": "需求從 REQ-015、案例從 TC-009 起編",
+      "reason": "承接提供的歷史編號，沒有重置編號。"
+    },
+    {
+      "id": "output",
+      "status": "pass",
+      "evidence": "未建立或修改檔案，未產生交接包；未審查、未核可、未實測",
+      "reason": "交付三案且缺操作保持 blocked，保存與執行狀態清楚。"
+    }
+  ]
+}

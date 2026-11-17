@@ -1,0 +1,15 @@
+{
+  "id": "REV-001",
+  "artifact_digest": "7e2a1f2dbafed040787d4c50534cbe81fc13d9cbdc457d10cb36f9adf94d645a",
+  "reviewer": "synthetic-reviewer",
+  "session": "synthetic-session",
+  "at": "2026-11-09T00:01:00Z",
+  "independence": "human",
+  "rounds": [
+    "traceability",
+    "executable",
+    "coverage",
+    "consistency"
+  ],
+  "findings": []
+}

@@ -1,0 +1,18 @@
+{
+  "id": null,
+  "artifact_digest": "c7125643c1e9517cd7058a7e52de0712b137216425550a9c1bbda9ff1e0832fe",
+  "input_mode": "review-pack",
+  "review_pack_id": "REV-002",
+  "review_input_digest": "5548278304b4db58e6455dad83febda1119c0f25a0a147f531173b1d5e7efa9d",
+  "reviewer": null,
+  "session": null,
+  "model": "unknown",
+  "at": null,
+  "independence": null,
+  "checked_case_ids": [],
+  "read_sources": [],
+  "review_focus_checked": [],
+  "rounds": [],
+  "findings": [],
+  "limitations": []
+}

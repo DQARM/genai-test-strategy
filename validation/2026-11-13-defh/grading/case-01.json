@@ -1,0 +1,27 @@
+{
+  "case_id": "case-01",
+  "grader": "Codex root（AI 評分，非人員核可）",
+  "model": "unknown：宿主未提供確切模型版本",
+  "settings": "fresh thread; fork_turns=none; no model override; other sampling settings unknown",
+  "contamination": false,
+  "checks": [
+    {
+      "id": "boundary",
+      "status": "pass",
+      "evidence": "70.0°C | 尚未定義",
+      "reason": "指出等號缺口並以一題確認行為；未套用既有兩側規則。"
+    },
+    {
+      "id": "oracle",
+      "status": "pass",
+      "evidence": "也可以提供其他規則，或回答待確認。",
+      "reason": "選項保持待決，沒有加入正式 Expected。"
+    },
+    {
+      "id": "entry",
+      "status": "pass",
+      "evidence": "目前只在對話整理，未建立檔案",
+      "reason": "直接讀需求，沒有資料夾或版控前置問題。"
+    }
+  ]
+}

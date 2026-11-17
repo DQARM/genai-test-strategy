@@ -1,0 +1,384 @@
+{
+  "id": "BL-001",
+  "created_at": "2026-11-14T13:03:12+00:00",
+  "artifact_digest": "7e2a1f2dbafed040787d4c50534cbe81fc13d9cbdc457d10cb36f9adf94d645a",
+  "approval": {
+    "by": "synthetic-fixture-owner",
+    "at": "2026-11-09T00:00:00Z",
+    "evidence_ref": "qa/decisions/DEC-001.md",
+    "artifact_digest": "7e2a1f2dbafed040787d4c50534cbe81fc13d9cbdc457d10cb36f9adf94d645a",
+    "case_ids": [
+      "TC-001"
+    ]
+  },
+  "snapshot": {
+    "registry": {
+      "schema_version": 1,
+      "project": {
+        "name": "Synthetic fixture",
+        "owner": "unassigned",
+        "design_policy": "coverage-items-v1",
+        "risk_policy": "requirement-risk-v1",
+        "source_reading_policy": "source-reading-v1",
+        "risk_criteria": {
+          "status": "confirmed",
+          "decision_refs": [
+            "DEC-001"
+          ],
+          "severity": {
+            "high": "Synthetic main function lost",
+            "low": "Synthetic cosmetic effect"
+          },
+          "likelihood": {
+            "high": "Observed often in synthetic fixture",
+            "low": "Rare in synthetic fixture"
+          },
+          "priority": {
+            "P1": "Selected synthetic scope",
+            "P2": "Later synthetic scope"
+          }
+        }
+      },
+      "scope": {
+        "objective": "Check synthetic output",
+        "in": [
+          "module"
+        ],
+        "out": [
+          "physical device"
+        ],
+        "selected_ac_ids": [
+          "AC-001"
+        ],
+        "selected_risk_ids": [
+          "RISK-001"
+        ],
+        "selected_scenario_ids": [
+          "SC-001"
+        ],
+        "selected_case_ids": [
+          "TC-001"
+        ],
+        "decision_ref": "DEC-001"
+      },
+      "sources": [
+        {
+          "id": "SRC-SPEC",
+          "path": "inputs/spec.md",
+          "sha256": "f574cfbae3eedc1dc70434c467a38a47a2b550511edfdef06c16521d9c0ba691",
+          "locator": "whole file",
+          "kind": "normative",
+          "status": "confirmed",
+          "readings": [
+            {
+              "seq": 1,
+              "source_sha256": "f574cfbae3eedc1dc70434c467a38a47a2b550511edfdef06c16521d9c0ba691",
+              "status": "scoped",
+              "depth": "content",
+              "purpose": "Synthetic tool regression",
+              "method": "Read synthetic UTF-8 fixture",
+              "read_scope": [
+                "whole synthetic file"
+              ],
+              "unread_scope": [],
+              "limitations": [],
+              "findings": [
+                {
+                  "locator": "whole file",
+                  "type": "quote",
+                  "text": "Synthetic test rule: after evaluate, output ON.\n"
+                }
+              ],
+              "evidence_refs": [],
+              "read_at": null,
+              "recorded_at": "2026-11-13T00:00:00Z"
+            }
+          ]
+        },
+        {
+          "id": "SRC-HARNESS",
+          "path": "inputs/harness.md",
+          "sha256": "6050ea2d883af7e763867cd2cc9320f8347986265482bc05f42bc28ee325c140",
+          "locator": "whole file",
+          "kind": "harness",
+          "status": "confirmed",
+          "readings": [
+            {
+              "seq": 1,
+              "source_sha256": "6050ea2d883af7e763867cd2cc9320f8347986265482bc05f42bc28ee325c140",
+              "status": "scoped",
+              "depth": "content",
+              "purpose": "Synthetic tool regression",
+              "method": "Read synthetic UTF-8 fixture",
+              "read_scope": [
+                "whole synthetic file"
+              ],
+              "unread_scope": [],
+              "limitations": [],
+              "findings": [
+                {
+                  "locator": "whole file",
+                  "type": "quote",
+                  "text": "Synthetic harness: reset, evaluate, inspect output; isolated state.\n"
+                }
+              ],
+              "evidence_refs": [],
+              "read_at": null,
+              "recorded_at": "2026-11-13T00:00:00Z"
+            }
+          ]
+        }
+      ],
+      "decisions": [
+        {
+          "id": "DEC-001",
+          "statement": "Synthetic adoption",
+          "by": "synthetic-fixture-owner",
+          "at": "2026-11-09T00:00:00Z",
+          "evidence_ref": "qa/decisions/DEC-001.md"
+        }
+      ],
+      "questions": [],
+      "requirements": [
+        {
+          "id": "REQ-001",
+          "text": "Output must be ON after evaluate",
+          "revision": 1,
+          "status": "confirmed",
+          "source_refs": [
+            "SRC-SPEC"
+          ],
+          "source_citations": [
+            {
+              "source_id": "SRC-SPEC",
+              "reading_seq": 1,
+              "finding_index": 1
+            }
+          ],
+          "decision_refs": [
+            "DEC-001"
+          ],
+          "confirmation": {
+            "by": "synthetic-fixture-owner",
+            "at": "2026-11-09T00:00:00Z",
+            "evidence_ref": "qa/decisions/DEC-001.md"
+          },
+          "risk_assessment": {
+            "status": "confirmed",
+            "requirement_revision": 1,
+            "rationale": "Synthetic assessment of missing control",
+            "decision_refs": [
+              "DEC-001"
+            ]
+          }
+        }
+      ],
+      "acceptance": [
+        {
+          "id": "AC-001",
+          "text": "Output must be ON after evaluate",
+          "revision": 1,
+          "status": "confirmed",
+          "source_refs": [
+            "SRC-SPEC"
+          ],
+          "source_citations": [
+            {
+              "source_id": "SRC-SPEC",
+              "reading_seq": 1,
+              "finding_index": 1
+            }
+          ],
+          "decision_refs": [
+            "DEC-001"
+          ],
+          "confirmation": {
+            "by": "synthetic-fixture-owner",
+            "at": "2026-11-09T00:00:00Z",
+            "evidence_ref": "qa/decisions/DEC-001.md"
+          },
+          "requirement_ids": [
+            "REQ-001"
+          ],
+          "oracle": {
+            "observe": "output",
+            "when": "after evaluate",
+            "tolerance": "exact"
+          }
+        }
+      ],
+      "risks": [
+        {
+          "id": "RISK-001",
+          "failure": "OFF after evaluate",
+          "impact": "control lost",
+          "requirement_ids": [
+            "REQ-001"
+          ],
+          "severity": "high",
+          "severity_rationale": "Main output unavailable",
+          "likelihood": "unknown",
+          "likelihood_rationale": "No field data",
+          "uncertainty": "high",
+          "priority": "P1",
+          "rationale": "selected promise",
+          "source_refs": [
+            "SRC-SPEC"
+          ],
+          "source_citations": [
+            {
+              "source_id": "SRC-SPEC",
+              "reading_seq": 1,
+              "finding_index": 1
+            }
+          ]
+        }
+      ],
+      "scenarios": [
+        {
+          "id": "SC-001",
+          "description": "Evaluate from OFF",
+          "category": "state",
+          "ac_ids": [
+            "AC-001"
+          ],
+          "risk_ids": [
+            "RISK-001"
+          ],
+          "selection": "keep",
+          "reason": "risk selected"
+        }
+      ],
+      "coverage_items": [
+        {
+          "id": "COV-001",
+          "ac_ids": [
+            "AC-001"
+          ],
+          "technique": "state-transition",
+          "description": "OFF -> evaluate -> ON",
+          "selection": "keep",
+          "reason": "selected transition"
+        }
+      ],
+      "charters": [],
+      "interactions": []
+    },
+    "cases": {
+      "TC-001": {
+        "id": "TC-001",
+        "title": "Evaluate changes OFF to ON",
+        "revision": 1,
+        "status": "ready",
+        "purpose": "Detect missing output",
+        "level": "unit",
+        "type": "manual",
+        "ac_ids": [
+          "AC-001"
+        ],
+        "risk_ids": [
+          "RISK-001"
+        ],
+        "scenario_ids": [
+          "SC-001"
+        ],
+        "coverage_ids": [
+          "COV-001"
+        ],
+        "environment": {
+          "target": "isolated fixture",
+          "build_binding": "record fixture version at run",
+          "tools": "fixture v1",
+          "binding_refs": [
+            "SRC-HARNESS"
+          ],
+          "source_citations": [
+            {
+              "source_id": "SRC-HARNESS",
+              "reading_seq": 1,
+              "finding_index": 1
+            }
+          ]
+        },
+        "preconditions": [
+          {
+            "action": "reset fixture to OFF",
+            "verify": "read output OFF"
+          }
+        ],
+        "data": [
+          {
+            "name": "initial",
+            "value": "OFF",
+            "unit": "discrete",
+            "basis": "SRC-HARNESS",
+            "source_citations": [
+              {
+                "source_id": "SRC-HARNESS",
+                "reading_seq": 1,
+                "finding_index": 1
+              }
+            ]
+          }
+        ],
+        "steps": [
+          {
+            "n": 1,
+            "action": "evaluate once",
+            "input": "OFF",
+            "observe": "output",
+            "when": "on return",
+            "evidence": "capture fixture JSON",
+            "checks": [
+              {
+                "expected": "output ON",
+                "rule_refs": [
+                  "AC-001"
+                ],
+                "coverage_ids": [
+                  "COV-001"
+                ]
+              }
+            ]
+          }
+        ],
+        "cleanup": [
+          {
+            "action": "close fixture",
+            "verify": "process terminated"
+          }
+        ],
+        "independence": "fresh process each case",
+        "verdict_rules": {
+          "pass": "ON",
+          "fail": "not ON with valid input",
+          "inconclusive": "no output"
+        },
+        "blockers": []
+      }
+    },
+    "decision_evidence_hashes": {
+      "qa/decisions/DEC-001.md": "e83e2466b7ecf10a485cf4c2cfe03bfd3142fc4dc9ee818d5de9924b8ebd9558"
+    },
+    "strategy": "# 測試策略（草稿）\n\n## 品質目標與風險優先序\n待釐清。\n\n## 範圍與不測範圍\n待選定。\n\n## 層級、類型、方法與自動化\n待規劃。\n\n## 資料、環境與觀測能力\n待確認。\n\n## 進入、退出、缺陷處理與放行證據\n待確認；測試案例核可不代表產品放行。\n\n## 剩餘風險與責任人\n待辨識。\n",
+    "plan": "# 本輪測試計畫（草稿）\n\n記錄本輪目標、已選 AC（Acceptance Criterion，驗收條件）／風險／情境／TC（Test Case，測試案例）、人力、時程、環境、受測系統版本、工具版本、資料、限制與執行授權。\n\n尚未執行測試。\n"
+  },
+  "reviews": [
+    {
+      "id": "REV-001",
+      "artifact_digest": "7e2a1f2dbafed040787d4c50534cbe81fc13d9cbdc457d10cb36f9adf94d645a",
+      "reviewer": "synthetic-reviewer",
+      "session": "synthetic-session",
+      "at": "2026-11-09T00:01:00Z",
+      "independence": "human",
+      "rounds": [
+        "traceability",
+        "executable",
+        "coverage",
+        "consistency"
+      ],
+      "findings": []
+    }
+  ],
+  "meaning": "Human-approved case baseline; not product release approval or execution evidence."
+}

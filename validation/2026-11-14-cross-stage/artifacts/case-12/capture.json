@@ -1,0 +1,88 @@
+{
+  "case_id": "case-12",
+  "captured_at": "2026-11-14T13:12:22.549835+00:00",
+  "before": {
+    ".gitignore": "435f2c07befca2e86a71a24f3ad7670deb592c14d7872061265ad781475d92e0",
+    ".qa-project.json": "54ecc1b088c099e82eace1d59dbf56c5ff5457430cf27d085523ed839b8c5bcc",
+    "inputs/addendum.md": "440bf8cad8af68909d13960c0ebdaa46e5613ab4107acb6bc9ce62f4c12d4987",
+    "inputs/harness.md": "6050ea2d883af7e763867cd2cc9320f8347986265482bc05f42bc28ee325c140",
+    "inputs/spec.md": "f574cfbae3eedc1dc70434c467a38a47a2b550511edfdef06c16521d9c0ba691",
+    "qa/approvals/APP-001.json": "05f136f4bbea823a87c517b091111415596dc18f8cd635937a2e2ab1f710a9df",
+    "qa/baselines/BL-001.json": "f52e782120c8191990b3382c2f60c9f9273abd94903cb805a3f02a4f7759bfba",
+    "qa/cases/TC-001.json": "552f2db382cbb63865c0f50e411001631017c19a72b4f4cf290dc4eabb26d9f4",
+    "qa/decisions/DEC-001.md": "e83e2466b7ecf10a485cf4c2cfe03bfd3142fc4dc9ee818d5de9924b8ebd9558",
+    "qa/id-glossary.md": "cbc0cecc4a2364c2f02ed06482c77069c123aefeafec8ddc4e6edc6944de9f7d",
+    "qa/interview.md": "9ed138dfe49eee54c7eea68ff54cb83c15a6a39361d163f5fe83ab35ce668298",
+    "qa/plan.md": "82de05f0b96ea35e33307058d136f8ec4a9477bfcb104cc60e3068983de569ba",
+    "qa/questions.md": "6ca531829eeec39fc69ba601c00a0a3977e01ec472cebdb2c207d596e73c0e3a",
+    "qa/registry.json": "62d9409a2ad58f9c043e87d1490c23cd9bb1a9b538a6cf1dd93136f0f2296477",
+    "qa/report.html": "ee16392d75c139e777447ce4475587ac72abe2deb6c432617bd82aa0aed4a7eb",
+    "qa/reviews/REV-001.json": "ddf0526be66bc398559a6df0a4ec9a2fd177473e6487f6c7e1e63411bf33d400",
+    "qa/risks.md": "a19f3565c35106ac7d328146dcfe44ab9b49c91a05edb1e033331cede50c25e9",
+    "qa/session.md": "7855a6fe94686d11c6e6080c7c926d31d9347ac7fe05de738b7209877343fbc5",
+    "qa/source-reading.md": "a703a87fba993f4555c883f3a6b258c31e2f86eca15cfb1c7be07ae58a61f29a",
+    "qa/spec.md": "0e27dbd8fd16b7ba4442184545d1e4edb8e54b266866a975887cf477b0d989e3",
+    "qa/strategy.md": "d73db0ec97a009b56fd9db00464c9f9f013ced9b5911be411ce9ea501d038804",
+    "qa/test-cases.md": "363353ca2797d1aa82dffd1d0e9dfbc3c8d854bc5b304bc44dcb0e634a2f4972",
+    "qa/test-design.md": "c5c71de4a6780ba8fac0aa57404a4a9f52c77e6ea00b455da7b1d4fc7825c5b6",
+    "qa/tools/qa_project.py": "9c9ecdcd661ba08ae5b9bc6f1ed5b5e44279f01e80937ae5b6c39bdae4ad46fd",
+    "qa/traceability.md": "cc7739e8d7eca7c266420f21918f8b94cb1e8d27f255deb52a8a279fd206f73b"
+  },
+  "after": {
+    ".gitignore": "435f2c07befca2e86a71a24f3ad7670deb592c14d7872061265ad781475d92e0",
+    ".qa-project.json": "54ecc1b088c099e82eace1d59dbf56c5ff5457430cf27d085523ed839b8c5bcc",
+    "inputs/addendum.md": "440bf8cad8af68909d13960c0ebdaa46e5613ab4107acb6bc9ce62f4c12d4987",
+    "inputs/harness.md": "6050ea2d883af7e763867cd2cc9320f8347986265482bc05f42bc28ee325c140",
+    "inputs/spec.md": "f574cfbae3eedc1dc70434c467a38a47a2b550511edfdef06c16521d9c0ba691",
+    "qa/approvals/APP-001.json": "05f136f4bbea823a87c517b091111415596dc18f8cd635937a2e2ab1f710a9df",
+    "qa/baselines/BL-001.json": "f52e782120c8191990b3382c2f60c9f9273abd94903cb805a3f02a4f7759bfba",
+    "qa/cases/TC-001.json": "552f2db382cbb63865c0f50e411001631017c19a72b4f4cf290dc4eabb26d9f4",
+    "qa/decisions/DEC-001.md": "e83e2466b7ecf10a485cf4c2cfe03bfd3142fc4dc9ee818d5de9924b8ebd9558",
+    "qa/id-glossary.md": "cbc0cecc4a2364c2f02ed06482c77069c123aefeafec8ddc4e6edc6944de9f7d",
+    "qa/interview.md": "9ed138dfe49eee54c7eea68ff54cb83c15a6a39361d163f5fe83ab35ce668298",
+    "qa/plan.md": "82de05f0b96ea35e33307058d136f8ec4a9477bfcb104cc60e3068983de569ba",
+    "qa/questions.md": "6ca531829eeec39fc69ba601c00a0a3977e01ec472cebdb2c207d596e73c0e3a",
+    "qa/registry.json": "62d9409a2ad58f9c043e87d1490c23cd9bb1a9b538a6cf1dd93136f0f2296477",
+    "qa/report.html": "ee16392d75c139e777447ce4475587ac72abe2deb6c432617bd82aa0aed4a7eb",
+    "qa/reviews/REV-001.json": "ddf0526be66bc398559a6df0a4ec9a2fd177473e6487f6c7e1e63411bf33d400",
+    "qa/reviews/REV-002.json": "187faef718c3fcfeacd1dde9dda241be23cf7a717222390c63f127b74ee719ad",
+    "qa/reviews/REV-002.md": "451c54998127481fffb5e4e2111565b9de40ef73fc9903276af3408d32689a2d",
+    "qa/risks.md": "a19f3565c35106ac7d328146dcfe44ab9b49c91a05edb1e033331cede50c25e9",
+    "qa/session.md": "7855a6fe94686d11c6e6080c7c926d31d9347ac7fe05de738b7209877343fbc5",
+    "qa/source-reading.md": "a703a87fba993f4555c883f3a6b258c31e2f86eca15cfb1c7be07ae58a61f29a",
+    "qa/spec.md": "0e27dbd8fd16b7ba4442184545d1e4edb8e54b266866a975887cf477b0d989e3",
+    "qa/strategy.md": "d73db0ec97a009b56fd9db00464c9f9f013ced9b5911be411ce9ea501d038804",
+    "qa/test-cases.md": "363353ca2797d1aa82dffd1d0e9dfbc3c8d854bc5b304bc44dcb0e634a2f4972",
+    "qa/test-design.md": "c5c71de4a6780ba8fac0aa57404a4a9f52c77e6ea00b455da7b1d4fc7825c5b6",
+    "qa/tools/qa_project.py": "9c9ecdcd661ba08ae5b9bc6f1ed5b5e44279f01e80937ae5b6c39bdae4ad46fd",
+    "qa/traceability.md": "cc7739e8d7eca7c266420f21918f8b94cb1e8d27f255deb52a8a279fd206f73b"
+  },
+  "changed": {
+    "qa/reviews/REV-002.json": {
+      "before": null,
+      "after": "187faef718c3fcfeacd1dde9dda241be23cf7a717222390c63f127b74ee719ad"
+    },
+    "qa/reviews/REV-002.md": {
+      "before": null,
+      "after": "451c54998127481fffb5e4e2111565b9de40ef73fc9903276af3408d32689a2d"
+    }
+  },
+  "checks": {
+    "check": {
+      "returncode": 0,
+      "stdout": "{\n  \"gate\": \"draft\",\n  \"artifact_digest\": \"1bcbee27c6b647e9a9f432042837596cfd44e22fcdae2d5f3ee82548c6ea4706\",\n  \"errors\": [],\n  \"warnings\": [\n    \"SRC-NEW: no source reading record\",\n    \"REQ-002: SRC-NEW needs current source_citations to located reading findings\",\n    \"REQ-002: risk assessment unassessed; not evidence of no risk\"\n  ],\n  \"note\": \"Structural checks only; not human approval or product test results.\"\n}\n",
+      "stderr": ""
+    },
+    "baseline-gate": {
+      "returncode": 1,
+      "stdout": "{\n  \"gate\": \"baseline\",\n  \"artifact_digest\": \"1bcbee27c6b647e9a9f432042837596cfd44e22fcdae2d5f3ee82548c6ea4706\",\n  \"errors\": [\n    \"F-001: unresolved finding\",\n    \"F-001: needs human disposition evidence\",\n    \"F-002: unresolved finding\",\n    \"F-002: needs human disposition evidence\",\n    \"F-003: unresolved finding\",\n    \"F-003: needs human disposition evidence\",\n    \"F-004: unresolved finding\",\n    \"F-004: needs human disposition evidence\",\n    \"F-005: unresolved finding\",\n    \"F-005: needs human disposition evidence\"\n  ],\n  \"warnings\": [\n    \"SRC-NEW: no source reading record\",\n    \"REQ-002: SRC-NEW needs current source_citations to located reading findings\",\n    \"REQ-002: risk assessment unassessed; not evidence of no risk\"\n  ],\n  \"note\": \"Structural checks only; not human approval or product test results.\"\n}\n",
+      "stderr": ""
+    },
+    "digest": {
+      "returncode": 0,
+      "stdout": "1bcbee27c6b647e9a9f432042837596cfd44e22fcdae2d5f3ee82548c6ea4706\n",
+      "stderr": ""
+    }
+  },
+  "note": "File evidence from a synthetic workspace; semantic grading and authorization checks are separate."
+}

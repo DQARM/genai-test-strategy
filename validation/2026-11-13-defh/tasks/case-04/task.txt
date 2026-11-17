@@ -1,0 +1,1 @@
+請使用 /home/agent/.codex/skills/remote-skills/skill-6af1747b432881919448466eb247e9c9/SKILL.md。目前只有口頭規則：我要做會議室預約，同一間會議室不能有重疊時段；其餘還沒決定。先在對話幫我釐清下一個最重要的問題，不建檔。

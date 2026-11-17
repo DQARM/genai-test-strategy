@@ -1,0 +1,18 @@
+{
+  "status": "verified-with-gaps",
+  "errors": [],
+  "limitations": [
+    "QA-006: incomplete original Q&A (partial); do not treat a summary as a transcript",
+    "REQ-001: risk assessment proposed; not evidence of no risk"
+  ],
+  "pack_id": "REV-002",
+  "artifact_digest": "c7125643c1e9517cd7058a7e52de0712b137216425550a9c1bbda9ff1e0832fe",
+  "portable": false,
+  "version_check": "current-project",
+  "pack_path": "qa/review-packs/REV-002",
+  "pack_absolute_path": "/workspace/scratch/258261bef5fc/phase-update/run-01/workspaces/case-10/project/qa/review-packs/REV-002",
+  "handoff_path": "/workspace/scratch/258261bef5fc/phase-update/run-01/workspaces/case-10/project/qa/review-packs/REV-002/HANDOFF.md",
+  "manifest_sha256": "2089e963d61716397fb518706a7e5e9ec6b9247419be4f4f0d1c066b41543421",
+  "archive_path": null,
+  "reused": false
+}

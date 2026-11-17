@@ -1,0 +1,57 @@
+{
+  "case_id": "case-10",
+  "grader": "root evaluator",
+  "model": "unknown",
+  "settings": "Fresh task agents; inherited host model and sampling not exposed; one trial per case. Root inspected outputs and captured files.",
+  "contamination": false,
+  "checks": [
+    {
+      "id": "feedback",
+      "status": "pass",
+      "evidence": "一份有日誌支持的輸出失效",
+      "reason": "檔案核對 SRC-001/002/003 為 experience 且有實讀摘錄；AC 完全未變、需求文字與 revision 未變，僅需求 risk_assessment 更新。TC 原檔未變。",
+      "artifact_refs": [
+        {
+          "path": "artifacts/case-10/capture.json",
+          "sha256": "abc74de2ade55d017b6b24dfbf3a2ca84084c62365dc51b58f1fdbed6a0478a7"
+        }
+      ]
+    },
+    {
+      "id": "risk",
+      "status": "pass",
+      "evidence": "發生可能性維持未知，不估失敗率。",
+      "reason": "實讀 RISK-001：likelihood unknown，理由列有效失敗與未知分母，severity high 保留且說明後果未改；新評估 proposed。",
+      "artifact_refs": [
+        {
+          "path": "artifacts/case-10/capture.json",
+          "sha256": "abc74de2ade55d017b6b24dfbf3a2ca84084c62365dc51b58f1fdbed6a0478a7"
+        }
+      ]
+    },
+    {
+      "id": "separation",
+      "status": "pass",
+      "evidence": "另一份是未執行 evaluate 的供電阻塞",
+      "reason": "風險及閱讀紀錄明列 RUN-002 不算產品失敗，未將兩份回報當成功率分母。",
+      "artifact_refs": [
+        {
+          "path": "artifacts/case-10/capture.json",
+          "sha256": "abc74de2ade55d017b6b24dfbf3a2ca84084c62365dc51b58f1fdbed6a0478a7"
+        }
+      ]
+    },
+    {
+      "id": "history",
+      "status": "pass",
+      "evidence": "原始回報、證據與舊基線均保留。",
+      "reason": "capture before/after 比對原 RUN-001/002、failure.log、BL-001、APP、REV 完全未變；registry/plan/report 實際變動，無新增執行。",
+      "artifact_refs": [
+        {
+          "path": "artifacts/case-10/capture.json",
+          "sha256": "abc74de2ade55d017b6b24dfbf3a2ca84084c62365dc51b58f1fdbed6a0478a7"
+        }
+      ]
+    }
+  ]
+}

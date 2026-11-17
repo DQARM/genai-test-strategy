@@ -1,0 +1,114 @@
+{
+  "id": "TC-001",
+  "title": "Evaluate changes OFF to ON",
+  "revision": 2,
+  "status": "blocked",
+  "purpose": "依既有判準檢查 evaluate 後輸出 ON；保留原 OFF → evaluate → ON 設計目標，初態與操作缺口補齊前不可執行。",
+  "level": "unit",
+  "type": "manual",
+  "ac_ids": [
+    "AC-001"
+  ],
+  "risk_ids": [
+    "RISK-001"
+  ],
+  "scenario_ids": [
+    "SC-001"
+  ],
+  "coverage_ids": [
+    "COV-001"
+  ],
+  "environment": {
+    "target": "Synthetic fixture 的隔離狀態；實際可用環境待補",
+    "build_binding": "待 Q-003 提供版本辨識方式；執行前須記錄實際受測版本，不把專案 Git 版本當產品版本。",
+    "tools": "待 Q-003 提供可用工具與版本；現有文件未提供 fixture v1 的依據。",
+    "binding_refs": [
+      "SRC-HARNESS"
+    ],
+    "source_citations": [
+      {
+        "source_id": "SRC-HARNESS",
+        "reading_seq": 2,
+        "finding_index": 1
+      }
+    ]
+  },
+  "preconditions": [
+    {
+      "action": "依待補操作指南建立本案專用隔離狀態，記錄環境、工具及受測版本；無指南時停止。",
+      "verify": "指南需說明如何確認隔離及必要殘留狀態已清除；目前未具備，不可假定已完成。"
+    },
+    {
+      "action": "建立原選定情境所需的輸出 OFF；reset 是否能達成與實際操作由 Q-003 補足。",
+      "verify": "以已確認的 inspect output 介面讀回 OFF 並保存證據；無法建立或讀回則停止，不進行 evaluate。"
+    }
+  ],
+  "data": [
+    {
+      "name": "initial output",
+      "value": "OFF（既有選定情境的設計目標，尚未證實可由 reset 建立）",
+      "unit": "discrete",
+      "basis": "SRC-HARNESS",
+      "source_citations": [
+        {
+          "source_id": "SRC-HARNESS",
+          "reading_seq": 2,
+          "finding_index": 1
+        }
+      ],
+      "source_refs": [
+        "SRC-HARNESS"
+      ],
+      "limitations": "此來源僅支持 reset／讀取概念；OFF 來自既有 SC-001／COV-001 設計目標，不表示來源保證 reset 後為 OFF，能力待 Q-003。"
+    }
+  ],
+  "steps": [
+    {
+      "n": 1,
+      "action": "在本案已獨立建立並確認 OFF 的狀態上，透過待補指南的真實介面執行 evaluate 一次；缺操作指南則停止。",
+      "input": "無已知外加參數；OFF 為初態而非已確認的 API 參數。",
+      "observe": "該隔離實例的 output；讀取方式與輸出格式待 Q-003 補足。",
+      "when": "evaluate 之後；完成事件及對應觀測方式待 Q-003，不能先假設函式返回即完成。",
+      "evidence": "未來保存初態、evaluate 呼叫／完成與輸出觀測的可對應記錄；格式待指南確認，目前沒有實測證據。",
+      "checks": [
+        {
+          "expected": "output ON（離散值須一致；僅適用 evaluate 之後，不外推為重新啟動後的值）",
+          "rule_refs": [
+            "AC-001"
+          ],
+          "coverage_ids": [
+            "COV-001"
+          ]
+        }
+      ]
+    }
+  ],
+  "cleanup": [
+    {
+      "action": "依待補的清理／重置指南釋放本案隔離狀態及操作資源。",
+      "verify": "指南須說明可供下一次獨立重跑的確認方法；現有文件未支持 close fixture 或程序終止方式。"
+    }
+  ],
+  "independence": "每次由本案自行建立、確認與清理隔離初態，不依賴其他案例結果；隔離概念有來源，具體重置及清理待 Q-003。",
+  "verdict_rules": {
+    "pass": "僅在 Q-003 關閉、案例已完成對應審查／核可且實際執行後，初態及完成事件有效、輸出確為 ON 且證據齊全，才可由執行人判定；本次無結果。",
+    "fail": "在有效初態、操作完成與可用觀測的前提下，輸出不是 ON 且有對應證據。",
+    "inconclusive": "缺完成時機、無輸出或證據不足時無法判定；無法建立初態或操作則登錄 BLOCKED，不判 PASS。"
+  },
+  "blockers": [
+    "Q-003"
+  ],
+  "change_reason": "實讀操作來源後發現原案例的初態、版本、完成事件、證據格式與清理細節無來源支持，改為受阻草稿；產品判準及已選範圍未變。",
+  "provenance": {
+    "author": "assistant",
+    "model": "unknown",
+    "context_refs": [
+      "inputs/spec.md:1",
+      "inputs/harness.md:1",
+      "qa/session.md",
+      "Q-003"
+    ],
+    "created_at": null,
+    "revised_at": "2026-11-14T13:10:11+00:00"
+  }
+}

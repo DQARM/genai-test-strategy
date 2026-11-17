@@ -1,0 +1,17 @@
+[
+  {
+    "path": "artifacts/case-10/files/qa/review-packs/REV-002/verify_pack.py",
+    "sha256": "9c9ecdcd661ba08ae5b9bc6f1ed5b5e44279f01e80937ae5b6c39bdae4ad46fd",
+    "reason": "Repeated tool copy; canonical scripts/qa_project.py is fingerprinted in run.json."
+  },
+  {
+    "path": "artifacts/case-09/files/qa/review-packs/REV-002/verify_pack.py",
+    "sha256": "9c9ecdcd661ba08ae5b9bc6f1ed5b5e44279f01e80937ae5b6c39bdae4ad46fd",
+    "reason": "Repeated tool copy; canonical scripts/qa_project.py is fingerprinted in run.json."
+  },
+  {
+    "path": "artifacts/case-11/files/qa/review-packs/REV-002/verify_pack.py",
+    "sha256": "9c9ecdcd661ba08ae5b9bc6f1ed5b5e44279f01e80937ae5b6c39bdae4ad46fd",
+    "reason": "Repeated tool copy; canonical scripts/qa_project.py is fingerprinted in run.json."
+  }
+]

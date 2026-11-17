@@ -1,0 +1,1 @@
+請使用 /home/agent/.codex/skills/remote-skills/skill-6af1747b432881919448466eb247e9c9/SKILL.md，閱讀 /workspace/scratch/258261bef5fc/phase-update/run-01/tasks/case-01/draft.md，協助我釐清需求。先在對話處理，不建立檔案；接著問我最影響案例判準的一題。

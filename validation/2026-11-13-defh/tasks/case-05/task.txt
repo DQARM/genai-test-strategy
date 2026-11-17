@@ -1,0 +1,1 @@
+請使用 /home/agent/.codex/skills/remote-skills/skill-6af1747b432881919448466eb247e9c9/SKILL.md，讀 /workspace/scratch/258261bef5fc/defh-run-01/tasks/case-05/draft.md。請依現有資料提出手動測試策略與優先風險，先在對話產出；這次不再訪談，也不要建立檔案。

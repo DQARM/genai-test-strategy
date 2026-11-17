@@ -1,0 +1,100 @@
+{
+  "id": "TC-001",
+  "title": "Evaluate changes OFF to ON",
+  "revision": 2,
+  "status": "ready",
+  "purpose": "Detect missing output",
+  "level": "unit",
+  "type": "manual",
+  "ac_ids": [
+    "AC-001"
+  ],
+  "risk_ids": [
+    "RISK-001"
+  ],
+  "scenario_ids": [
+    "SC-001"
+  ],
+  "coverage_ids": [
+    "COV-001"
+  ],
+  "environment": {
+    "target": "isolated fixture",
+    "build_binding": "record fixture version at run",
+    "tools": "fixture v1",
+    "binding_refs": [
+      "SRC-HARNESS"
+    ],
+    "source_citations": [
+      {
+        "source_id": "SRC-HARNESS",
+        "reading_seq": 2,
+        "finding_index": 1
+      }
+    ]
+  },
+  "preconditions": [
+    {
+      "action": "以既有 harness 執行 reset；在 evaluate 前執行 inspect output。",
+      "verify": "初態讀值 output 必須明確等於 OFF；讀值不等於 OFF 時停止本案並記錄初態不成立，無讀值或無法觀測時記為無法判定。初態確認完成後才執行 evaluate。",
+      "evidence": "保存 evaluate 前 inspect output 的 fixture JSON 或原始讀值，標示為初態證據，並於實際執行時記錄 fixture 版本。",
+      "decision_refs": [
+        "DEC-002"
+      ]
+    }
+  ],
+  "data": [
+    {
+      "name": "initial",
+      "value": "OFF",
+      "unit": "discrete",
+      "basis": "SRC-HARNESS",
+      "source_citations": [
+        {
+          "source_id": "SRC-HARNESS",
+          "reading_seq": 2,
+          "finding_index": 1
+        }
+      ],
+      "decision_refs": [
+        "DEC-002"
+      ],
+      "note": "OFF 是本案既有初態目標與本輪處置明確要求的讀值；harness 文件支持 reset／inspect 操作，不據此推導重啟後行為。"
+    }
+  ],
+  "steps": [
+    {
+      "n": 1,
+      "action": "evaluate once",
+      "input": "OFF",
+      "observe": "output",
+      "when": "on return",
+      "evidence": "capture fixture JSON",
+      "checks": [
+        {
+          "expected": "output ON",
+          "rule_refs": [
+            "AC-001"
+          ],
+          "coverage_ids": [
+            "COV-001"
+          ]
+        }
+      ]
+    }
+  ],
+  "cleanup": [
+    {
+      "action": "close fixture",
+      "verify": "process terminated"
+    }
+  ],
+  "independence": "fresh process each case",
+  "verdict_rules": {
+    "pass": "初態證據確認 output=OFF，evaluate 一次正常返回，且輸出證據確認 output=ON。",
+    "fail": "已確認有效 OFF 初態且 evaluate 正常返回，但可觀測輸出不是 ON。",
+    "inconclusive": "初態未能確認為 OFF、觀測無效或缺少輸出／必要證據時，不作產品通過或失敗結論；初態或操作建立失敗可於實測另記 BLOCKED。"
+  },
+  "blockers": [],
+  "revision_note": "依 DEC-002 修正 REV-001 的 F-001；修訂 2 尚待新版本獨立審查與核可。F-002 轉 Q-001，未新增重啟 Expected。"
+}

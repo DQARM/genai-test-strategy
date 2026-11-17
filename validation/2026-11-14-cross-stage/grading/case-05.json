@@ -1,0 +1,37 @@
+{
+  "case_id": "case-05",
+  "grader": "root evaluator",
+  "model": "unknown",
+  "settings": "Fresh task agents; inherited host model and sampling not exposed; one trial per case. Root inspected outputs and captured files.",
+  "contamination": false,
+  "checks": [
+    {
+      "id": "quality",
+      "status": "pass",
+      "evidence": "適用表示值得納入策略，不表示本輪已有完整測試能力。",
+      "reason": "品質特性九面向逐列適用／待確認與理由；未知資安、安全影響未假設不適用。",
+      "artifact_refs": []
+    },
+    {
+      "id": "system",
+      "status": "pass",
+      "evidence": "設備與通訊測試另外保留五個明確面向",
+      "reason": "符合性、互通性、強健性、長時穩定性、時序均有方法及缺口。",
+      "artifact_refs": []
+    },
+    {
+      "id": "threshold",
+      "status": "pass",
+      "evidence": "不預設 24 或 72 小時",
+      "reason": "未自填負載、協定版本、恢復秒數或性能門檻，也未聲稱可執行。",
+      "artifact_refs": []
+    },
+    {
+      "id": "burden",
+      "status": "pass",
+      "evidence": "單台實機串行使用",
+      "reason": "整批分析與待辦，不繼續訪談；安排人工及單機限制。",
+      "artifact_refs": []
+    }
+  ]
+}

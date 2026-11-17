@@ -1,0 +1,30 @@
+{
+  "case_id": "case-02",
+  "grader": "root evaluator",
+  "model": "unknown",
+  "settings": "Fresh task agents; inherited host model and sampling not exposed; one trial per case. Root inspected outputs and captured files.",
+  "contamination": false,
+  "checks": [
+    {
+      "id": "conflict",
+      "status": "pass",
+      "evidence": "兩者不能同時作為同一適用情境的驗收判準。",
+      "reason": "全文來源表逐字保存 A/B 內容與定位，指出非 50% 時矛盾。",
+      "artifact_refs": []
+    },
+    {
+      "id": "authority",
+      "status": "pass",
+      "evidence": "B 的版號與日期較新，仍不能據此認定 B 已取代 A。",
+      "reason": "沒有按新日期自行採納。",
+      "artifact_refs": []
+    },
+    {
+      "id": "stop",
+      "status": "pass",
+      "evidence": "這些是文件缺口整理，並未向使用者新增提問",
+      "reason": "交付共同候選需求及缺口草稿，整份回覆無追問。",
+      "artifact_refs": []
+    }
+  ]
+}

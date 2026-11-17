@@ -1,0 +1,33 @@
+{
+  "case_id": "case-08",
+  "grader": "Codex root（AI 評分，非人員核可）",
+  "model": "unknown：宿主未提供確切模型版本",
+  "settings": "fresh thread; fork_turns=none; no model override; other sampling settings unknown",
+  "contamination": false,
+  "checks": [
+    {
+      "id": "witness",
+      "status": "pass",
+      "evidence": "將 `≤ 2.0` 誤寫為 `< 2.0`",
+      "reason": "提供等號具體反例及 TC-01 在 1.9 m 無法辨識的理由。"
+    },
+    {
+      "id": "assertion",
+      "status": "pass",
+      "evidence": "TC-02 的準備步驟已留下 `true`",
+      "reason": "抓到歷史成功污染及本次應拒絕卻無斷言的問題，提出綁 cycle 的修正。"
+    },
+    {
+      "id": "control",
+      "status": "pass",
+      "evidence": "TC-03 核對同次 cycle 的 `allow=true`",
+      "reason": "正常對照案例有辨識力，未加持久化或物理解鎖要求。"
+    },
+    {
+      "id": "truth",
+      "status": "pass",
+      "evidence": "上述為設計推演，沒有實際執行結果。",
+      "reason": "如實描述 fresh-session、未知模型與版本限制，沒有宣稱產品或 mutation 實測。"
+    }
+  ]
+}
