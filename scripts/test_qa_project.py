@@ -1104,8 +1104,13 @@ class WorkflowTests(unittest.TestCase):
         put(self.root / 'qa/registry.json', reg)
         self.run_tool('render')
         html = (self.root / 'qa/report.html').read_text(encoding="utf-8")
-        self.assertIn('SRC＝待確認', html)
-        self.assertIn('Business Rule', html)
+        glossary = html.split('<section id="glossary">', 1)[1].split('</section>', 1)[0]
+        self.assertNotIn('<details', glossary)
+        self.assertIn('<td>SRC</td><td>待確認</td>', glossary)
+        self.assertIn('<td>BIZ</td><td>Business Rule</td><td>業務規則</td><td>追蹤規則</td>', glossary)
+        self.assertIn('<td>REQ</td><td>Requirement</td><td>需求</td>', glossary)
+        self.assertIn('<td>AC</td><td>Acceptance Criterion</td>', glossary)
+        self.assertIn('href="#glossary"', html.split('</header>', 1)[0])
 
     def test_render_uses_project_definitions_and_marks_unknown_ids(self):
         reg, _ = self.fixture()
