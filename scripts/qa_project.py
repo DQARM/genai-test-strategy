@@ -17,7 +17,7 @@ import zipfile
 from datetime import datetime, timezone
 from urllib.parse import quote
 
-VERSION = "1.10.0"
+VERSION = "1.10.1"
 DESIGN_POLICY = "coverage-items-v1"
 RISK_POLICY = "requirement-risk-v1"
 READING_POLICY = "source-reading-v1"
@@ -2434,6 +2434,17 @@ def ensure_pack_zip(pack):
     return archive
 
 
+def review_handoff_text(root, pack, pack_id, artifact_digest, portable):
+    """Keep path literals JSON-encoded so backslashes and quotes round-trip."""
+    return (f"# 審查交接\n\n交接編號：{pack_id}（REV 取自 Review，數字為審查類流水號）。\n"
+            f"完整設計版本：{artifact_digest}\n\n"
+            f"同一工作區：請在新工作階段審查專案 {json.dumps(str(root), ensure_ascii=False)}，讀取 {json.dumps(str(pack / 'PROMPT.md'), ensure_ascii=False)}，依包內四輪準則執行，只新增審查結果。\n\n"
+            "另一個平台／模型：" + ("將同名 ZIP 或整個交接資料夾提供給新對話。解壓後從 PROMPT.md 開始，來源依 manifest 的 bundle_path 開啟，無須原機器路徑或安裝 Skill。\n" if portable else
+            "此包只含來源清單，尚未複製原檔。請先由設計端 prepare-review --portable 產生可攜包，再提供給另一個環境；只貼本機路徑不保證可讀。\n") +
+            "\n回傳：依 REVIEW_TEMPLATE.json 建立新的結果 JSON 與摘要，保留 artifact_digest／review_pack_id；不要修改模板、輸入、原設計或既有審查。\n"
+            "不同模型仍須新對話、實際讀原文；無法確認獨立性就如實標示。尚未執行產品測試或取得人工核可。\n")
+
+
 def build_review_pack(root, pack_id, portable, focus):
     pack = safe(root, "qa/review-packs/" + valid_id(pack_id))
     if pack.exists() or pack.with_suffix(".zip").exists():
@@ -2479,13 +2490,7 @@ def build_review_pack(root, pack_id, portable, focus):
                   "本包曾在建立時檢查；接手仍要核對目前可讀檔案。無 Python 時人工核對並記工具驗證限制，不假稱已執行。\n"
                   "若已安裝 genai-test-review 可使用它；否則直接按 REVIEW_GUIDE.md 執行。依 REVIEW_TEMPLATE.json 回傳新的 JSON 與摘要，勿改輸入、模板或既有結果。\n")
         (stage / "PROMPT.md").write_text(prompt, encoding="utf-8")
-        handoff = (f"# 審查交接\n\n交接編號：{pack_id}（REV 取自 Review，數字為審查類流水號）。\n"
-                   f"完整設計版本：{packet['artifact_digest']}\n\n"
-                   f"同一工作區：請在新工作階段審查專案 {json.dumps(str(root), ensure_ascii=False)}，讀取 {json.dumps(str(pack / 'PROMPT.md'), ensure_ascii=False)}，依包內四輪準則執行，只新增審查結果。\n\n"
-                   "另一個平台／模型：" + ("將同名 ZIP 或整個交接資料夾提供給新對話。解壓後從 PROMPT.md 開始，來源依 manifest 的 bundle_path 開啟，無須原機器路徑或安裝 Skill。\n" if portable else
-                   "此包只含來源清單，尚未複製原檔。請先由設計端 prepare-review --portable 產生可攜包，再提供給另一個環境；只貼本機路徑不保證可讀。\n") +
-                   "\n回傳：依 REVIEW_TEMPLATE.json 建立新的結果 JSON 與摘要，保留 artifact_digest／review_pack_id；不要修改模板、輸入、原設計或既有審查。\n"
-                   "不同模型仍須新對話、實際讀原文；無法確認獨立性就如實標示。尚未執行產品測試或取得人工核可。\n")
+        handoff = review_handoff_text(root, pack, pack_id, packet["artifact_digest"], portable)
         (stage / "HANDOFF.md").write_text(handoff, encoding="utf-8")
         shutil.copyfile(Path(__file__), stage / "verify_pack.py")
         manifest = {"protocol_version": 2, "pack_id": pack_id, "tool_version": VERSION, "portable": portable,

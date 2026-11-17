@@ -2,9 +2,9 @@
 
 | 項目 | 內容 |
 |---|---|
-| 手冊版本 | 1.23.0 |
-| 更新日期 | 2026-11-13（Asia/Taipei） |
-| 適用專案工具 | qa_project.py 1.10.0；實際執行前以 --version／--help 確認 |
+| 手冊版本 | 1.23.1 |
+| 更新日期 | 2026-11-17（Asia/Taipei） |
+| 適用專案工具 | qa_project.py 1.10.1；實際執行前以 --version／--help 確認 |
 | 設計入口 | genai-test-strategy |
 | 審查入口 | genai-test-review |
 
@@ -377,6 +377,7 @@ git ls-files
 | No changes to checkpoint | 檢查是否確實無變動，或檔案尚未登錄／納入保存範圍 |
 | 更新 Skill 後仍沒有新命令 | 專案工具是副本；依 migration.md 保存、比較、明確升級，重跑 init 不會更新 |
 | Windows 建立舊測試檔名失敗 | 依 migration.md 的 Windows 說明更新測試資料並在實際環境驗證 |
+| Windows 審查交接測試因反斜線比對失敗 | 更新至工具 1.10.1 所附測試，再於原環境重跑；HANDOFF.md 的路徑以 JSON 字串表示，測試會解碼後核對完整路徑與檔案存在，無須手改交接包 |
 
 交付時核對四件事：依據與缺口看得見；案例步驟能照做；成果狀態沒有超過實際證據；原始記錄、進度與版本已按所選模式保存。
 
