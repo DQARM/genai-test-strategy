@@ -18,6 +18,7 @@
 
 | 遇到的舊資料 | 續作方式／新基線條件 | 欄位與檢查的完整定義 |
 |---|---|---|
+| 缺 `method_policy` 與 `design_choices` | 舊版資料可依原有政策檢查／建立基線。報告把缺少的分類與方法選用依據列為未登錄。導入時在目前工作版本新增 `project.method_policy: "design-choices-v1"` 與本輪實際選用紀錄，再執行 check、render，交接新版本；不從案例標題猜分類或回填歷史。 | [records.md](records.md#registry)、[test-design.md](test-design.md#記錄與檢查) |
 | 缺 coverage_items、charters 或設計政策 | 補本輪方法、保留／暫緩覆蓋項目及案例斷言；採 coverage-items-v1，依真實取捨重審 | [test-design.md](test-design.md) |
 | 缺需求風險評估／risk_policy | 補本輪需求關聯、分級理由、評估狀態及依據，採 requirement-risk-v1；不從 priority／impact 推成已確認 severity；未選需求可未評估 | [risk-assessment.md](risk-assessment.md) |
 | 缺 interactions | 保留歷史缺原文的限制；新問答用 record-qa；有舊摘要不等於有逐字稿 | [interview-records.md](interview-records.md) |

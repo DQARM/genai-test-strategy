@@ -17,13 +17,14 @@ import zipfile
 from datetime import datetime, timezone
 from urllib.parse import quote
 
-VERSION = "1.10.2"
+VERSION = "1.11.0"
 DESIGN_POLICY = "coverage-items-v1"
+METHOD_POLICY = "design-choices-v1"
 RISK_POLICY = "requirement-risk-v1"
 READING_POLICY = "source-reading-v1"
 TECHNIQUES = {"equivalence", "boundary-2", "boundary-3", "decision-table",
               "state-transition", "pairwise", "combinatorial", "scenario", "experience",
-              "error-guessing", "data-lifecycle"}
+              "error-guessing", "data-lifecycle", "measurement"}
 QUESTION_CATEGORIES = {"ambiguity", "exception", "boundary", "assumption", "conflict", "testability", "role-permission", "other"}
 RISK_ORIGINS = {"requirement", "integration", "change", "architecture", "environment", "omission", "experience"}
 ID_TERMS = {
@@ -35,6 +36,7 @@ ID_TERMS = {
     "DEC": ("Decision", "決策", "記錄人的決定與依據"),
     "RISK": ("Risk", "風險", "追蹤失敗情境、影響與取捨"),
     "SC": ("Scenario", "測試情境", "表示待選或已選的測試情境"),
+    "DES": ("Design", "測試設計選擇", "記錄驗證目的、方法取捨、覆蓋準則與模型"),
     "COV": ("Coverage", "覆蓋項目", "表示測試方法導出的分區、邊界、組合或轉移；COV 取自 Coverage"),
     "EXP": ("Exploration", "探索任務", "限定探索目的、時間與觀察；EXP 取自 Exploration"),
     "TC": ("Test Case", "測試案例", "保存完整前置、步驟、判準與證據要求"),
@@ -47,7 +49,7 @@ ID_TERMS = {
 }
 ROUNDS = ["traceability", "executable", "coverage", "consistency"]
 GROUPS = ["sources", "decisions", "questions", "requirements", "acceptance", "risks", "scenarios"]
-OPTIONAL_GROUPS = ["coverage_items", "charters", "interactions"]
+OPTIONAL_GROUPS = ["coverage_items", "charters", "interactions", "design_choices"]
 GROUPS += OPTIONAL_GROUPS
 SKIP_DIRS = {".git", ".venv", "venv", "node_modules", "__pycache__", ".pytest_cache"}
 PRIVATE = re.compile(r"(^\.env($|\.)|\.(pem|key|p12|pfx)$|^id_(rsa|ed25519)$|^credentials($|\.))", re.I)
@@ -802,6 +804,141 @@ def show_source(args, root):
     print(json.dumps(result, ensure_ascii=False, indent=2))
 
 
+def known_model_expected(expected):
+    return (isinstance(expected, str) and meaningful(expected)
+            and expected.strip().casefold() not in ("pending", "未知", "待釐清", "待決"))
+
+
+def project_techniques(project, errors=None):
+    """Return usable, unambiguous project methods. Invalid definitions never enter reports or coverage."""
+    issues = errors if errors is not None else []
+    catalog = project.get("technique_catalog", [])
+    if not isinstance(catalog, list):
+        issues.append("project.technique_catalog must be a list")
+        return {}
+    registered, seen = {}, set()
+    for index, entry in enumerate(catalog, 1):
+        label = f"project.technique_catalog[{index}]"
+        key = entry.get("key") if isinstance(entry, dict) else None
+        if not isinstance(key, str) or not re.fullmatch(r"project-[a-z0-9]+(?:-[a-z0-9]+)*", key) or key in TECHNIQUES:
+            issues.append(f"{label}: invalid custom technique key; use project- followed by lowercase ASCII letters, digits and hyphen-separated words")
+            continue
+        if key in seen:
+            issues.append(f"{label}: duplicate technique_catalog key {key}")
+            registered.pop(key, None)
+            continue
+        seen.add(key)
+        missing = [field for field in ("title", "when_to_use", "required_inputs", "deliverable", "limitations")
+                   if not isinstance(entry.get(field), str) or not entry[field].strip()]
+        if missing:
+            issues.append(f"{label}: missing or invalid " + ", ".join(missing))
+            continue
+        registered[key] = entry
+    return registered
+
+
+def inspect_design_choices(reg, maps, gate, errors, warnings, refs, techniques):
+    """Check recorded decisions and explicit model links within the selected scope."""
+    policy = reg.get("project", {}).get("method_policy")
+    if policy not in (None, METHOD_POLICY):
+        errors.append("Unsupported project.method_policy")
+    choices = maps["design_choices"]
+    if policy is None and not choices:
+        return
+    selected = set(reg.get("scope", {}).get("selected_ac_ids", []))
+    represented_ac, represented_cov = set(), set()
+    gaps = errors if gate == "baseline" else warnings
+
+    def text_field(obj, field, label):
+        value = obj.get(field)
+        if not isinstance(value, str) or not meaningful(value):
+            errors.append(f"{label}: missing or invalid {field}")
+            return False
+        return True
+
+    def string_list(obj, field, label):
+        values = obj.get(field)
+        if not isinstance(values, list) or any(not isinstance(v, str) or not meaningful(v) for v in values):
+            errors.append(f"{label}: {field} must be a list of meaningful strings")
+            return []
+        if len(values) != len(set(values)):
+            errors.append(f"{label}: duplicate {field} entries")
+        return values
+
+    for did, choice in choices.items():
+        natures = string_list(choice, "natures", did)
+        if not natures or any(v not in ("functional", "non-functional") for v in natures):
+            errors.append(f"{did}: natures must specify functional or non-functional")
+        if not string_list(choice, "quality_aspects", did):
+            errors.append(f"{did}: missing quality_aspects")
+        text_field(choice, "objective", did)
+        text_field(choice, "reason", did)
+        technique = choice.get("technique")
+        if not isinstance(technique, str) or technique not in techniques:
+            errors.append(f"{did}: invalid test design technique")
+        applicability, selection = choice.get("applicability"), choice.get("selection")
+        allowed = {"applicable": ("adopt", "defer", "exclude", "pending"),
+                   "not-applicable": ("exclude",), "unknown": ("pending", "defer")}
+        if not isinstance(applicability, str) or selection not in allowed.get(applicability, ()):
+            errors.append(f"{did}: invalid applicability/selection combination")
+        ac_ids = {ac["id"] for ac in refs(choice.get("ac_ids"), "acceptance", did)}
+        risk_ids = {risk["id"] for risk in refs(choice.get("risk_ids", []), "risks", did)}
+        questions = refs(choice.get("question_ids", []), "questions", did)
+        decisions = refs(choice.get("decision_refs", []), "decisions", did)
+        active = bool(ac_ids & selected or risk_ids.intersection(reg.get("scope", {}).get("selected_risk_ids", [])))
+        if selection == "defer":
+            text_field(choice, "residual_risk", did)
+            if active and applicability == "applicable" and not decisions:
+                gaps.append(f"{did}: deferred in-scope method needs a human decision")
+        if selection == "adopt":
+            text_field(choice, "criterion", did)
+            if not ac_ids:
+                errors.append(f"{did}: adopted design choice needs ac_ids")
+        rows = choice.get("model_rows", [])
+        if not isinstance(rows, list):
+            errors.append(f"{did}: model_rows must be a list")
+            continue
+        choice_cov = set()
+        for index, row in enumerate(rows, 1):
+            label = f"{did}.model_rows[{index}]"
+            if not isinstance(row, dict):
+                errors.append(f"{label}: expected an object")
+                continue
+            text_field(row, "label", label)
+            text_field(row, "inputs", label)
+            covs = refs(row.get("coverage_ids"), "coverage_items", label)
+            row_questions = refs(row.get("question_ids", []), "questions", label)
+            expected = row.get("expected")
+            known = known_model_expected(expected)
+            if not isinstance(expected, str) or (covs and not known):
+                errors.append(f"{label}: expected must be text, with a criterion for a coverage link")
+                continue
+            if covs and (selection != "adopt" or applicability != "applicable"):
+                errors.append(f"{label}: only an adopted, applicable method can claim coverage")
+                continue
+            if active and selection == "adopt" and not covs:
+                if known:
+                    gaps.append(f"{label}: modeled outcome needs a coverage item or an explicit deferred item")
+                elif not any(q.get("status") in ("open", "deferred") for q in row_questions or questions):
+                    gaps.append(f"{label}: unresolved model row needs an open or deferred question")
+            for cov in covs:
+                basis = {aid for aid in ref_list(cov.get("ac_ids")) if isinstance(aid, str)}
+                if not basis or not basis <= ac_ids or technique != cov.get("technique"):
+                    errors.append(f"{label}: {cov['id']} technique or AC does not match the design choice")
+                    continue
+                if cov.get("selection") == "keep":
+                    choice_cov.add(cov["id"])
+                    represented_ac.update(basis)
+        if active and selection == "adopt" and not choice_cov:
+            gaps.append(f"{did}: adopted method has no retained model coverage")
+        represented_cov.update(choice_cov)
+    for aid in sorted(selected - represented_ac):
+        gaps.append(f"{aid}: no adopted design choice with retained model coverage")
+    for cid, cov in maps["coverage_items"].items():
+        if cov.get("selection") == "keep" and selected.intersection(ref_list(cov.get("ac_ids"))) and cid not in represented_cov:
+            gaps.append(f"{cid}: no adopted model row for retained coverage")
+
+
 def inspect(root, gate="draft"):
     reg, cases = load(root)
     errors, warnings = [], []
@@ -823,18 +960,22 @@ def inspect(root, gate="draft"):
             rows = []
         maps[group] = {}
         for row in rows:
-            rid = row.get("id", "")
-            if not re.fullmatch(r"[A-Z][A-Z0-9]*-[A-Za-z0-9_-]+", rid) or rid in all_ids:
+            rid = row.get("id", "") if isinstance(row, dict) else ""
+            if not isinstance(rid, str) or not re.fullmatch(r"[A-Z][A-Z0-9]*-[A-Za-z0-9_-]+", rid) or rid in all_ids:
                 error(f"Invalid or duplicate record ID: {rid}")
+                continue
             all_ids.add(rid)
             maps[group][rid] = row
+    if errors:
+        return {"gate": gate, "artifact_digest": snapshot_digest(root), "errors": errors,
+                "warnings": warnings, "note": "Registry structure must be valid before checking references."}
     def refs(ids, group, label):
         if not isinstance(ids, list):
             error(f"{label}: references must be a list")
             return []
         out = []
         for rid in ids:
-            if rid not in maps[group]:
+            if not isinstance(rid, str) or rid not in maps[group]:
                 error(f"{label}: unknown {group} reference {rid}")
             else:
                 out.append(maps[group][rid])
@@ -938,18 +1079,20 @@ def inspect(root, gate="draft"):
         error("Unsupported project.design_policy")
     if policy is None:
         warnings.append("Legacy design: coverage items not adopted; draft editing/render remain available.")
+    techniques = TECHNIQUES.union(project_techniques(reg.get("project", {}), errors))
     for cov_id, cov in maps["coverage_items"].items():
         require(cov, ["ac_ids", "technique", "description", "selection", "reason"], cov_id)
         refs(cov.get("ac_ids", []), "acceptance", cov_id)
         refs(cov.get("risk_ids", []), "risks", cov_id)
         refs(cov.get("scenario_ids", []), "scenarios", cov_id)
         refs(cov.get("decision_refs", []), "decisions", cov_id)
-        if cov.get("technique") not in TECHNIQUES:
+        if not isinstance(cov.get("technique"), str) or cov["technique"] not in techniques:
             error(f"{cov_id}: invalid test design technique")
         if cov.get("selection") not in ("keep", "defer"):
             error(f"{cov_id}: invalid coverage selection")
         if cov.get("selection") == "defer":
             require(cov, ["residual_risk"], cov_id)
+    inspect_design_choices(reg, maps, gate, errors, warnings, refs, techniques)
     for exp_id, charter in maps["charters"].items():
         require(charter, ["title", "status"], exp_id)
         if charter.get("status") not in ("draft", "ready", "retired"):
@@ -1067,6 +1210,9 @@ def inspect(root, gate="draft"):
         active_cov = [c for c in maps["coverage_items"].values()
                       if set(c.get("ac_ids", [])) & set(scope.get("selected_ac_ids", []))]
         active_ids.update(c["id"] for c in active_cov)
+        active_ids.update(did for did, choice in maps["design_choices"].items() if any(
+            isinstance(ref, str) and ref in active_ids
+            for key in ("ac_ids", "risk_ids") for ref in ref_list(choice.get(key))))
         # Blockers on parent requirements, decisions or source documents also affect selected cases.
         for cid in selected:
             case = cases.get(cid, {})
@@ -1078,8 +1224,8 @@ def inspect(root, gate="draft"):
         while pending:
             row = flat.get(pending.pop(), {})
             for key in ("requirement_ids", "source_refs", "decision_refs", "ac_ids", "risk_ids", "coverage_ids"):
-                for rid in row.get(key, []):
-                    if rid not in active_ids:
+                for rid in ref_list(row.get(key)):
+                    if isinstance(rid, str) and rid not in active_ids:
                         active_ids.add(rid)
                         pending.append(rid)
         for qid, q in maps["questions"].items():
@@ -1163,7 +1309,7 @@ def init(args, root):
     for folder in ("cases", "decisions", "reviews", "review-packs", "approvals", "baselines", "runs", "evidence", "tools"):
         safe(root, "qa/" + folder).mkdir(parents=True, exist_ok=True)
     reg = {"schema_version": 1, "project": {"name": args.name or root.name, "owner": "unassigned",
-                                         "design_policy": DESIGN_POLICY, "risk_policy": RISK_POLICY,
+                                         "design_policy": DESIGN_POLICY, "risk_policy": RISK_POLICY, "method_policy": METHOD_POLICY,
                                          "source_reading_policy": READING_POLICY},
            "scope": {"objective": "", "in": [], "out": [], "selected_ac_ids": [], "selected_risk_ids": [],
                      "selected_scenario_ids": [], "selected_case_ids": [], "decision_ref": None}}
@@ -1555,9 +1701,38 @@ def render(root):
     for risk in reg.get("risks", []):
         risks += ["### " + risk["id"], "", "```json", json.dumps(risk, ensure_ascii=False, indent=2), "```", ""]
     save_view("qa/risks.md", risks)
-    design = ["# 測試設計與探索任務", "", "由 registry.json 產生。斷言引用是設計追溯，仍需審查實際資料與步驟；不是已執行覆蓋率。", "",
-              "## 覆蓋項目", "", "| 項目 | 驗收條件 | 方法／內容 | 已選案例斷言 | 狀態／取捨 |",
-              "|---|---|---|---|---|"]
+    design = ["# 測試設計與探索任務", "", "由 registry.json 產生。可在 report.html 查看互動模型與同版本的案例、審查及實測紀錄。", "",
+              "## 方法選用與覆蓋準則", ""]
+    choices = [choice for choice in ref_list(reg.get("design_choices")) if isinstance(choice, dict)]
+    if not choices:
+        design += ["尚無結構化方法紀錄。可由既有策略與下方覆蓋項目繼續閱讀。", ""]
+    custom_methods = project_techniques(reg.get("project", {}))
+    display_names = design_labels(custom_methods)
+    def terms(items):
+        return "、".join(display_names.get(k, k) for k in ref_list(items) if isinstance(k, str))
+    for choice in choices:
+        technique = choice.get("technique")
+        aspects = "、".join(k for k in ref_list(choice.get("quality_aspects")) if isinstance(k, str))
+        classification = "／".join(filter(None, (terms(choice.get("natures")), aspects)))
+        design += ["### " + cell(choice.get("id", "未編號")) + " · " + cell(choice.get("objective", "")), "",
+                   "| 性質／品質面向 | 方法 | 適用性／本輪取捨 | 理由 | 覆蓋準則 | 驗收條件 |",
+                   "|---|---|---|---|---|---|",
+                   "| " + " | ".join(cell(x) for x in (
+                       classification,
+                       terms([technique]), terms([choice.get("applicability"), choice.get("selection")]),
+                       choice.get("reason", ""), choice.get("criterion") or "待訂", terms(choice.get("ac_ids")))) + " |", ""]
+        if choice.get("residual_risk"):
+            design += ["剩餘風險：" + cell(choice["residual_risk"]), ""]
+        rows = [row for row in ref_list(choice.get("model_rows")) if isinstance(row, dict)]
+        if rows:
+            design += ["| 模型列 | 初態／條件／輸入 | 預期結果 | 覆蓋項目 |", "|---|---|---|---|"]
+            for row in rows:
+                design.append("| " + " | ".join(cell(x) for x in (
+                    row.get("label", ""), row.get("inputs", ""), row.get("expected") or "待確認",
+                    terms(row.get("coverage_ids")) or "尚無對應")) + " |")
+            design.append("")
+    design += ["## 覆蓋項目", "", "| 項目 | 驗收條件 | 方法／內容 | 已選案例斷言 | 狀態／取捨 |",
+               "|---|---|---|---|---|"]
     if reg.get("project", {}).get("design_policy") != DESIGN_POLICY:
         design += ["舊版專案尚未採用覆蓋項目；保留草稿編輯，建立新基線前須補齊。", ""]
     for cov, linked, state in coverage_rows(reg, cases):
@@ -1701,11 +1876,256 @@ def render_results(root, rows, current, cases):
     return out
 
 
+DESIGN_LABELS = {
+    "functional": "功能", "non-functional": "非功能",
+    "applicable": "適用", "not-applicable": "不適用", "unknown": "待確認",
+    "adopt": "採用", "defer": "延後", "exclude": "不納入", "pending": "待取捨",
+    "equivalence": "等價分割", "boundary-2": "二值邊界分析", "boundary-3": "三值邊界分析",
+    "decision-table": "決策表", "state-transition": "狀態轉移", "pairwise": "成對組合",
+    "combinatorial": "組合測試", "scenario": "情境式測試", "experience": "經驗式測試",
+    "error-guessing": "錯誤推測", "data-lifecycle": "資料生命週期", "measurement": "量測設計",
+}
+
+
+def design_labels(custom_methods):
+    return {**DESIGN_LABELS, **{key: entry["title"] for key, entry in custom_methods.items()}}
+
+
+def report_design_choices(reg, maps, cases, link, anchor, e, custom_methods, display_names):
+    """Use explicit model → coverage item → step assertion links for the index."""
+    choices = maps["design_choices"]
+    techniques = TECHNIQUES.union(custom_methods)
+    coverage = maps["coverage_items"]
+    selected_cases = set(reg.get("scope", {}).get("selected_case_ids", []))
+    selected_acs = set(reg.get("scope", {}).get("selected_ac_ids", []))
+
+    def terms(items):
+        return [item for item in ref_list(items) if isinstance(item, str) and item.strip()]
+
+    def label(raw):
+        return display_names.get(raw, raw) if isinstance(raw, str) and raw else "待確認"
+
+    def links(group, refs):
+        return "、".join(link(group, rid) for rid in refs)
+
+    def table(headers, rows):
+        return ('<div class="scroll"><table><thead><tr>' + ''.join('<th>' + h + '</th>' for h in headers)
+                + '</tr></thead><tbody>' + ''.join('<tr>' + ''.join('<td>' + cell + '</td>' for cell in row)
+                                                   + '</tr>' for row in rows) + '</tbody></table></div>')
+
+    # A row may be incomplete while drafting. Never infer model membership from a shared AC.
+    assertions = {}
+    for cid, case in cases.items():
+        for si, step in enumerate(ref_list(case.get("steps")), 1):
+            for ai, check in enumerate(ref_list(step.get("checks")), 1):
+                for cov_id in terms(check.get("coverage_ids")):
+                    basis = set(terms(coverage.get(cov_id, {}).get("ac_ids")))
+                    if (not basis or not basis.issubset(terms(check.get("rule_refs")))
+                            or cov_id not in terms(case.get("coverage_ids")) or not known_model_expected(check.get("expected"))):
+                        continue
+                    vid = f'{anchor("cases", cid)}-step-{si}-check-{ai}'
+                    title = f'{cid} 步驟 {step.get("n", si)}／斷言 {ai}'
+                    assertions.setdefault(cov_id, []).append((cid, '<a href="#' + vid + '">' + e(title) + '</a>'))
+
+    by_case = {cid: {} for cid in cases}
+    classified_cov = set()
+    assessed, adopted_ac = set(), set()
+    pending, deferred, missing = [], [], []
+    overview, models = [], []
+    raw_choices = reg.get("design_choices", [])
+    if not isinstance(raw_choices, list) or len(raw_choices) != len(choices):
+        missing.append("部分方法選用記錄的格式或編號有誤，請檢查原始記錄。")
+    for did, choice in choices.items():
+        did_link = link("design_choices", did)
+        groups = [n for n in terms(choice.get("natures")) if n in ("functional", "non-functional")]
+        aspects = terms(choice.get("quality_aspects"))
+        technique = choice.get("technique")
+        applicable, selection = choice.get("applicability"), choice.get("selection")
+        ac_ids = terms(choice.get("ac_ids"))
+        assessed.update(ac_ids)
+        scope_text = "、".join(label(x) for x in groups) + (" · " if groups and aspects else "") + "、".join(aspects)
+        reason = e(choice.get("reason") or "理由待補")
+        criterion = e(choice.get("criterion") or "尚未選定")
+        overview.append([did_link, e(choice.get("objective") or "驗證目標待補"),
+                         e(scope_text or "未分類"), e(label(technique)),
+                         e(label(applicable) + "／" + label(selection)), reason, criterion])
+        if applicable not in ("applicable", "not-applicable") or selection == "pending":
+            pending.append(did_link)
+        if selection == "defer":
+            deferred.append(did_link + " " + e(choice.get("residual_risk") or "剩餘風險待補"))
+        refs = []
+        for key, group, heading in (("ac_ids", "acceptance", "驗收條件"), ("risk_ids", "risks", "風險"),
+                                    ("question_ids", "questions", "待釐清事項"), ("decision_refs", "decisions", "取捨決策")):
+            linked = links(group, terms(choice.get(key)))
+            if linked:
+                refs.append(heading + " " + linked)
+        models.extend(['<article class="record" id="' + anchor("design_choices", did) + '" data-record-id="' + e(did) + '">',
+                       '<h3>' + e(did + " · " + label(technique)) + '</h3><p>' + e(choice.get("objective") or "驗證目標待補")
+                       + '</p>', '<p>覆蓋準則　' + criterion + '</p>'])
+        if refs:
+            models.append('<p>' + ' · '.join(refs) + '</p>')
+        rows = []
+        adopted = selection == "adopt" and applicable == "applicable"
+        malformed = (not isinstance(choice.get("model_rows", []), list) or not groups or not aspects
+                     or groups != choice.get("natures") or aspects != choice.get("quality_aspects")
+                     or not isinstance(technique, str) or technique not in techniques)
+        if malformed:
+            missing.append(did_link + " 的分類、方法或模型列格式待核對")
+        row_headers = {"decision-table": ("規則欄", "條件組合", "規格結果"),
+                       "state-transition": ("轉移／序列", "初態、事件與條件", "終態與可觀測輸出"),
+                       "boundary-2": ("邊界項目", "輸入與單位", "邊界判準"),
+                       "boundary-3": ("邊界項目", "輸入與單位", "邊界判準"),
+                       "measurement": ("量測項目", "工作負載與量測條件", "量測判準")}
+        for ordinal, row in enumerate(ref_list(choice.get("model_rows")), 1):
+            row = row if isinstance(row, dict) else {}
+            row_label = row.get("label") or f"第 {ordinal} 列"
+            cov_ids = terms(row.get("coverage_ids"))
+            if (not isinstance(row.get("coverage_ids"), list)
+                    or len(cov_ids) != len(row["coverage_ids"])):
+                missing.append(did_link + " " + e(row_label) + " 的覆蓋編號清單格式有誤")
+            known = known_model_expected(row.get("expected"))
+            row_questions = terms(row.get("question_ids")) or terms(choice.get("question_ids"))
+            expected = e(row.get("expected") or "待確認")
+            if row_questions:
+                expected += '<br>' + links("questions", row_questions)
+            row_links = []
+            for cov_id in cov_ids:
+                cov = coverage.get(cov_id)
+                basis = set(terms((cov or {}).get("ac_ids")))
+                if (not cov or not known or not adopted or not basis or not basis.issubset(ac_ids)
+                        or not isinstance(technique, str) or technique not in techniques or cov.get("technique") != technique):
+                    missing.append(did_link + " " + e(row_label) + " 的覆蓋關聯待核對：" + link("coverage_items", cov_id))
+                    continue
+                if cov.get("selection") != "keep":
+                    continue
+                classified_cov.add(cov_id)
+                adopted_ac.update(basis)
+                for cid, check_link in assertions.get(cov_id, []):
+                    by_case[cid][did] = {"natures": groups, "quality_aspects": aspects, "technique": technique}
+                    if cid in selected_cases:
+                        row_links.append(check_link)
+                in_scope = bool(selected_acs.intersection(terms(cov.get("ac_ids"))))
+                if in_scope and cov.get("selection") == "keep" and not any(
+                        cid in selected_cases for cid, _ in assertions.get(cov_id, [])):
+                    missing.append(did_link + " " + link("coverage_items", cov_id) + " 缺少已選案例斷言")
+            if not cov_ids and adopted:
+                if known:
+                    missing.append(did_link + " " + e(row_label) + " 尚未對應覆蓋項目")
+                else:
+                    pending.append(did_link + " " + e(row_label) + " 判準待確認 " + (links("questions", row_questions) or "（尚未登錄問題）"))
+            rows.append([e(row_label), e(row.get("inputs") or "輸入待補"), expected,
+                         links("coverage_items", cov_ids) or "未對應", "、".join(dict.fromkeys(row_links)) or "未連結"])
+        if rows:
+            headers = row_headers.get(str(technique), ("模型項目", "輸入與條件", "預期／判準"))
+            models.append(table((*headers, "覆蓋項目", "本輪案例步驟與斷言"), rows))
+        else:
+            models.append('<p>尚未登錄模型列。</p>')
+            if adopted:
+                missing.append(did_link + " 已採用，尚無模型列")
+        models.append('</article>')
+    unmodeled = [cov_id for cov_id, cov in coverage.items() if cov.get("selection") == "keep"
+                 and selected_acs.intersection(terms(cov.get("ac_ids"))) and cov_id not in classified_cov]
+    # Older projects can have grounded techniques even when nature/quality were never recorded.
+    for cov_id, checks in assertions.items():
+        if cov_id in classified_cov:
+            continue
+        technique = coverage[cov_id].get("technique")
+        available = isinstance(technique, str) and technique in techniques
+        for cid, _ in checks:
+            by_case[cid][cov_id] = {"natures": [], "quality_aspects": [], "technique": technique if available else ""}
+
+    strategy = ['<section id="design-strategy"><h2>測試策略總覽</h2>']
+    if custom_methods:
+        fields = ("title", "when_to_use", "required_inputs", "deliverable", "limitations")
+        catalog_rows = [[e(entry[field]) for field in fields] for entry in custom_methods.values()]
+        strategy.append('<details><summary>專案自訂方法</summary>' +
+                        table(("方法", "適用條件", "需要的資料", "設計成果", "限制"), catalog_rows) + '</details>')
+    if overview:
+        strategy.append(table(("設計編號", "驗證目標", "性質／品質面向", "方法", "適用性／本輪取捨", "選用理由", "覆蓋準則"), overview))
+    else:
+        strategy.append('<p>尚未登錄方法選用與分類。</p>')
+    strategy.append('<h3>設計缺口與本輪取捨</h3>')
+    gap_rows = [("本輪未評估的驗收條件", [link("acceptance", ac) for ac in sorted(selected_acs - assessed)]),
+                ("已評估但未選定模型覆蓋的驗收條件", [link("acceptance", ac) for ac in sorted((selected_acs & assessed) - adopted_ac)]),
+                ("待確認或待取捨", pending), ("延後與剩餘風險", deferred),
+                ("已保留但缺方法模型的覆蓋項目", [link("coverage_items", cid) for cid in unmodeled]),
+                ("模型或案例斷言缺口", missing)]
+    strategy.append('<dl>' + ''.join('<dt>' + name + '</dt><dd>' + ("、".join(dict.fromkeys(items)) or "無列項")
+                                     + '</dd>' for name, items in gap_rows) + '</dl></section>')
+    selected_checks = {cov_id: list(dict.fromkeys(target for cid, target in checks if cid in selected_cases))
+                       for cov_id, checks in assertions.items()}
+    return ''.join(strategy), ''.join(models), by_case, selected_checks
+
+
+def case_filter_controls(by_case, display_names):
+    fields = (("nature", "測試性質", "natures"), ("quality", "品質面向", "quality_aspects"), ("technique", "設計方法", "technique"))
+    controls = ['<form id="case-filters" hidden><label>搜尋案例 <input type="search" id="case-filter-search" placeholder="案例編號、標題或目的"></label>']
+    for short, title, key in fields:
+        options, has_missing = set(), False
+        for channels in by_case.values():
+            if not channels:
+                has_missing = True
+            for channel in channels.values():
+                raw = channel[key]
+                entries = [raw] if isinstance(raw, str) and raw else raw
+                if entries:
+                    options.update(entries)
+                else:
+                    has_missing = True
+        controls.append('<label>' + title + ' <select id="case-filter-' + short + '"><option value="">全部</option>')
+        for val in sorted(options):
+            title_text = display_names.get(val, val) if key != "quality_aspects" else val
+            controls.append('<option value="' + escape(val, quote=True) + '">' + escape(title_text) + '</option>')
+        if has_missing:
+            unused = "__unclassified__"
+            while unused in options:
+                unused += "_"
+            controls.append('<option data-missing="1" value="' + unused + '">未分類</option>')
+        controls.append('</select></label>')
+    controls.append('<button type="reset">清除篩選</button><output id="case-filter-count" aria-live="polite"></output></form>')
+    return ''.join(controls)
+
+
+CASE_FILTER_SCRIPT = """<script id="case-filter-script">
+(() => {
+  const form = document.getElementById("case-filters");
+  if (!form) return;
+  const index = Array.from(document.querySelectorAll("#case-index tr"), row => ({
+    row, channels: JSON.parse(row.dataset.channels), text: (row.textContent + " " + row.dataset.purpose).toLocaleLowerCase()
+  }));
+  const fields = [["nature", "natures"], ["quality", "quality_aspects"], ["technique", "technique"]];
+  function update() {
+    const search = document.getElementById("case-filter-search").value.trim().toLocaleLowerCase();
+    const filters = fields.map(([id, field]) => [document.getElementById("case-filter-" + id).selectedOptions[0], field]);
+    let count = 0;
+    for (const {row, channels, text} of index) {
+      const match = channels.some(channel => filters.every(([option, field]) => {
+        if (!option.value) return true;
+        const value = channel[field];
+        if (option.hasAttribute("data-missing")) return !value.length;
+        return Array.isArray(value) ? value.includes(option.value) : value === option.value;
+      }));
+      row.hidden = !(match && text.includes(search));
+      if (!row.hidden) count++;
+    }
+    document.getElementById("case-filter-count").textContent = "顯示 " + count + " / " + index.length + " 筆案例";
+  }
+  form.addEventListener("submit", event => event.preventDefault());
+  form.addEventListener("input", update);
+  form.addEventListener("change", update);
+  form.addEventListener("reset", () => setTimeout(update, 0));
+  form.hidden = false;
+  update();
+})();
+</script>"""
+
+
 def render_html(root, reg, cases):
     """Read-only, offline view of explicit references; never infer product coverage."""
     results = result_records(root)
     current_version = snapshot_digest(root)
-    maps = {g: {r["id"]: r for r in reg.get(g, [])} for g in GROUPS}
+    maps = {g: {r["id"]: r for r in ref_list(reg.get(g))
+                if isinstance(r, dict) and isinstance(r.get("id"), str) and r["id"].strip()} for g in GROUPS}
     maps["cases"] = cases
     labels = {
         "id": "編號", "title": "名稱", "text": "內容", "path": "專案內原始檔",
@@ -1793,6 +2213,11 @@ def render_html(root, reg, cases):
         if rid not in maps.get(group, {}):
             return '<span class="gap">' + e(rid) + '（未登錄）</span>'
         return '<a href="#' + anchor(group, rid) + '">' + e(rid) + '</a>'
+
+    custom_methods = project_techniques(reg.get("project", {}))
+    display_names = design_labels(custom_methods)
+    strategy_view, model_view, designs_by_case, selected_checks = report_design_choices(
+        reg, maps, cases, link, anchor, e, custom_methods, display_names)
 
     def auto_link(rid):
         for group in maps:
@@ -1984,6 +2409,9 @@ def render_html(root, reg, cases):
     dl{display:grid;grid-template-columns:minmax(100px,180px) minmax(0,1fr);gap:.45rem 1rem;margin:.4rem 0}dt{font-weight:650;color:var(--muted)}dd{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}dd dl{font-size:.95em}ul{padding-left:1.3rem;margin:.25rem 0}li{margin:.35rem 0}
     .muted{color:var(--muted)}.gap{color:#9d3d05;font-weight:650}.notice{border-left:4px solid #e59a2b;background:#fff5e5;padding:.8rem 1rem}.badge{display:inline-block;padding:.15rem .55rem;background:#e7f4f3;color:#075d60;border-radius:6px;font-size:.85rem}.back{font-size:.85rem;margin-top:1rem}
     .document{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit}summary{cursor:pointer;font-weight:650;padding:.6rem 0}footer{padding:1rem;color:var(--muted);border-top:1px solid var(--line)}
+    #case-filters:not([hidden]){display:flex;flex-wrap:wrap;gap:.65rem 1rem;align-items:end;margin:1rem 0}
+    #case-filters label{display:grid;font-weight:600}#case-filters :is(input,select,button){min-height:2.4rem;padding:.25rem .55rem;font:inherit}
+    .steps :target{background:#fff1d7;outline:2px solid #b65a0d;scroll-margin-top:7rem}
     @media(max-width:650px){.stats{gap:.4rem}.stat{padding:.7rem}.stat b{font-size:1.4rem}dl{grid-template-columns:1fr;gap:.1rem}.record{padding:1rem}dd{margin-bottom:.5rem}nav{position:static}}
     @media print{body{background:white;font-size:10pt}header{background:white;color:#172d43;padding:0}header p,header a,.eyebrow{color:#172d43}nav,.back{display:none}main{padding:0;max-width:none}.record{border-radius:0}a{color:#172d43}.scroll{overflow:visible}.steps{min-width:0}.steps td{min-width:0}tr{break-inside:avoid}h2,h3,h4{break-after:avoid}details{display:block}}
     """
@@ -2005,7 +2433,7 @@ def render_html(root, reg, cases):
            '<h1>' + e(title) + '</h1><p>來源與測試案例 · 雙向追溯閱讀報告</p>',
            '<p>點選編號查看完整內容，再由來源反查相關案例。各類編號的英文來源、中文意思與用途，見下方<a href="#glossary">完整縮寫表</a>。</p>',
            '<div class="meta">產生時間：' + e(now()) + ' · 工具版本：' + VERSION + '</div></header>',
-           '<nav aria-label="報告章節"><a href="#sources">來源清單</a><a href="#cases">案例清單</a>',
+           '<nav aria-label="報告章節"><a href="#design-strategy">策略總覽</a><a href="#design-models">方法模型</a><a href="#cases">案例清單</a><a href="#sources">來源清單</a>',
            '<a href="#risk-assessment">需求風險評估</a><a href="#coverage">設計覆蓋</a><a href="#exploration">探索任務</a>',
            '<a href="#reviews-baselines">審查與基線</a><a href="#test-runs">實測紀錄</a><a href="#interview">問答紀錄</a><a href="#rules">需求與驗收</a><a href="#other">風險與待確認</a><a href="#glossary">編號與縮寫說明</a><a href="#documents">其他成果</a></nav><main>',
            '<div class="notice">這是設計與已登錄結果的閱讀快照。連結不代表已覆蓋、已核可或已執行；本頁不產生實際測試結果，也不自動判定放行。</div>',
@@ -2021,7 +2449,9 @@ def render_html(root, reg, cases):
     for prefix in sorted(prefixes):
         terms = terms_for(prefix)
         out.append('<tr>' + ''.join('<td>' + e(x) + '</td>' for x in (prefix, *terms)) + '</tr>')
-    out += ['</tbody></table></div></section>', '<section id="sources"><h2>來源清單</h2>',
+    out += ['</tbody></table></div></section>', strategy_view,
+            '<section id="design-models"><h2>設計方法與模型</h2>', model_view or '<p>尚未登錄方法模型。</p>', '</section>',
+            '<section id="sources"><h2>來源清單</h2>',
             '<p>normative＝規格依據；harness＝操作／觀測指南；observation＝現況觀察；experience＝經驗線索（不提供 Expected）。confirmed 是來源採納狀態。指紋相符僅表示檔案未改變，不代表已閱讀、理解或核可。</p>',
             '<p>閱讀狀態依登錄紀錄呈現；已讀指定範圍不代表全文已讀。閱讀紀錄序號與摘錄序號從 1 起算，僅用於該來源／紀錄內定位。</p>',
             '<div class="scroll"><table><thead><tr><th>來源編號</th><th>名稱／檔案</th><th>用途／版本／採納</th><th>閱讀狀態與已讀範圍</th><th>未讀部分／限制</th><th>引用案例</th></tr></thead><tbody>']
@@ -2054,23 +2484,39 @@ def render_html(root, reg, cases):
         out += ['<h4>反查引用案例</h4><p>' + case_links("sources", sid) + '</p>' + related_links("sources", sid) + '<p class="back"><a href="#sources">返回來源清單</a></p></article>']
     selected = set(reg.get("scope", {}).get("selected_case_ids", []))
     out += ['</section><section id="cases"><h2>測試案例清單</h2><p>draft＝草稿；blocked＝有阻塞；ready＝設計就緒；retired＝停用。人工執行的完整步驟列在各案例內。</p>',
-            '<div class="scroll"><table><thead><tr><th>案例編號</th><th>標題</th><th>狀態／本輪範圍</th><th>參考來源</th></tr></thead><tbody>']
+            case_filter_controls(designs_by_case, display_names),
+            '<div class="scroll"><table><thead><tr><th>案例編號</th><th>標題</th><th>性質、品質面向與方法</th><th>狀態／本輪範圍</th><th>參考來源</th></tr></thead><tbody id="case-index">']
     for cid, case in cases.items():
-        out.append('<tr><td>' + link("cases", cid) + '</td><td>' + e(case.get("title", "")) + '</td><td>' + e(case.get("status", "未提供")) +
+        definitions = designs_by_case[cid]
+        channels = list(definitions.values()) or [{"natures": [], "quality_aspects": [], "technique": ""}]
+        badges = []
+        for rid, channel in definitions.items():
+            terms = [*(DESIGN_LABELS.get(n, n) for n in channel["natures"]), *channel["quality_aspects"]]
+            terms.append(display_names.get(channel["technique"], channel["technique"]) or "未分類")
+            group = "design_choices" if rid in maps["design_choices"] else "coverage_items"
+            badges.append(e("／".join(terms)) + " " + link(group, rid))
+        out.append('<tr data-channels="' + e(json.dumps(channels, ensure_ascii=False)) + '" data-purpose="' +
+                   e(case.get("purpose") or "") + '"><td>' + link("cases", cid) + '</td><td>' + e(case.get("title", "")) +
+                   '</td><td>' + ('<br>'.join(badges) or "未分類") + '</td><td>' + e(case.get("status", "未提供")) +
                    (' / 本輪已選' if cid in selected else ' / 本輪未選') + '</td><td>' + source_links(cid) + '</td></tr>')
     out += ['</tbody></table></div>' if cases else '</tbody></table></div><p>尚未建立測試案例。</p>']
     for cid, case in cases.items():
         tail = ("cleanup", "independence", "verdict_rules", "blockers", "automation", "provenance")
+        choice_links = '、'.join(link("design_choices", did) for did in designs_by_case[cid] if did in maps["design_choices"])
         out += ['<article class="record" id="' + anchor("cases", cid) + '" data-record-id="' + e(cid) + '"><h3>' + e(cid) + ' · ' + e(case.get("title", "")) + '</h3>',
+                '<p>方法模型　' + choice_links + '</p>' if choice_links else '',
                 value({k: v for k, v in case.items() if k not in ("id", "title", "steps", "actual", "result", *tail)}), '<h4>完整操作步驟</h4>',
                 '<p>下表數字為操作順序；Expected 是預期結果，須由已確認規則支持。</p>',
                 '<div class="scroll"><table class="steps"><thead><tr>' + ''.join('<th>' + s + '</th>' for s in
                     ("步驟", "操作／輸入", "觀察／判定時機", "預期結果／規則", "證據")) + '</tr></thead><tbody>']
-        for step in case.get("steps", []):
+        for si, step in enumerate(case.get("steps", []), 1):
+            step_id = f'{anchor("cases", cid)}-step-{si}'
+            checks = ''.join('<div id="' + step_id + '-check-' + str(ai) + '">' + value(check) + '</div>'
+                             for ai, check in enumerate(step.get("checks", []), 1))
             cells = [e(step.get("n", "?")), value({k: step.get(k) for k in ("action", "input")}),
                      value({k: step.get(k) for k in ("observe", "when")}),
-                     value(step.get("checks")) if step.get("checks") else '此步驟未列產品斷言', value(step.get("evidence"))]
-            out.append('<tr>' + ''.join('<td>' + c + '</td>' for c in cells) + '</tr>')
+                     checks or '此步驟未列產品斷言', value(step.get("evidence"))]
+            out.append('<tr id="' + step_id + '">' + ''.join('<td>' + c + '</td>' for c in cells) + '</tr>')
         out += ['</tbody></table></div>', value({k: case[k] for k in tail if k in case}), '<h4>參考來源與引用路徑</h4>']
         if routes[cid]:
             out.append('<ul>')
@@ -2147,6 +2593,7 @@ def render_html(root, reg, cases):
         for group in groups:
             for rid, row in maps[group].items():
                 out += ['<article class="record" id="' + anchor(group, rid) + '" data-record-id="' + e(rid) + '"><h3>' + e(rid) + '</h3>',
+                        '<p>本輪案例步驟與斷言　' + ('、'.join(selected_checks.get(rid, [])) or "未連結") + '</p>' if group == "coverage_items" else '',
                         value({k: v for k, v in row.items() if k != "id"}), '<h4>相關案例</h4><p>' + case_links(group, rid) +
                         '</p>' + related_links(group, rid) + '<p class="back"><a href="#cases">返回案例清單</a></p></article>']
         out.append('</section>')
@@ -2159,7 +2606,8 @@ def render_html(root, reg, cases):
             out += ['<details class="record"><summary>' + label + '</summary><pre class="document">' + e(p.read_text(encoding="utf-8")) + '</pre></details>']
     out += ['<p>原有文件仍保留：' + ' · '.join(file_link("qa/" + f) for f in
             ("spec.md", "source-reading.md", "interview.md", "risks.md", "test-design.md", "test-cases.md", "traceability.md", "id-glossary.md", "registry.json")) + '</p></section>',
-            '<footer>本頁由專案記錄產生，請修改原始記錄後重新 render，不直接編輯本頁。可離線閱讀；以瀏覽器尋找功能搜尋編號或文字。來源原檔連結需保留專案相對目錄；僅分享此 HTML 仍可使用頁內雙向連結。<a href="#top">回到頂端</a></footer></main></body></html>']
+            '<footer>本頁由專案記錄產生，請修改原始記錄後重新 render，不直接編輯本頁。可離線閱讀；以瀏覽器尋找功能搜尋編號或文字。來源原檔連結需保留專案相對目錄；僅分享此 HTML 仍可使用頁內雙向連結。<a href="#top">回到頂端</a></footer></main>',
+            CASE_FILTER_SCRIPT, '</body></html>']
     safe(root, "qa/report.html").write_text(''.join(out), encoding="utf-8")
 
 
@@ -2246,6 +2694,16 @@ def review_input_packet(root):
     req_ids, risk_ids = risk_scope(reg, data["cases"])
     in_scope.update(req_ids | risk_ids)
     selected_questions = {qid for cid, case in data["cases"].items() if cid in in_scope for qid in case.get("blockers", [])}
+    for choice in ref_list(reg.get("design_choices")):
+        if not isinstance(choice, dict):
+            continue
+        dependencies = ref_list(choice.get("ac_ids")) + ref_list(choice.get("risk_ids"))
+        if any(isinstance(key, str) and key in in_scope for key in dependencies):
+            if isinstance(choice.get("id"), str):
+                in_scope.add(choice["id"])
+            for item in [choice, *ref_list(choice.get("model_rows"))]:
+                if isinstance(item, dict):
+                    selected_questions.update(qid for qid in ref_list(item.get("question_ids")) if isinstance(qid, str))
     selected_questions.update(q["id"] for q in reg.get("questions", [])
                               if "ALL" in q.get("impact_ids", []) or set(q.get("impact_ids", [])) & in_scope)
     interview_ids.update(rid for rid, row in pairs.items() if row.get("kind") in ("clarification", "correction")
@@ -2292,6 +2750,8 @@ artifact_digest 是原專案完整設計的版本識別；review_input 是按交
 「測試正常」「確認處理正確」或只有 Gherkin 不足以執行。指出缺哪個欄位與介面，不能補猜 UI 路徑、命令、API、數值、等待秒數。檢查快取、待處理事件及共用 fixture 是否被隔離與重置，每案可獨立重跑。
 
 ## 3. coverage：已選範圍覆蓋
+若專案已登錄 technique_catalog，自訂方法採相同的覆蓋檢查。核對適用條件、所需資料、產物及限制，再用該目標已確認的驗收條件判斷模型列。
+依本版 design_choices 的目的、規則／風險、適用性、取捨、理由與覆蓋準則核對各模型列。逐列查輸入、當次預期、COV 以及已選案例的具體步驟與斷言；逐一回看本輪保留的覆蓋項目。測試性質、品質面向、設計方法及手動／自動各自說明不同資訊。未分類舊資料記限制；候選與待確認項目依本輪範圍處理。
 以完整已選 AC／風險／情境及保留 COV 為分母；先查設計方法與項目本身，再看已選案例的具體資料和斷言是否承接，不只數連結。檢查分區、邊界等號與鄰值、可行條件組合、初態／轉移及適用異常。資料型別、單位與解析度不明時不能猜相鄰值。
 保留 COV 應有案例斷言；defer 需人的取捨、理由與剩餘風險，不能全改 defer 以消除承諾。EXP 是探索計畫，不代替正式案例或執行覆蓋。未承諾的行為只報待釐清，不新增 Expected。
 逐需求查 risk_assessment 狀態及 requirement_revision、risks.requirement_ids 的直接多對多關聯；severity（危害嚴重度）、likelihood（可能性）、priority（測試優先序）須各有專案分級與理由。unknown 不等於低風險，低機率不降低危害；沒有風險紀錄不代表零風險。已選風險須承接，其他本輪關聯風險須有暫緩依據；未選需求可未評估，不擴張訪談。
@@ -2305,11 +2765,12 @@ artifact_digest 是原專案完整設計的版本識別；review_input 是按交
 檢查重複、矛盾、過期來源／版本、單位與判準混用、案例間依賴、初態污染及隱藏順序。前一案成功不能作為本案前置；必要連續操作應在同一案明列。合併建議須保留既有 ID 與唯一覆蓋，不直接刪案例。
 
 ## 輸出契約與獨立性
+初審固定規格、方法、覆蓋準則與版本。修正後預設做一次聚焦原發現與受影響項目的複核，列實際檢查範圍及未檢部分。引用原 Finding 編號串連新版本的審查紀錄，既有紀錄維持原樣。已結案問題有新證據才重開，新方法另列候選；仍受阻或有爭議則交人決定。只將確實完成的輪次列為完成，核可須有人的明確決策。
 以 REVIEW_TEMPLATE.json 作空白結構，不能把模板當已完成結果。填真實 reviewer、session、at、model；不知道模型名稱填 unknown。只有真正新工作階段重新載入依據才能填 fresh-session；同對話換模型仍是 same-session；實際人審才填 human。不同模型也不保證無共同偏誤。無法確認工作階段就保守標 same-session 並說明。
 記錄 checked_case_ids、read_sources（source_id／path、sha256、locator、read_scope、limitations）、review_focus_checked、limitations 及真正完成的 rounds。review_pack_id 及 artifact_digest 沿用包內值；若直接從專案審查，input_mode=direct-project，review_pack_id=null，使用實際讀取的設計版本。
 每項 finding 填 id、round、case_ids、rule_refs、issue、evidence、proposal、status=open、disposition=null。指出具體步驟與原文差異；缺規則時 rule_refs 可空並說明。不能自動關閉發現、代填核可或接受風險。只有真的檢完且無發現才用空 findings；未完成的輪次不能填滿以通過檢查。
 查看 packet 的 used_review_ids／used_finding_ids，選不衝突的新 ID，回傳時再檢查是否已被使用；不覆寫舊結果。可回傳 JSON 與簡短摘要，不必改回原專案。設計端接回後按人的真實處置修正，以新版本重審，不改舊 digest。審查、人工核可與實測分開，不能填 Actual 或產品 PASS。
-ID＝Identifier（識別碼）；SRC＝Source（資料來源）、REQ＝Requirement（需求）、AC＝Acceptance Criterion（驗收條件）、QA＝Question and Answer（問答）、Q＝Question（待釐清）、DEC＝Decision（決策）、TC＝Test Case（測試案例）、COV 取自 Coverage（覆蓋）、EXP 取自 Exploration（探索）、REV 取自 Review（審查）、F 取自 Finding（發現）、RISK 為 Risk（風險）。數字是各類流水號，不表示優先度或通過；既有未知縮寫不猜。
+ID＝Identifier（識別碼）；SRC＝Source（資料來源）、REQ＝Requirement（需求）、AC＝Acceptance Criterion（驗收條件）、QA＝Question and Answer（問答）、Q＝Question（待釐清）、DEC＝Decision（決策）、DES 取自 Design（方法選用紀錄）、TC＝Test Case（測試案例）、COV 取自 Coverage（覆蓋）、EXP 取自 Exploration（探索）、REV 取自 Review（審查）、F 取自 Finding（發現）、RISK 為 Risk（風險）。數字是各類流水號，不表示優先度或通過；既有未知縮寫不猜。
 """
 
 
