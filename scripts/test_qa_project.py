@@ -4,7 +4,7 @@ import copy
 from html.parser import HTMLParser
 import json
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 import shutil
 import subprocess
 import sys
@@ -12,6 +12,8 @@ import tempfile
 import unittest
 import zipfile
 from urllib.parse import unquote, urlsplit
+
+from qa_project import review_handoff_text
 
 TOOL = Path(__file__).with_name("qa_project.py")
 
@@ -27,6 +29,36 @@ def get(path):
 
 def sha(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def handoff_paths(content):
+    """Decode the actual path literals emitted in the same-workspace instruction."""
+    line = next(line for line in content.splitlines() if line.startswith("同一工作區："))
+    decoder = json.JSONDecoder()
+    text = line.split("審查專案 ", 1)[1]
+    project, end = decoder.raw_decode(text)
+    remaining = text[end:]
+    separator = "，讀取 "
+    if not remaining.startswith(separator):
+        raise ValueError("Missing handoff prompt path")
+    prompt, _ = decoder.raw_decode(remaining[len(separator):])
+    return project, prompt
+
+
+class HandoffFormattingTests(unittest.TestCase):
+    def test_handoff_paths_round_trip_on_all_hosts(self):
+        # Pure paths exercise Windows escaping even on a non-Windows test host.
+        roots = [PureWindowsPath(r"D:\GenAI-Keyless_2"),
+                 PureWindowsPath(r"C:\test\new\專案 with spaces #1"),
+                 PureWindowsPath(r"\\server\share\專案 with spaces"),
+                 PurePosixPath('/tmp/專案 with spaces #1'),
+                 PurePosixPath('/tmp/quote" and back\\slash')]
+        for root in roots:
+            pack = root / "qa" / "review-packs" / "REV-002"
+            for portable in (False, True):
+                with self.subTest(root=str(root), portable=portable):
+                    content = review_handoff_text(root, pack, "REV-002", "a" * 64, portable)
+                    self.assertEqual(handoff_paths(content), (str(root), str(pack / "PROMPT.md")))
 
 
 class ReportParser(HTMLParser):
@@ -1072,8 +1104,13 @@ class WorkflowTests(unittest.TestCase):
         put(self.root / 'qa/registry.json', reg)
         self.run_tool('render')
         html = (self.root / 'qa/report.html').read_text(encoding="utf-8")
-        self.assertIn('SRC＝待確認', html)
-        self.assertIn('Business Rule', html)
+        glossary = html.split('<section id="glossary">', 1)[1].split('</section>', 1)[0]
+        self.assertNotIn('<details', glossary)
+        self.assertIn('<td>SRC</td><td>待確認</td>', glossary)
+        self.assertIn('<td>BIZ</td><td>Business Rule</td><td>業務規則</td><td>追蹤規則</td>', glossary)
+        self.assertIn('<td>REQ</td><td>Requirement</td><td>需求</td>', glossary)
+        self.assertIn('<td>AC</td><td>Acceptance Criterion</td>', glossary)
+        self.assertIn('href="#glossary"', html.split('</header>', 1)[0])
 
     def test_render_uses_project_definitions_and_marks_unknown_ids(self):
         reg, _ = self.fixture()
@@ -1229,7 +1266,11 @@ class WorkflowTests(unittest.TestCase):
         result, pack = self.prepared()
         self.assertEqual(result["pack_id"], "REV-002")  # Existing result already uses REV-001.
         self.assertTrue(Path(result["handoff_path"]).is_file())
-        self.assertIn(str(pack / "PROMPT.md"), (pack / "HANDOFF.md").read_text(encoding="utf-8"))
+        project_path, prompt_path = handoff_paths((pack / "HANDOFF.md").read_text(encoding="utf-8"))
+        self.assertEqual(project_path, str(self.root.resolve()))
+        self.assertEqual(prompt_path, str(pack / "PROMPT.md"))
+        self.assertTrue(Path(project_path).is_dir())
+        self.assertTrue(Path(prompt_path).is_file())
         self.assertEqual(get(self.root / "qa/review-handoff.json"), result)
         self.assertEqual(session.read_text(encoding="utf-8"), "asked 5; awaiting continue choice")
         self.assertEqual(self.run_tool("digest").stdout, before)

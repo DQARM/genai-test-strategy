@@ -17,7 +17,7 @@ import zipfile
 from datetime import datetime, timezone
 from urllib.parse import quote
 
-VERSION = "1.10.0"
+VERSION = "1.10.2"
 DESIGN_POLICY = "coverage-items-v1"
 RISK_POLICY = "requirement-risk-v1"
 READING_POLICY = "source-reading-v1"
@@ -1974,7 +1974,7 @@ def render_html(root, reg, cases):
     :root{--ink:#172d43;--muted:#50657a;--line:#d7e3ec;--blue:#085786;--teal:#007d80}
     *{box-sizing:border-box}html{scroll-padding-top:5rem}body{margin:0;background:#f4f7fa;color:var(--ink);font:16px/1.65 system-ui,'Noto Sans TC',sans-serif}
     a{color:var(--blue);text-underline-offset:3px}a:hover{color:var(--teal)}a:focus-visible{outline:3px solid #ef9b32;outline-offset:3px}
-    header{background:#102f4b;color:white;padding:3rem max(5vw,calc((100vw - 1240px)/2))}header h1{font-size:clamp(1.7rem,4vw,2.7rem);margin:.4rem 0}header p{max-width:80ch;color:#e1edf5}
+    header{background:#102f4b;color:white;padding:3rem max(5vw,calc((100vw - 1240px)/2))}header h1{font-size:clamp(1.7rem,4vw,2.7rem);margin:.4rem 0}header p{max-width:80ch;color:#e1edf5}header a{color:#86e1dc}header a:hover{color:white}
     .eyebrow{letter-spacing:.14em;font-size:.8rem;color:#86e1dc}.meta{font-size:.85rem;overflow-wrap:anywhere}
     nav{position:sticky;top:0;z-index:2;display:flex;flex-wrap:wrap;gap:.3rem 1.2rem;padding:.8rem 5vw;background:white;border-bottom:1px solid var(--line)}nav a{font-weight:650}
     main{max-width:1340px;margin:auto;padding:1.5rem clamp(1rem,4vw,3rem) 4rem}section{margin:2rem 0}h2{font-size:1.5rem}h3{font-size:1.2rem;margin:.2rem 0 1rem}h4{margin:1.2rem 0 .5rem}
@@ -1985,7 +1985,7 @@ def render_html(root, reg, cases):
     .muted{color:var(--muted)}.gap{color:#9d3d05;font-weight:650}.notice{border-left:4px solid #e59a2b;background:#fff5e5;padding:.8rem 1rem}.badge{display:inline-block;padding:.15rem .55rem;background:#e7f4f3;color:#075d60;border-radius:6px;font-size:.85rem}.back{font-size:.85rem;margin-top:1rem}
     .document{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit}summary{cursor:pointer;font-weight:650;padding:.6rem 0}footer{padding:1rem;color:var(--muted);border-top:1px solid var(--line)}
     @media(max-width:650px){.stats{gap:.4rem}.stat{padding:.7rem}.stat b{font-size:1.4rem}dl{grid-template-columns:1fr;gap:.1rem}.record{padding:1rem}dd{margin-bottom:.5rem}nav{position:static}}
-    @media print{body{background:white;font-size:10pt}header{background:white;color:#172d43;padding:0}header p,.eyebrow{color:#172d43}nav,.back{display:none}main{padding:0;max-width:none}.record{border-radius:0}a{color:#172d43}.scroll{overflow:visible}.steps{min-width:0}.steps td{min-width:0}tr{break-inside:avoid}h2,h3,h4{break-after:avoid}details{display:block}}
+    @media print{body{background:white;font-size:10pt}header{background:white;color:#172d43;padding:0}header p,header a,.eyebrow{color:#172d43}nav,.back{display:none}main{padding:0;max-width:none}.record{border-radius:0}a{color:#172d43}.scroll{overflow:visible}.steps{min-width:0}.steps td{min-width:0}tr{break-inside:avoid}h2,h3,h4{break-after:avoid}details{display:block}}
     """
     project = reg.get("project", {})
     title = project.get("name", "測試專案")
@@ -1998,30 +1998,30 @@ def render_html(root, reg, cases):
             return candidate if len(candidate) == 3 and all(isinstance(t, str) and meaningful(t) for t in candidate) else ("待確認", "待確認", "請確認本專案定義")
         return ID_TERMS.get(prefix, ("待確認", "待確認", "請確認本專案定義"))
 
-    prefix_note = '；'.join(p + '＝' + terms_for(p)[0] + '（' + terms_for(p)[1] + '）' for p in ("SRC", "TC"))
     out = ['<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8">',
            '<meta name="viewport" content="width=device-width, initial-scale=1">',
            '<title>' + e(title) + '｜來源與測試案例</title><style>' + css + '</style></head><body>',
            '<header id="top"><div class="eyebrow">GENAI TEST STRATEGY · PROJECT REPORT</div>',
            '<h1>' + e(title) + '</h1><p>來源與測試案例 · 雙向追溯閱讀報告</p>',
-           '<p>' + e(prefix_note) + '。點選編號查看完整內容，再由來源反查相關案例。</p>',
+           '<p>點選編號查看完整內容，再由來源反查相關案例。各類編號的英文來源、中文意思與用途，見下方<a href="#glossary">完整縮寫表</a>。</p>',
            '<div class="meta">產生時間：' + e(now()) + ' · 工具版本：' + VERSION + '</div></header>',
            '<nav aria-label="報告章節"><a href="#sources">來源清單</a><a href="#cases">案例清單</a>',
            '<a href="#risk-assessment">需求風險評估</a><a href="#coverage">設計覆蓋</a><a href="#exploration">探索任務</a>',
-           '<a href="#reviews-baselines">審查與基線</a><a href="#test-runs">實測紀錄</a><a href="#interview">問答紀錄</a><a href="#rules">需求與驗收</a><a href="#other">風險與待確認</a><a href="#glossary">編號說明</a><a href="#documents">其他成果</a></nav><main>',
+           '<a href="#reviews-baselines">審查與基線</a><a href="#test-runs">實測紀錄</a><a href="#interview">問答紀錄</a><a href="#rules">需求與驗收</a><a href="#other">風險與待確認</a><a href="#glossary">編號與縮寫說明</a><a href="#documents">其他成果</a></nav><main>',
            '<div class="notice">這是設計與已登錄結果的閱讀快照。連結不代表已覆蓋、已核可或已執行；本頁不產生實際測試結果，也不自動判定放行。</div>',
            '<div class="stats">' + ''.join('<div class="stat"><b>' + str(n) + '</b>' + label + '</div>' for n, label in
                                            ((len(maps["sources"]), "來源資料"), (len(cases), "測試案例"),
                                             (sum(r["group"] == "reviews" for r in results), "審查紀錄"),
                                             (sum(r["group"] == "runs" for r in results), "實測紀錄（非通過數）"),
                                             (sum(q.get("status") != "resolved" for q in maps["questions"].values()), "未決問題"))) + '</div>']
-    out += ['<section id="glossary"><h2>編號說明</h2><p>ID＝Identifier（識別碼）。數字後綴是各類流水號，不代表優先度、版本、核可或結果；文字後綴是專案標籤。</p>',
-            '<details><summary>查看英文來源、中文意思與用途</summary><table><thead><tr><th>前綴</th><th>英文來源</th><th>意思</th><th>用途</th></tr></thead><tbody>']
+    out += ['<section id="glossary"><h2>編號與縮寫說明</h2><p>ID＝Identifier（識別碼）。數字後綴是各類流水號，不代表優先度、版本、核可或結果；文字後綴是專案標籤。RISK／RUN 本身是英文單字。</p>',
+            '<p>下表列出工具預設與專案自訂的編號前綴，尚未使用的前綴也可供查閱。專案字典優先；未定義或不完整的自訂含義標為待確認。</p>',
+            '<div class="scroll"><table><thead><tr><th>編號前綴</th><th>英文來源</th><th>中文意思</th><th>用途</th></tr></thead><tbody>']
     prefixes = set(ID_TERMS) | set(overrides) | {str(r).split("-", 1)[0] for rows in maps.values() for r in rows}
     for prefix in sorted(prefixes):
         terms = terms_for(prefix)
         out.append('<tr>' + ''.join('<td>' + e(x) + '</td>' for x in (prefix, *terms)) + '</tr>')
-    out += ['</tbody></table></details></section>', '<section id="sources"><h2>來源清單</h2>',
+    out += ['</tbody></table></div></section>', '<section id="sources"><h2>來源清單</h2>',
             '<p>normative＝規格依據；harness＝操作／觀測指南；observation＝現況觀察；experience＝經驗線索（不提供 Expected）。confirmed 是來源採納狀態。指紋相符僅表示檔案未改變，不代表已閱讀、理解或核可。</p>',
             '<p>閱讀狀態依登錄紀錄呈現；已讀指定範圍不代表全文已讀。閱讀紀錄序號與摘錄序號從 1 起算，僅用於該來源／紀錄內定位。</p>',
             '<div class="scroll"><table><thead><tr><th>來源編號</th><th>名稱／檔案</th><th>用途／版本／採納</th><th>閱讀狀態與已讀範圍</th><th>未讀部分／限制</th><th>引用案例</th></tr></thead><tbody>']
@@ -2434,6 +2434,17 @@ def ensure_pack_zip(pack):
     return archive
 
 
+def review_handoff_text(root, pack, pack_id, artifact_digest, portable):
+    """Keep path literals JSON-encoded so backslashes and quotes round-trip."""
+    return (f"# 審查交接\n\n交接編號：{pack_id}（REV 取自 Review，數字為審查類流水號）。\n"
+            f"完整設計版本：{artifact_digest}\n\n"
+            f"同一工作區：請在新工作階段審查專案 {json.dumps(str(root), ensure_ascii=False)}，讀取 {json.dumps(str(pack / 'PROMPT.md'), ensure_ascii=False)}，依包內四輪準則執行，只新增審查結果。\n\n"
+            "另一個平台／模型：" + ("將同名 ZIP 或整個交接資料夾提供給新對話。解壓後從 PROMPT.md 開始，來源依 manifest 的 bundle_path 開啟，無須原機器路徑或安裝 Skill。\n" if portable else
+            "此包只含來源清單，尚未複製原檔。請先由設計端 prepare-review --portable 產生可攜包，再提供給另一個環境；只貼本機路徑不保證可讀。\n") +
+            "\n回傳：依 REVIEW_TEMPLATE.json 建立新的結果 JSON 與摘要，保留 artifact_digest／review_pack_id；不要修改模板、輸入、原設計或既有審查。\n"
+            "不同模型仍須新對話、實際讀原文；無法確認獨立性就如實標示。尚未執行產品測試或取得人工核可。\n")
+
+
 def build_review_pack(root, pack_id, portable, focus):
     pack = safe(root, "qa/review-packs/" + valid_id(pack_id))
     if pack.exists() or pack.with_suffix(".zip").exists():
@@ -2479,13 +2490,7 @@ def build_review_pack(root, pack_id, portable, focus):
                   "本包曾在建立時檢查；接手仍要核對目前可讀檔案。無 Python 時人工核對並記工具驗證限制，不假稱已執行。\n"
                   "若已安裝 genai-test-review 可使用它；否則直接按 REVIEW_GUIDE.md 執行。依 REVIEW_TEMPLATE.json 回傳新的 JSON 與摘要，勿改輸入、模板或既有結果。\n")
         (stage / "PROMPT.md").write_text(prompt, encoding="utf-8")
-        handoff = (f"# 審查交接\n\n交接編號：{pack_id}（REV 取自 Review，數字為審查類流水號）。\n"
-                   f"完整設計版本：{packet['artifact_digest']}\n\n"
-                   f"同一工作區：請在新工作階段審查專案 {json.dumps(str(root), ensure_ascii=False)}，讀取 {json.dumps(str(pack / 'PROMPT.md'), ensure_ascii=False)}，依包內四輪準則執行，只新增審查結果。\n\n"
-                   "另一個平台／模型：" + ("將同名 ZIP 或整個交接資料夾提供給新對話。解壓後從 PROMPT.md 開始，來源依 manifest 的 bundle_path 開啟，無須原機器路徑或安裝 Skill。\n" if portable else
-                   "此包只含來源清單，尚未複製原檔。請先由設計端 prepare-review --portable 產生可攜包，再提供給另一個環境；只貼本機路徑不保證可讀。\n") +
-                   "\n回傳：依 REVIEW_TEMPLATE.json 建立新的結果 JSON 與摘要，保留 artifact_digest／review_pack_id；不要修改模板、輸入、原設計或既有審查。\n"
-                   "不同模型仍須新對話、實際讀原文；無法確認獨立性就如實標示。尚未執行產品測試或取得人工核可。\n")
+        handoff = review_handoff_text(root, pack, pack_id, packet["artifact_digest"], portable)
         (stage / "HANDOFF.md").write_text(handoff, encoding="utf-8")
         shutil.copyfile(Path(__file__), stage / "verify_pack.py")
         manifest = {"protocol_version": 2, "pack_id": pack_id, "tool_version": VERSION, "portable": portable,
