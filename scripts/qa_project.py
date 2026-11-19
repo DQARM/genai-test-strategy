@@ -17,7 +17,7 @@ import zipfile
 from datetime import datetime, timezone
 from urllib.parse import quote
 
-VERSION = "1.11.0"
+VERSION = "1.12.0"
 DESIGN_POLICY = "coverage-items-v1"
 METHOD_POLICY = "design-choices-v1"
 RISK_POLICY = "requirement-risk-v1"
@@ -25,6 +25,8 @@ READING_POLICY = "source-reading-v1"
 TECHNIQUES = {"equivalence", "boundary-2", "boundary-3", "decision-table",
               "state-transition", "pairwise", "combinatorial", "scenario", "experience",
               "error-guessing", "data-lifecycle", "measurement"}
+TEST_LEVELS = ("unit", "component-integration", "integration", "system", "system-integration", "acceptance")
+MEASUREMENT_SUBTYPES = ("load", "stress", "endurance", "scalability", "capacity", "spike", "concurrency", "measurement")
 QUESTION_CATEGORIES = {"ambiguity", "exception", "boundary", "assumption", "conflict", "testability", "role-permission", "other"}
 RISK_ORIGINS = {"requirement", "integration", "change", "architecture", "environment", "omission", "experience"}
 ID_TERMS = {
@@ -837,6 +839,30 @@ def project_techniques(project, errors=None):
     return registered
 
 
+def inspect_measurement_profile(choice, label, errors):
+    """Validate the optional profile and report whether its acceptance basis is unresolved."""
+    if "measurement_profile" not in choice:
+        return False
+    profile = choice["measurement_profile"]
+    label += ".measurement_profile"
+    if choice.get("technique") != "measurement":
+        errors.append(f"{label}: only valid for the measurement technique")
+    if not isinstance(profile, dict):
+        errors.append(f"{label}: expected an object")
+        return False
+    if profile.get("subtype") not in MEASUREMENT_SUBTYPES:
+        errors.append(f"{label}: invalid performance subtype")
+    for field in ("trigger", "workload", "metric"):
+        if not known_model_expected(profile.get(field)):
+            errors.append(f"{label}: missing or invalid {field}")
+    basis = profile.get("acceptance_basis")
+    if basis == "":
+        return True
+    if not known_model_expected(basis):
+        errors.append(f"{label}: acceptance_basis must be meaningful text or an empty string for an unresolved basis")
+    return False
+
+
 def inspect_design_choices(reg, maps, gate, errors, warnings, refs, techniques):
     """Check recorded decisions and explicit model links within the selected scope."""
     policy = reg.get("project", {}).get("method_policy")
@@ -871,11 +897,16 @@ def inspect_design_choices(reg, maps, gate, errors, warnings, refs, techniques):
             errors.append(f"{did}: natures must specify functional or non-functional")
         if not string_list(choice, "quality_aspects", did):
             errors.append(f"{did}: missing quality_aspects")
+        if "levels" in choice:
+            levels = string_list(choice, "levels", did)
+            if not levels or any(level not in TEST_LEVELS for level in levels):
+                errors.append(f"{did}: levels must specify one or more supported test levels")
         text_field(choice, "objective", did)
         text_field(choice, "reason", did)
         technique = choice.get("technique")
         if not isinstance(technique, str) or technique not in techniques:
             errors.append(f"{did}: invalid test design technique")
+        unresolved_basis = inspect_measurement_profile(choice, did, errors)
         applicability, selection = choice.get("applicability"), choice.get("selection")
         allowed = {"applicable": ("adopt", "defer", "exclude", "pending"),
                    "not-applicable": ("exclude",), "unknown": ("pending", "defer")}
@@ -899,6 +930,7 @@ def inspect_design_choices(reg, maps, gate, errors, warnings, refs, techniques):
             errors.append(f"{did}: model_rows must be a list")
             continue
         choice_cov = set()
+        profile_questions = list(questions) if unresolved_basis else []
         for index, row in enumerate(rows, 1):
             label = f"{did}.model_rows[{index}]"
             if not isinstance(row, dict):
@@ -908,8 +940,13 @@ def inspect_design_choices(reg, maps, gate, errors, warnings, refs, techniques):
             text_field(row, "inputs", label)
             covs = refs(row.get("coverage_ids"), "coverage_items", label)
             row_questions = refs(row.get("question_ids", []), "questions", label)
+            if unresolved_basis:
+                profile_questions.extend(row_questions)
             expected = row.get("expected")
             known = known_model_expected(expected)
+            if unresolved_basis and (known or covs):
+                errors.append(f"{label}: unresolved measurement acceptance_basis cannot support an expected result or coverage")
+                continue
             if not isinstance(expected, str) or (covs and not known):
                 errors.append(f"{label}: expected must be text, with a criterion for a coverage link")
                 continue
@@ -929,6 +966,9 @@ def inspect_design_choices(reg, maps, gate, errors, warnings, refs, techniques):
                 if cov.get("selection") == "keep":
                     choice_cov.add(cov["id"])
                     represented_ac.update(basis)
+        if (unresolved_basis and active and selection in ("adopt", "pending")
+                and not any(q.get("status") in ("open", "deferred") for q in profile_questions)):
+            gaps.append(f"{did}: unresolved measurement acceptance_basis needs an open or deferred question")
         if active and selection == "adopt" and not choice_cov:
             gaps.append(f"{did}: adopted method has no retained model coverage")
         represented_cov.update(choice_cov)
@@ -1154,7 +1194,7 @@ def inspect(root, gate="draft"):
                       "steps", "cleanup", "independence", "verdict_rules", "ac_ids"], cid)
         if case.get("type") not in ("manual", "automated"):
             error(f"{cid}: type must be manual or automated")
-        if case.get("level") not in ("unit", "integration", "system", "acceptance"):
+        if case.get("level") not in TEST_LEVELS:
             error(f"{cid}: invalid test level")
         if any(a.get("status") != "confirmed" for a in acs):
             error(f"{cid}: Expected cannot depend on unconfirmed AC")
@@ -1891,6 +1931,101 @@ def design_labels(custom_methods):
     return {**DESIGN_LABELS, **{key: entry["title"] for key, entry in custom_methods.items()}}
 
 
+LEVEL_LABELS = {"unit": "單元", "component-integration": "元件整合", "integration": "整合（未細分）",
+                "system": "系統", "system-integration": "系統整合", "acceptance": "驗收"}
+EXECUTION_LABELS = {"manual": "人工", "automated": "自動"}
+PERFORMANCE_LABELS = {"load": "負載", "stress": "壓力", "endurance": "耐久", "scalability": "擴充性",
+                      "capacity": "容量", "spike": "突波", "concurrency": "並行", "measurement": "一般量測"}
+
+
+def report_coverage_matrix(plans, assertions, cases, selected_cases, link, e):
+    """Group explicit plans by intended level, and step links by the actual case level."""
+    cells = {}
+
+    def cell(level, aspect):
+        return cells.setdefault((level, aspect), {"flags": set(), "ready": set(), "lines": []})
+
+    for did, aspects, levels, selection, active, items in plans:
+        choice_link = link("design_choices", did)
+        planned = levels or [""]
+        for aspect in aspects or [""]:
+            for level in planned:
+                entry = cell(level, aspect)
+                if not level:
+                    entry["flags"].add("層級未指定")
+                if selection == "adopt" and active:
+                    entry["lines"].append(choice_link + " 採用")
+                else:
+                    disposition = {"pending": "待取捨", "exclude": "本輪未選（不納入）",
+                                   "defer": "本輪未選（暫緩）", "adopt": "本輪未選（範圍外）"}.get(selection, "取捨待確認")
+                    entry["flags"].add(disposition)
+                    entry["lines"].append(choice_link + " " + disposition)
+            if selection != "adopt":
+                continue
+            for item_label, cov_id, item_state in items:
+                checks_by_level = {}
+                for cid, check_link in assertions.get(cov_id, []):
+                    raw_level = cases[cid].get("level")
+                    actual_level = raw_level if isinstance(raw_level, str) and raw_level in LEVEL_LABELS else ""
+                    checks_by_level.setdefault(actual_level, {}).setdefault(cid, []).append(check_link)
+                for level in dict.fromkeys([*planned, *checks_by_level]):
+                    entry = cell(level, aspect)
+                    prefix = choice_link + " · " + item_label
+                    checks = checks_by_level.get(level, {})
+                    ready = set()
+                    for cid, links in checks.items():
+                        status = cases[cid].get("status")
+                        if active and item_state == "needed" and cid in selected_cases and status == "ready":
+                            ready.add(cid)
+                        scope_label = "本輪已選" if cid in selected_cases else "本輪未選"
+                        prefix += "<br>" + "、".join(dict.fromkeys(links)) + "（" + e(status or "狀態未知") + "／" + scope_label + "）"
+                    entry["ready"].update(ready)
+                    if level not in planned:
+                        entry["flags"].add("有案例引用，未登錄此層級規劃")
+                    elif active and item_state == "deferred":
+                        entry["flags"].add("本輪未選（覆蓋項目暫緩）")
+                    elif active and item_state == "outside":
+                        entry["flags"].add("本輪未選（覆蓋項目在範圍外）")
+                    elif active and item_state == "pending":
+                        entry["flags"].add("已選待補")
+                        entry["flags"].add("判準待確認")
+                    elif active and item_state == "needed" and level and not ready:
+                        entry["flags"].add("已選待補")
+                        prefix += " · 缺本層級已選就緒案例斷言"
+                    elif active and item_state == "needed" and level and ready:
+                        entry["flags"].add("已選有就緒案例")
+                    entry["lines"].append(prefix)
+
+    heading = '<section id="coverage-matrix"><h2>覆蓋矩陣 · 測試層級 × 品質面向</h2>'
+    if not cells:
+        return heading + '<p>尚未登錄方法選用與品質面向。可在<a href="#cases">案例清單</a>查閱既有案例。</p></section>'
+    aspects = sorted({aspect for _, aspect in cells})
+    used_levels = {level for level, _ in cells}
+    levels = [level for level in (*TEST_LEVELS, "") if level in used_levels]
+    output = [heading, '<p>展開格子可查本輪取捨、覆蓋項目與案例斷言。案例數只計本輪採用且屬本輪範圍的覆蓋項目，並按已選就緒案例去重。'
+              '本表呈現案例設計；產品實測見<a href="#test-runs">實測紀錄</a>。</p>',
+              '<div class="scroll"><table class="matrix"><thead><tr><th scope="col">測試層級</th>',
+              *('<th scope="col">' + e(aspect or "未分類") + '</th>' for aspect in aspects), '</tr></thead><tbody>']
+    for level in levels:
+        output.append('<tr><th scope="row">' + e(LEVEL_LABELS.get(level, "層級未指定")) + '</th>')
+        for aspect in aspects:
+            entry = cells.get((level, aspect))
+            output.append('<td data-level="' + e(level) + '" data-aspect="' + e(aspect) + '">')
+            if entry:
+                flags = entry["flags"].copy()
+                if {"已選有就緒案例", "已選待補"} <= flags:
+                    flags.difference_update(("已選有就緒案例", "已選待補"))
+                    flags.add("部分待補")
+                summary = "、".join(sorted(flags))
+                output.append('<details><summary>' + e(summary) + ' · ' + str(len(entry["ready"])) + ' 案</summary><ul>' +
+                              ''.join('<li>' + line + '</li>' for line in dict.fromkeys(entry["lines"])) + '</ul></details>')
+            else:
+                output.append('未登錄取捨<br><a href="#documents">查本輪範圍</a>')
+            output.append('</td>')
+        output.append('</tr>')
+    return ''.join(output) + '</tbody></table></div></section>'
+
+
 def report_design_choices(reg, maps, cases, link, anchor, e, custom_methods, display_names):
     """Use explicit model → coverage item → step assertion links for the index."""
     choices = maps["design_choices"]
@@ -1921,7 +2056,8 @@ def report_design_choices(reg, maps, cases, link, anchor, e, custom_methods, dis
                 for cov_id in terms(check.get("coverage_ids")):
                     basis = set(terms(coverage.get(cov_id, {}).get("ac_ids")))
                     if (not basis or not basis.issubset(terms(check.get("rule_refs")))
-                            or cov_id not in terms(case.get("coverage_ids")) or not known_model_expected(check.get("expected"))):
+                            or not basis.issubset(terms(case.get("ac_ids"))) or cov_id not in terms(case.get("coverage_ids"))
+                            or not known_model_expected(check.get("expected"))):
                         continue
                     vid = f'{anchor("cases", cid)}-step-{si}-check-{ai}'
                     title = f'{cid} 步驟 {step.get("n", si)}／斷言 {ai}'
@@ -1931,7 +2067,8 @@ def report_design_choices(reg, maps, cases, link, anchor, e, custom_methods, dis
     classified_cov = set()
     assessed, adopted_ac = set(), set()
     pending, deferred, missing = [], [], []
-    overview, models = [], []
+    overview, models, matrix_plans = [], [], []
+    selected_risks = set(terms(reg.get("scope", {}).get("selected_risk_ids")))
     raw_choices = reg.get("design_choices", [])
     if not isinstance(raw_choices, list) or len(raw_choices) != len(choices):
         missing.append("部分方法選用記錄的格式或編號有誤，請檢查原始記錄。")
@@ -1939,6 +2076,9 @@ def report_design_choices(reg, maps, cases, link, anchor, e, custom_methods, dis
         did_link = link("design_choices", did)
         groups = [n for n in terms(choice.get("natures")) if n in ("functional", "non-functional")]
         aspects = terms(choice.get("quality_aspects"))
+        levels = [level for level in terms(choice.get("levels")) if level in LEVEL_LABELS]
+        matrix_items = []
+        profile = choice.get("measurement_profile")
         technique = choice.get("technique")
         applicable, selection = choice.get("applicability"), choice.get("selection")
         ac_ids = terms(choice.get("ac_ids"))
@@ -1962,6 +2102,16 @@ def report_design_choices(reg, maps, cases, link, anchor, e, custom_methods, dis
         models.extend(['<article class="record" id="' + anchor("design_choices", did) + '" data-record-id="' + e(did) + '">',
                        '<h3>' + e(did + " · " + label(technique)) + '</h3><p>' + e(choice.get("objective") or "驗證目標待補")
                        + '</p>', '<p>覆蓋準則　' + criterion + '</p>'])
+        if "measurement_profile" in choice:
+            profile = profile if isinstance(profile, dict) else {}
+            subtype = profile.get("subtype")
+            subtype_title = PERFORMANCE_LABELS.get(subtype, subtype) if isinstance(subtype, str) else ""
+            profile_values = (subtype_title, profile.get("trigger"), profile.get("workload"), profile.get("metric"),
+                              profile.get("acceptance_basis") or "驗收依據待確認，僅可保留探索量測")
+            models.append('<h4>效能選案依據</h4>' + table(("效能子類", "觸發條件", "工作負載", "指標", "驗收依據"),
+                                                          [[e(v or "待確認") for v in profile_values]]))
+        elif technique == "measurement":
+            models.append('<p>效能子類未指定。</p>')
         if refs:
             models.append('<p>' + ' · '.join(refs) + '</p>')
         rows = []
@@ -1976,6 +2126,12 @@ def report_design_choices(reg, maps, cases, link, anchor, e, custom_methods, dis
                        "boundary-2": ("邊界項目", "輸入與單位", "邊界判準"),
                        "boundary-3": ("邊界項目", "輸入與單位", "邊界判準"),
                        "measurement": ("量測項目", "工作負載與量測條件", "量測判準")}
+        profile_errors = []
+        profile_pending = inspect_measurement_profile(choice, did, profile_errors)
+        if profile_pending:
+            pending.append(did_link + " 效能驗收依據待確認")
+        if profile_errors:
+            missing.append(did_link + " 效能選案資料待核對")
         for ordinal, row in enumerate(ref_list(choice.get("model_rows")), 1):
             row = row if isinstance(row, dict) else {}
             row_label = row.get("label") or f"第 {ordinal} 列"
@@ -1988,16 +2144,27 @@ def report_design_choices(reg, maps, cases, link, anchor, e, custom_methods, dis
             expected = e(row.get("expected") or "待確認")
             if row_questions:
                 expected += '<br>' + links("questions", row_questions)
+            item_label = e(row_label)
+            if not cov_ids:
+                note = "尚無覆蓋項目" if known else "判準待確認 " + links("questions", row_questions)
+                matrix_items.append((item_label + " · " + note, None, "needed" if known else "pending"))
             row_links = []
             for cov_id in cov_ids:
                 cov = coverage.get(cov_id)
                 basis = set(terms((cov or {}).get("ac_ids")))
-                if (not cov or not known or not adopted or not basis or not basis.issubset(ac_ids)
+                cov_label = item_label + " · " + link("coverage_items", cov_id)
+                if (not cov or not known or not adopted or profile_pending or profile_errors or not basis or not basis.issubset(ac_ids)
                         or not isinstance(technique, str) or technique not in techniques or cov.get("technique") != technique):
+                    matrix_items.append((cov_label + " · 覆蓋關聯待核對", None, "pending" if profile_pending else "needed"))
                     missing.append(did_link + " " + e(row_label) + " 的覆蓋關聯待核對：" + link("coverage_items", cov_id))
                     continue
                 if cov.get("selection") != "keep":
+                    deferred_item = cov.get("selection") == "defer"
+                    matrix_items.append((cov_label + (" · 已暫緩" if deferred_item else " · 取捨待確認"),
+                                         None, "deferred" if deferred_item else "pending"))
                     continue
+                row_in_scope = bool(selected_acs & basis or selected_risks.intersection(terms(cov.get("risk_ids"))))
+                matrix_items.append((cov_label, cov_id, "needed" if row_in_scope else "outside"))
                 classified_cov.add(cov_id)
                 adopted_ac.update(basis)
                 for cid, check_link in assertions.get(cov_id, []):
@@ -2023,6 +2190,11 @@ def report_design_choices(reg, maps, cases, link, anchor, e, custom_methods, dis
             if adopted:
                 missing.append(did_link + " 已採用，尚無模型列")
         models.append('</article>')
+        if adopted and not matrix_items:
+            matrix_items.append(("尚無模型列", None, "pending" if profile_pending else "needed"))
+        active = bool(selected_acs.intersection(ac_ids) or selected_risks.intersection(terms(choice.get("risk_ids"))))
+        disposition = selection if isinstance(selection, str) and (selection != "adopt" or adopted) else "pending"
+        matrix_plans.append((did, aspects, levels, disposition, active, matrix_items))
     unmodeled = [cov_id for cov_id, cov in coverage.items() if cov.get("selection") == "keep"
                  and selected_acs.intersection(terms(cov.get("ac_ids"))) and cov_id not in classified_cov]
     # Older projects can have grounded techniques even when nature/quality were never recorded.
@@ -2054,27 +2226,32 @@ def report_design_choices(reg, maps, cases, link, anchor, e, custom_methods, dis
                                      + '</dd>' for name, items in gap_rows) + '</dl></section>')
     selected_checks = {cov_id: list(dict.fromkeys(target for cid, target in checks if cid in selected_cases))
                        for cov_id, checks in assertions.items()}
-    return ''.join(strategy), ''.join(models), by_case, selected_checks
+    matrix = report_coverage_matrix(matrix_plans, assertions, cases, selected_cases, link, e)
+    return ''.join(strategy) + matrix, ''.join(models), by_case, selected_checks
 
 
-def case_filter_controls(by_case, display_names):
-    fields = (("nature", "測試性質", "natures"), ("quality", "品質面向", "quality_aspects"), ("technique", "設計方法", "technique"))
+def case_filter_controls(by_case, display_names, cases):
+    fields = (("nature", "測試性質", "natures", display_names), ("quality", "品質面向", "quality_aspects", {}),
+              ("technique", "設計方法", "technique", display_names), ("level", "測試層級", "level", LEVEL_LABELS),
+              ("type", "執行方式", "type", EXECUTION_LABELS))
     controls = ['<form id="case-filters" hidden><label>搜尋案例 <input type="search" id="case-filter-search" placeholder="案例編號、標題或目的"></label>']
-    for short, title, key in fields:
+    for short, title, key, labels in fields:
         options, has_missing = set(), False
-        for channels in by_case.values():
-            if not channels:
-                has_missing = True
-            for channel in channels.values():
-                raw = channel[key]
-                entries = [raw] if isinstance(raw, str) and raw else raw
+        for cid, channels in by_case.items():
+            if key in ("level", "type"):
+                records = [cases[cid]]
+            else:
+                records = channels.values() or [{}]
+            for record in records:
+                raw = record.get(key)
+                entries = [raw] if isinstance(raw, str) and raw else ref_list(raw)
                 if entries:
-                    options.update(entries)
+                    options.update(value for value in entries if isinstance(value, str))
                 else:
                     has_missing = True
         controls.append('<label>' + title + ' <select id="case-filter-' + short + '"><option value="">全部</option>')
         for val in sorted(options):
-            title_text = display_names.get(val, val) if key != "quality_aspects" else val
+            title_text = labels.get(val, val)
             controls.append('<option value="' + escape(val, quote=True) + '">' + escape(title_text) + '</option>')
         if has_missing:
             unused = "__unclassified__"
@@ -2093,7 +2270,8 @@ CASE_FILTER_SCRIPT = """<script id="case-filter-script">
   const index = Array.from(document.querySelectorAll("#case-index tr"), row => ({
     row, channels: JSON.parse(row.dataset.channels), text: (row.textContent + " " + row.dataset.purpose).toLocaleLowerCase()
   }));
-  const fields = [["nature", "natures"], ["quality", "quality_aspects"], ["technique", "technique"]];
+  const fields = [["nature", "natures"], ["quality", "quality_aspects"], ["technique", "technique"],
+                  ["level", "level"], ["type", "type"]];
   function update() {
     const search = document.getElementById("case-filter-search").value.trim().toLocaleLowerCase();
     const filters = fields.map(([id, field]) => [document.getElementById("case-filter-" + id).selectedOptions[0], field]);
@@ -2101,7 +2279,7 @@ CASE_FILTER_SCRIPT = """<script id="case-filter-script">
     for (const {row, channels, text} of index) {
       const match = channels.some(channel => filters.every(([option, field]) => {
         if (!option.value) return true;
-        const value = channel[field];
+        const value = field === "level" || field === "type" ? row.dataset[field] : channel[field];
         if (option.hasAttribute("data-missing")) return !value.length;
         return Array.isArray(value) ? value.includes(option.value) : value === option.value;
       }));
@@ -2411,6 +2589,7 @@ def render_html(root, reg, cases):
     .document{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit}summary{cursor:pointer;font-weight:650;padding:.6rem 0}footer{padding:1rem;color:var(--muted);border-top:1px solid var(--line)}
     #case-filters:not([hidden]){display:flex;flex-wrap:wrap;gap:.65rem 1rem;align-items:end;margin:1rem 0}
     #case-filters label{display:grid;font-weight:600}#case-filters :is(input,select,button){min-height:2.4rem;padding:.25rem .55rem;font:inherit}
+    .matrix th,.matrix td{min-width:8rem}.matrix details[open]{min-width:15rem}.matrix summary{padding:.1rem 0}
     .steps :target{background:#fff1d7;outline:2px solid #b65a0d;scroll-margin-top:7rem}
     @media(max-width:650px){.stats{gap:.4rem}.stat{padding:.7rem}.stat b{font-size:1.4rem}dl{grid-template-columns:1fr;gap:.1rem}.record{padding:1rem}dd{margin-bottom:.5rem}nav{position:static}}
     @media print{body{background:white;font-size:10pt}header{background:white;color:#172d43;padding:0}header p,header a,.eyebrow{color:#172d43}nav,.back{display:none}main{padding:0;max-width:none}.record{border-radius:0}a{color:#172d43}.scroll{overflow:visible}.steps{min-width:0}.steps td{min-width:0}tr{break-inside:avoid}h2,h3,h4{break-after:avoid}details{display:block}}
@@ -2433,7 +2612,7 @@ def render_html(root, reg, cases):
            '<h1>' + e(title) + '</h1><p>來源與測試案例 · 雙向追溯閱讀報告</p>',
            '<p>點選編號查看完整內容，再由來源反查相關案例。各類編號的英文來源、中文意思與用途，見下方<a href="#glossary">完整縮寫表</a>。</p>',
            '<div class="meta">產生時間：' + e(now()) + ' · 工具版本：' + VERSION + '</div></header>',
-           '<nav aria-label="報告章節"><a href="#design-strategy">策略總覽</a><a href="#design-models">方法模型</a><a href="#cases">案例清單</a><a href="#sources">來源清單</a>',
+           '<nav aria-label="報告章節"><a href="#design-strategy">策略總覽</a><a href="#coverage-matrix">覆蓋矩陣</a><a href="#design-models">方法模型</a><a href="#cases">案例清單</a><a href="#sources">來源清單</a>',
            '<a href="#risk-assessment">需求風險評估</a><a href="#coverage">設計覆蓋</a><a href="#exploration">探索任務</a>',
            '<a href="#reviews-baselines">審查與基線</a><a href="#test-runs">實測紀錄</a><a href="#interview">問答紀錄</a><a href="#rules">需求與驗收</a><a href="#other">風險與待確認</a><a href="#glossary">編號與縮寫說明</a><a href="#documents">其他成果</a></nav><main>',
            '<div class="notice">這是設計與已登錄結果的閱讀快照。連結不代表已覆蓋、已核可或已執行；本頁不產生實際測試結果，也不自動判定放行。</div>',
@@ -2484,8 +2663,8 @@ def render_html(root, reg, cases):
         out += ['<h4>反查引用案例</h4><p>' + case_links("sources", sid) + '</p>' + related_links("sources", sid) + '<p class="back"><a href="#sources">返回來源清單</a></p></article>']
     selected = set(reg.get("scope", {}).get("selected_case_ids", []))
     out += ['</section><section id="cases"><h2>測試案例清單</h2><p>draft＝草稿；blocked＝有阻塞；ready＝設計就緒；retired＝停用。人工執行的完整步驟列在各案例內。</p>',
-            case_filter_controls(designs_by_case, display_names),
-            '<div class="scroll"><table><thead><tr><th>案例編號</th><th>標題</th><th>性質、品質面向與方法</th><th>狀態／本輪範圍</th><th>參考來源</th></tr></thead><tbody id="case-index">']
+            case_filter_controls(designs_by_case, display_names, cases),
+            '<div class="scroll"><table><thead><tr><th>案例編號</th><th>標題</th><th>性質、品質面向與方法</th><th>測試層級／執行方式</th><th>狀態／本輪範圍</th><th>參考來源</th></tr></thead><tbody id="case-index">']
     for cid, case in cases.items():
         definitions = designs_by_case[cid]
         channels = list(definitions.values()) or [{"natures": [], "quality_aspects": [], "technique": ""}]
@@ -2495,9 +2674,14 @@ def render_html(root, reg, cases):
             terms.append(display_names.get(channel["technique"], channel["technique"]) or "未分類")
             group = "design_choices" if rid in maps["design_choices"] else "coverage_items"
             badges.append(e("／".join(terms)) + " " + link(group, rid))
-        out.append('<tr data-channels="' + e(json.dumps(channels, ensure_ascii=False)) + '" data-purpose="' +
+        level = case.get("level") if isinstance(case.get("level"), str) else ""
+        mode = case.get("type") if isinstance(case.get("type"), str) else ""
+        out.append('<tr data-channels="' + e(json.dumps(channels, ensure_ascii=False)) + '" data-level="' + e(level) +
+                   '" data-type="' + e(mode) + '" data-purpose="' +
                    e(case.get("purpose") or "") + '"><td>' + link("cases", cid) + '</td><td>' + e(case.get("title", "")) +
-                   '</td><td>' + ('<br>'.join(badges) or "未分類") + '</td><td>' + e(case.get("status", "未提供")) +
+                   '</td><td>' + ('<br>'.join(badges) or "未分類") + '</td><td>' +
+                   e(LEVEL_LABELS.get(level, level or "層級未指定") + "／" + EXECUTION_LABELS.get(mode, mode or "未分類")) +
+                   '</td><td>' + e(case.get("status", "未提供")) +
                    (' / 本輪已選' if cid in selected else ' / 本輪未選') + '</td><td>' + source_links(cid) + '</td></tr>')
     out += ['</tbody></table></div>' if cases else '</tbody></table></div><p>尚未建立測試案例。</p>']
     for cid, case in cases.items():

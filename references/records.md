@@ -55,11 +55,15 @@ DES 取自 Design，代表一筆方法選用紀錄，數字是本類流水號。
 |---|---|
 | `id`、`objective`、`ac_ids` | 穩定編號、具體可驗證的目標、相應驗收條件。可用 `risk_ids`、`question_ids`、`decision_refs` 引用已登錄的風險、問題、取捨。 |
 | `natures`、`quality_aspects` | 各填至少一項。前者取 `functional` 或 `non-functional`，兩者可並列；後者填專案品質面向，如「功能正確性」「效能效率」。案例的 `type` 仍專指人工／自動執行。 |
+| `levels`（選填） | 列出這個選案決定適用的目標層級，使用下方案例 `level` 的代碼。提供時至少一個且不可重複。若不同層級的模型、品質面向或取捨不同，分筆記錄。缺省表示尚未指定層級。 |
 | `technique`、`applicability` | 方法代碼見 [test-design.md](test-design.md)。適用性填 `applicable`、`not-applicable` 或 `unknown`。 |
+| `measurement_profile`（量測方法選填） | 效能選案的可追溯摘要。填寫 `subtype`、`trigger`、`workload`、`metric`、`acceptance_basis` 五個字串，其餘方法沿用原欄位。 |
 | `selection`、`reason` | 適用的方法可 `adopt`（採用）、`defer`（暫緩）、`exclude`（不納入）或 `pending`（待決）；不適用填 exclude；適用性未知填 pending 或 defer。說明選擇與適用性的理由，暫緩另填 `residual_risk`。 |
 | `criterion`、`model_rows` | 採用時須連 AC、寫覆蓋準則與模型。每列有文字 `label`、`inputs`、`expected` 及陣列 `coverage_ids`。僅採用的方法可連 COV；該 COV 的方法須相同，所有 AC 均在本筆 `ac_ids` 中。尚未確定預期的列填空字串及空陣列，並指出缺哪項決策。 |
 
 採用且涉及已選 AC 或風險時，未決列須以列上的 `question_ids` 或該 DES 的 `question_ids` 指到尚未結案的問題，依問題的 `blocks` 處理。已評為適用卻暫緩的本輪方法須在基線前連到真實取捨的 `decision_refs`，可共用既有決策。
+
+效能選案的 `subtype` 可用 `load`、`stress`、`endurance`、`scalability`、`capacity`、`spike`、`concurrency`、`measurement`。依 [test-design.md](test-design.md) 選擇。`trigger` 記下引發量測的承諾或風險，沿用 DES 上的 AC 或風險引用。`workload` 描述已知負載與仍待釐清的條件，`metric` 記錄量測指標，`acceptance_basis` 指出適用條款或已確認 AC 與判定依據。若欠缺足以判定的依據，填空字串，模型列的 `expected` 填空字串、`coverage_ids` 填空陣列。本輪 `pending` 或 `adopt` 的未決依據在 DES 或模型列連到開放或延後的 Q（Question，待釐清問題）。可另外以探索任務收集觀察。有各自判準的工作負載或不同子類可分筆選用。同一子類在多個條件下驗證時，於模型分列負載與對應的預期。
 
 例如已確認「整數設定 1 至 50 均可儲存」時，模型的上限列可寫成 `{"label":"上限值","inputs":"設定 50 並儲存，再重新讀取","expected":"讀得 50","coverage_ids":["COV-02"]}`。此列只承接上限值；對超出範圍的處置另查已確認規則。人閱讀的版本應能從模型列經 COV 到實際步驟斷言。
 
@@ -94,7 +98,7 @@ DES 取自 Design，代表一筆方法選用紀錄，數字是本類流水號。
 - id、title、revision、status（draft／blocked／ready／retired）、purpose。
 - ac_ids、risk_ids、scenario_ids。每個宣稱覆蓋的 AC 都要有具體斷言，不可只掛 ID。
 - coverage_ids：本案關聯的 COV ID；對應 AC 也須列於 ac_ids。ready 案例宣稱的每個 COV 都要有本案步驟斷言承接。舊案例可暫缺此欄位繼續編輯，新基線須補齊。
-- level（unit／integration／system／acceptance）、type（manual／automated）。
+- `level` 的值為 `unit`（元件／單元）、`component-integration`（元件整合）、`system`（系統）、`system-integration`（系統整合）、`acceptance`（驗收），或 `integration`（整合範圍未細分）。`type` 為 `manual` 或 `automated`。
 - environment：target、build_binding、tools、binding_refs（SRC ID）。binding_refs 指向已確認的 harness 或 normative 來源，說明實際可用操作及觀測介面；不得用觀測到的產品結果替代應然規格。
 - preconditions：物件陣列，每項 action、verify，必要時 evidence。寫出如何建立、如何確認。
 - data：陣列，包含 name、value、unit、basis；不需要外加資料時寫明原因，不能留空掩蓋缺口。

@@ -11,7 +11,7 @@
 | 檢視面向 | 依本專案可分析的失效與證據 |
 |---|---|
 | 功能適合性 functional suitability | 必要工作是否缺漏、結果是否正確；連回既有 AC，避免另建重複規則 |
-| 效能效率 performance efficiency | 負載、容量、資源及回應時間；記工作量、量測位置、統計方式與依據 |
+| 效能效率 performance efficiency | 有負載承諾、資源限制或退化風險時，依[效能選案規則](performance-testing.md)指出要回答的問題，列適用子類、工作量、量測方法與判準依據 |
 | 相容性 compatibility | 共存與互通、協定／格式／版本配對；核對雙方收發及實際效果 |
 | 互動能力 interaction capability | 使用者能否理解、操作、辨識錯誤及恢復；依真實角色與使用情境觀察 |
 | 可靠性 reliability | 長時間運作、故障、可用性與恢復；區分服務恢復與資料完整性 |

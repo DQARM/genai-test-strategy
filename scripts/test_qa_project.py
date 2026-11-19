@@ -67,6 +67,7 @@ class ReportParser(HTMLParser):
         self.ids, self.links, self.records, self.scripts = [], [], {}, []
         self.in_script = False
         self.current = None
+        self.matrix_cells, self.cell = {}, None
         self.feed(content)
 
     def handle_starttag(self, tag, attrs):
@@ -76,9 +77,14 @@ class ReportParser(HTMLParser):
         if tag == 'article' and 'data-record-id' in attrs:
             self.current = attrs['data-record-id']
             self.records[self.current] = {'anchor': attrs['id'], 'links': [], 'text': ''}
+        if tag == 'td' and 'data-aspect' in attrs and 'data-level' in attrs:
+            self.cell = {'text': '', 'links': []}
+            self.matrix_cells[(attrs['data-level'], attrs['data-aspect'])] = self.cell
         if tag == 'a':
             href = attrs.get('href', '')
             self.links.append(href)
+            if self.cell is not None:
+                self.cell['links'].append(href)
             if self.current:
                 self.records[self.current]['links'].append(href)
         if tag == 'script':
@@ -86,12 +92,16 @@ class ReportParser(HTMLParser):
             self.scripts.append((attrs, []))
 
     def handle_endtag(self, tag):
+        if tag == 'td':
+            self.cell = None
         if tag == 'script':
             self.in_script = False
         if tag == 'article':
             self.current = None
 
     def handle_data(self, data):
+        if self.cell is not None:
+            self.cell['text'] += data
         if self.in_script:
             self.scripts[-1][1].append(data)
         if self.current:
@@ -948,6 +958,194 @@ class WorkflowTests(unittest.TestCase):
         self.assertFalse(any(h.endswith("-step-1-check-1") for h in model["links"]))
         self.assertTrue(all(h[1:] in page.ids for h in page.links if h.startswith("#")))
         self.assertEqual(len(page.ids), len(set(page.ids)))
+
+    def test_matrix_scoped_choices_distinguish_ready_partial_missing_and_unselected(self):
+        reg, case = self.fixture()
+        choice = reg["design_choices"][0]
+        choice["levels"] = ["unit", "integration"]
+        row = choice["model_rows"][0]
+        reg["coverage_items"].append({**reg["coverage_items"][0], "id": "COV-002"})
+        reg["design_choices"].extend([
+            {**choice, "id": "DES-002", "model_rows": [{**row, "coverage_ids": ["COV-002"]}]},
+            {**choice, "id": "DES-003", "selection": "exclude", "levels": ["acceptance"], "model_rows": []},
+            {**choice, "id": "DES-004", "selection": "pending", "levels": ["system"], "model_rows": []},
+            {**choice, "id": "DES-005", "selection": "exclude", "levels": ["system"],
+             "quality_aspects": ["unscoped quality"], "ac_ids": [], "risk_ids": [], "model_rows": []},
+        ])
+        # Partial at unit, no ready evidence at integration. Neither a draft in this round nor
+        # ready evidence outside this round can discharge the second choice.
+        for cid, status in (("TC-DRAFT", "draft"), ("TC-RETIRED", "retired"), ("TC-OTHER", "ready")):
+            second = copy.deepcopy(case)
+            second.update(id=cid, status=status, coverage_ids=["COV-002"])
+            second["steps"][0]["checks"][0]["coverage_ids"] = ["COV-002"]
+            put(self.root / f"qa/cases/{cid}.json", second)
+        reg["scope"]["selected_case_ids"] += ["TC-DRAFT", "TC-RETIRED"]
+        put(self.root / "qa/registry.json", reg)
+        self.run_tool("render")
+        page = ReportParser((self.root / "qa/report.html").read_text(encoding="utf-8"))
+        self.assertIn("coverage-matrix", page.ids)
+        for level, status in (("unit", "部分待補"), ("integration", "已選待補"),
+                              ("acceptance", "本輪未選"), ("system", "待取捨")):
+            with self.subTest(level=level):
+                self.assertIn(status, page.matrix_cells[level, "正確性"]["text"])
+        partial = page.matrix_cells["unit", "正確性"]
+        for rid in ("DES-001", "DES-002", "COV-001", "COV-002"):
+            self.assertIn("#" + page.records[rid]["anchor"], partial["links"])
+        check = "#" + page.records["TC-001"]["anchor"] + "-step-1-check-1"
+        self.assertIn(check, partial["links"])
+        self.assertNotIn(check, page.matrix_cells["integration", "正確性"]["links"])
+        self.assertIn("1 案", partial["text"])
+        outside = page.matrix_cells["system", "unscoped quality"]
+        self.assertIn("本輪未選", outside["text"])
+        self.assertNotIn("已選待補", outside["text"])
+        self.assertIn("未登錄取捨", page.matrix_cells["unit", "unscoped quality"]["text"])
+        self.assertTrue(all(h[1:] in page.ids for h in page.links if h.startswith("#")))
+
+    def test_matrix_multiple_obligations_and_duplicate_assertions_in_one_case(self):
+        reg, case = self.fixture()
+        choice = reg["design_choices"][0]
+        choice["levels"] = ["unit", "system-integration"]
+        target = reg["coverage_items"][0]
+        reg["coverage_items"].append({**target, "id": "COV-002"})
+        row = choice["model_rows"][0]
+        choice["model_rows"].append({**row, "coverage_ids": ["COV-002"]})
+        case["level"] = "system-integration"
+        case["steps"][0]["checks"].append(copy.deepcopy(case["steps"][0]["checks"][0]))
+        put(self.root / "qa/cases/TC-001.json", case)
+        put(self.root / "qa/registry.json", reg)
+        self.run_tool("render")
+        page = ReportParser((self.root / "qa/report.html").read_text(encoding="utf-8"))
+        partial = page.matrix_cells["system-integration", "正確性"]
+        self.assertIn("部分待補", partial["text"])
+        self.assertIn("已選待補", page.matrix_cells["unit", "正確性"]["text"])
+        for ai in (1, 2):
+            self.assertIn("#" + page.records["TC-001"]["anchor"] + f"-step-1-check-{ai}", partial["links"])
+        case["coverage_ids"].append("COV-002")
+        case["steps"][0]["checks"][0]["coverage_ids"].append("COV-002")
+        put(self.root / "qa/cases/TC-001.json", case)
+        self.run_tool("render")
+        page = ReportParser((self.root / "qa/report.html").read_text(encoding="utf-8"))
+        covered = page.matrix_cells["system-integration", "正確性"]["text"]
+        self.assertIn("已選有就緒案例", covered)
+        self.assertIn("1 案", covered)
+        self.assertNotIn("部分待補", covered)
+        self.assertNotIn("PASS", covered)
+
+    def test_matrix_shows_deferred_items_and_does_not_borrow_out_of_scope_cases(self):
+        reg, case = self.fixture()
+        choice = reg["design_choices"][0]
+        choice["levels"] = ["unit"]
+        row = choice["model_rows"][0]
+        cov = reg["coverage_items"][0]
+        reg["acceptance"].append({**reg["acceptance"][0], "id": "AC-OTHER"})
+        reg["coverage_items"].extend([
+            {**cov, "id": "COV-DEFER", "selection": "defer", "decision_refs": ["DEC-001"],
+             "residual_risk": "Not evaluated in this round"},
+            {**cov, "id": "COV-OTHER", "ac_ids": ["AC-OTHER"]},
+        ])
+        reg["design_choices"].extend([
+            {**choice, "id": "DES-DEFER", "quality_aspects": ["延後面向"],
+             "model_rows": [{**row, "coverage_ids": ["COV-DEFER"]}]},
+            {**choice, "id": "DES-OTHER", "ac_ids": ["AC-OTHER"], "risk_ids": [],
+             "quality_aspects": ["其他範圍"], "model_rows": [{**row, "coverage_ids": ["COV-OTHER"]}]},
+        ])
+        case["ac_ids"].append("AC-OTHER")
+        case["coverage_ids"].append("COV-OTHER")
+        case["steps"][0]["checks"].append({"expected": "fixture output ON", "rule_refs": ["AC-OTHER"],
+                                           "coverage_ids": ["COV-OTHER"]})
+        put(self.root / "qa/registry.json", reg)
+        put(self.root / "qa/cases/TC-001.json", case)
+        self.run_tool("render")
+        page = ReportParser((self.root / "qa/report.html").read_text(encoding="utf-8"))
+        for aspect, state in (("延後面向", "暫緩"), ("其他範圍", "範圍外")):
+            with self.subTest(aspect=aspect):
+                cell = page.matrix_cells["unit", aspect]
+                self.assertIn(state, cell["text"])
+                self.assertIn("0 案", cell["text"])
+                self.assertNotIn("已選待補", cell["text"])
+                self.assertNotIn("已選有就緒案例", cell["text"])
+
+    def test_matrix_preserves_legacy_intent_and_escapes_quality_names(self):
+        reg, _ = self.fixture()
+        path = self.root / "qa/registry.json"
+        hostile = 'signal "A" & <script>unknown</script>'
+        reg["design_choices"][0]["quality_aspects"] = [hostile]
+        put(path, reg)
+        before = (path.read_bytes(), self.run_tool("digest").stdout)
+        self.run_tool("render")
+        self.assertEqual(before, (path.read_bytes(), self.run_tool("digest").stdout))
+        raw = (self.root / "qa/report.html").read_text(encoding="utf-8")
+        page = ReportParser(raw)
+        self.assertIn(("", hostile), page.matrix_cells)
+        self.assertIn("#" + page.records["DES-001"]["anchor"], page.matrix_cells["", hostile]["links"])
+        self.assertNotIn("已選有就緒案例", page.matrix_cells["", hostile]["text"])
+        self.assertIn("#" + page.records["TC-001"]["anchor"] + "-step-1-check-1",
+                      page.matrix_cells["unit", hostile]["links"])
+        self.assertNotIn(hostile, raw)
+        self.assert_only_offline_filter_script(page)
+        for hook in ("case-filter-level", "case-filter-type", "case-filter-quality", "case-filter-technique"):
+            self.assertIn(hook, page.ids)
+
+    def test_measurement_profile_and_planned_levels_validate_and_render(self):
+        reg, case = self.fixture()
+        choice = reg["design_choices"][0]
+        profile = {"subtype": "load", "trigger": "Traffic at the specified peak",
+                   "workload": "16 concurrent streams for the contractual sample window",
+                   "metric": "Sum of receiver goodput in Mbit/s", "acceptance_basis": "AC-001, receiver total"}
+        choice.update(technique="measurement", levels=["component-integration", "system-integration"],
+                      measurement_profile=profile)
+        reg["coverage_items"][0]["technique"] = "measurement"
+        case["level"] = "component-integration"
+        put(self.root / "qa/cases/TC-001.json", case)
+        path = self.root / "qa/registry.json"
+        put(path, reg)
+        self.refresh_review()
+        self.run_tool("check", "--gate", "baseline")
+        self.run_tool("render")
+        page = ReportParser((self.root / "qa/report.html").read_text(encoding="utf-8"))
+        for key in ("trigger", "metric", "workload", "acceptance_basis"):
+            self.assertIn(profile[key], page.records["DES-001"]["text"])
+        for changes in ({"levels": []}, {"levels": ["unit", "unit"]}, {"levels": ["system", ["unit"]]},
+                        {"levels": ["no-such-level"]}, {"measurement_profile": {}},
+                        {"measurement_profile": {**profile, "subtype": "soak-and-hope"}},
+                        {"measurement_profile": {**profile, "metric": []}},
+                        {"measurement_profile": {**profile, "acceptance_basis": ""}},
+                        {"technique": "state-transition"}):
+            with self.subTest(changes=changes):
+                reg["design_choices"] = [{**choice, **changes}]
+                put(path, reg)
+                errors = json.loads(self.run_tool("check", ok=False).stdout)["errors"]
+                self.assertTrue(any("DES-001" in e for e in errors), errors)
+
+        reg["design_choices"] = [{**choice, "measurement_profile": {**profile, "acceptance_basis": ""}}]
+        put(path, reg)
+        self.run_tool("render")
+        page = ReportParser((self.root / "qa/report.html").read_text(encoding="utf-8"))
+        cell = page.matrix_cells["component-integration", "正確性"]
+        self.assertIn("0 案", cell["text"])
+        self.assertNotIn("已選有就緒案例", cell["text"])
+        self.assertFalse(any("-step-" in href for href in page.records["DES-001"]["links"]))
+
+    def test_measurement_with_unknown_acceptance_can_remain_pending(self):
+        reg, _ = self.fixture()
+        reg["design_choices"].append({
+            **reg["design_choices"][0], "id": "DES-002", "technique": "measurement", "selection": "pending",
+            "model_rows": [], "measurement_profile": {
+                "subtype": "stress", "trigger": "Service may not recover after overload",
+                "workload": "Apply overload then restore contractual demand", "metric": "Recovery time",
+                "acceptance_basis": ""}})
+        path = self.root / "qa/registry.json"
+        put(path, reg)
+        draft = json.loads(self.run_tool("check").stdout)
+        self.assertTrue(any("DES-002" in msg and "question" in msg for msg in draft["warnings"]), draft)
+        self.refresh_review()
+        baseline = json.loads(self.run_tool("check", "--gate", "baseline", ok=False).stdout)
+        self.assertTrue(any("DES-002" in msg and "question" in msg for msg in baseline["errors"]), baseline)
+        reg["questions"] = [self.question_fixture(impact_ids=[], blocks=[])]
+        reg["design_choices"][-1]["question_ids"] = ["Q-001"]
+        put(path, reg)
+        self.refresh_review()
+        self.run_tool("check", "--gate", "baseline")
 
     def test_ac_reference_alone_cannot_satisfy_missing_coverage_item(self):
         reg, _ = self.fixture()

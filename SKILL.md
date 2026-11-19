@@ -38,10 +38,11 @@ description: 協助使用者從需求草稿或口頭規則釐清需求、補可�
 | 產出測試策略、排列優先風險 | 依 [quality-characteristics.md](references/quality-characteristics.md) 篩選品質面向。在策略草稿中附上各面向的適用性及理由，然後展開優先風險。設備／通訊另檢視符合性、互通、強健、長時及時序。 |
 | 評估哪些失敗最值得測 | [risk-assessment.md](references/risk-assessment.md)：每筆需求評估狀態、直接風險關聯及非需求風險；[failure-modes.md](references/failure-modes.md)：依適用失效機制補分析 |
 | 決定測試方法與深度 | 依 [test-design.md](references/test-design.md) 從需求特徵與風險主動選方法，分列功能／非功能、品質面向、驗證目標、適用性與本輪取捨。用模型列、覆蓋項目及實際步驟斷言呈現選擇的結果。 |
+| 選擇效能案例或判讀既有量測 | 依[效能選案規則](references/performance-testing.md)找出觸發選案的承諾或風險，對齊工作負載、量測指標與驗收依據。缺條件時列出仍可進行的量測及待確認問題。 |
 | 重用判準或先探索 | [oracles-exploration.md](references/oracles-exploration.md)：已確認判準依適用條件重用；探索觀察與驗收結果分開 |
 | 開始撰寫完整案例 | 先依 [workflow.md](references/workflow.md#候選情境與案例) 展示已知條件，再填 [templates.md](references/templates.md)；依據足夠就接續產出 |
 | 修改資料與狀態 | [records.md](references/records.md)：registry／cases 契約、revision、引用、審查與執行格式 |
-| 交付閱讀網頁 | 依 [report.md](references/report.md) 產生策略總覽、模型與覆蓋缺口、案例與版本化審查／實測結果。 |
+| 檢視覆蓋或交付閱讀網頁 | 依 [report.md](references/report.md) 用「測試層級 × 品質面向」定位本輪已選卻缺案例的項目，從模型列追到案例步驟。已決定驗證層級時寫入選案紀錄；缺資料保留未指定。純對話也能用同一矩陣摘要本輪範圍。 |
 | 保存版本或備份 | [local-versioning.md](references/local-versioning.md)：init、checkpoint、版本綁定、備份及復原 |
 | 使用 Git server | 僅所選模式需要時讀 [git-server.md](references/git-server.md)，協助登入與同步並讀回結果 |
 | 交接、接回審查或建立基線 | [review.md](references/review.md)：prepare-review、核對實際 HANDOFF、修正及新版本重審 |

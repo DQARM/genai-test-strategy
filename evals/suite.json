@@ -109,6 +109,12 @@
         "station.md"
       ],
       "task": "task.txt"
+    },
+    {
+      "id": "case-14",
+      "skill": "strategy",
+      "files": ["delivery.md"],
+      "task": "task.txt"
     }
   ]
 }
