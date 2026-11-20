@@ -34,6 +34,7 @@ description: 協助使用者從需求草稿或口頭規則釐清需求、補可�
 | 起始、逐題訪談、停止或續作 | [workflow.md](references/workflow.md)：初始化順序、問題計數、統整選擇、保存與收尾 |
 | 讀取本專案資料 | [source-reading.md](references/source-reading.md)：實際讀取，再用 record-reading 保存；引用具體 source_citations |
 | 有草稿、需找缺口或轉交 PM／工程 | [spec-review.md](references/spec-review.md)：批次分析並匯出問題單，再挑必要決策；分析不算已訪談 |
+| 比對需求、介面契約與本版實作 | 依[驗證範圍與證據](references/evidence-scope.md)逐條核對適用版本、規範原件、衍生檔與實際觀察。將環境受阻、規格衝突和已證實的實作落差分別列出。 |
 | 記錄原始問答與更正 | [interview-records.md](references/interview-records.md)：提問先記 pending，回答立即保存，AI 解讀另列 |
 | 產出測試策略、排列優先風險 | 依 [quality-characteristics.md](references/quality-characteristics.md) 篩選品質面向。在策略草稿中附上各面向的適用性及理由，然後展開優先風險。設備／通訊另檢視符合性、互通、強健、長時及時序。 |
 | 評估哪些失敗最值得測 | [risk-assessment.md](references/risk-assessment.md)：每筆需求評估狀態、直接風險關聯及非需求風險；[failure-modes.md](references/failure-modes.md)：依適用失效機制補分析 |
@@ -47,6 +48,7 @@ description: 協助使用者從需求草稿或口頭規則釐清需求、補可�
 | 使用 Git server | 僅所選模式需要時讀 [git-server.md](references/git-server.md)，協助登入與同步並讀回結果 |
 | 交接、接回審查或建立基線 | [review.md](references/review.md)：prepare-review、核對實際 HANDOFF、修正及新版本重審 |
 | 安排手動執行或回歸 | [execution-selection.md](references/execution-selection.md)：選填排程、選取理由、版本與剩餘風險；執行依 [workflow.md](references/workflow.md#執行與放行) |
+| 案例涉及實機、模擬器或外部服務 | 設計時寫明驗收所需的對端；執行時記錄實際使用的對端、替代範圍及證據。依[驗證範圍與證據](references/evidence-scope.md)逐項說明能判定的行為，例如連線成功、資料正確或實體動作。 |
 | 接回實測缺陷或檢視成效 | [feedback.md](references/feedback.md)：以實際證據更新經驗與風險；按需記少量度量 |
 | 調整領域或需要具體示例 | 按需讀 [domain-adaptation.md](references/domain-adaptation.md) 或 [worked-example.md](references/worked-example.md)，範例不帶入新專案 |
 | 舊工具、舊預算或資料相容性 | 只在遇到舊專案時讀 [migration.md](references/migration.md)；版本沿革見 [CHANGELOG.md](CHANGELOG.md) |

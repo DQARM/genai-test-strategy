@@ -91,6 +91,19 @@ DES 取自 Design，代表一筆方法選用紀錄，數字是本類流水號。
 
 上例的 REQ-001 必須在實際 registry 中存在才可引用；來源與決策 ID 只填已登錄的真實記錄。模板不能直接作為 ready 案例的判準。
 
+## 逐條比對契約與實作
+
+若要保存規格與某版實作的比對，可在 registry 的 `contract_assessments` 陣列登錄。CMP 取自 Comparison（條款比對），數字為本類流水號。依據判讀與狀態範例見[驗證範圍與證據](evidence-scope.md)。
+
+| 欄位 | 用途 |
+|---|---|
+| `id`、`clause`、`status` | 一筆對應一項可驗證承諾。狀態取 `not-assessed`（未判定）、`blocked`（受阻）、`conflict`（規格衝突）、`match`（觀察符合）、`gap`（實作落差）。 |
+| `requirement_ids`、`ac_ids`、`contract_ref`、`derived_refs` | 可直接關聯原始需求，並列驗收條件、核定契約原件及由該原件衍生的文件或測試來源。若正式採納的原件就是 OpenAPI，可直接引用該檔。 |
+| `target_build`、`environment`、`scope_basis`、`observed` | 目標版本、部署環境、支持這項判讀的理由與實際觀察。受阻及規格衝突需說明原因，可用 `question_ids` 連到待釐清事項。 |
+| `observation_refs`、`source_citations` | 引用當版、同環境的直接觀測及讀取定位。對 `match`／`gap`，登錄已確認的規則與版本化契約。每個觀測來源的 `observed_build`、`observed_environment` 須與本筆相符，並依既有來源閱讀格式引用原件與觀測。 |
+
+搜尋不到文件、測試台中斷或從同一契約生成的測試通過，都要依實際證據限定結論。事後有新的版本或觀察時另留紀錄；規則本身如需改動，沿用既有決策及修訂流程。新增或修改登錄內容會改變目前設計版本指紋。
+
 ## 完整案例
 
 `qa/cases/TC-001.json` 的 id 必須等於檔名。欄位：
@@ -100,6 +113,7 @@ DES 取自 Design，代表一筆方法選用紀錄，數字是本類流水號。
 - coverage_ids：本案關聯的 COV ID；對應 AC 也須列於 ac_ids。ready 案例宣稱的每個 COV 都要有本案步驟斷言承接。舊案例可暫缺此欄位繼續編輯，新基線須補齊。
 - `level` 的值為 `unit`（元件／單元）、`component-integration`（元件整合）、`system`（系統）、`system-integration`（系統整合）、`acceptance`（驗收），或 `integration`（整合範圍未細分）。`type` 為 `manual` 或 `automated`。
 - environment：target、build_binding、tools、binding_refs（SRC ID）。binding_refs 指向已確認的 harness 或 normative 來源，說明實際可用操作及觀測介面；不得用觀測到的產品結果替代應然規格。
+- 只有在對端會影響判定時，才在 environment 增列 `required_dependencies`。例：`[{"key":"radio","target":"RU-A / FW 2.3","mode":"real"}]`。`key` 在個案內唯一，`target` 表示能辨認的對端與適用版本；`mode` 可用 `real`（真實）、`simulated`（模擬）或 `either`（兩者都適用）。同一流程有可用模擬器驗證的本端行為，以及僅能用真機驗收的互通承諾時，可拆成兩個案例，各自保留可判讀的結果。
 - preconditions：物件陣列，每項 action、verify，必要時 evidence。寫出如何建立、如何確認。
 - data：陣列，包含 name、value、unit、basis；不需要外加資料時寫明原因，不能留空掩蓋缺口。
 - steps：陣列，n 連續從 1 起，action、input、observe、when、evidence、checks。`checks: [{expected, rule_refs: [AC ID]}]`。純注入／操作步驟 checks 可空；整個案例至少有一個產品斷言。每個斷言引用已確認且列於 ac_ids 的 AC。
@@ -177,6 +191,8 @@ python3 qa/tools/qa_project.py record-run . --id RUN-001 --input qa/run-input.js
 ```
 
 - 步驟 n 必須存在且不重複；只接受登錄欄位，不能傳入或改動 snapshot／digest／案例步驟。PASS／FAIL 要有現存證據，工具自算 SHA-256；不從檔案存在、hash 相符或關鍵字推論產品成功。
+- 當次用到的對端可在 record-run 輸入頂層給出 `actual_dependencies`。例：`[{"key":"radio","target":"RU-A / FW 2.3","mode":"real","evidence_paths":["qa/evidence/peer-identity.log"]}]`。位置填實際佐證檔；工具在執行紀錄中存為 `evidence`（路徑與指紋）。混合環境逐項登錄。模式可用 `real`、`simulated`、`unknown`。省略會沿用同次執行已登錄的觀察，提供陣列則取代該次完整清單；更正已有對端時附原因。改換設備重跑另開執行紀錄。
+- 對含對端要求的案例，結束時核對凍結版本內的目標、模式及當次證據。若基本彙總為 PASS／FAIL，但對端條件不足，整案為 INCONCLUSIVE，個別步驟的原始判讀保留。以舊版、模擬模式或其他次執行的資料支持本次指定實體對端均不足。
 - 預設 finish=false，只存觀察。recording_status=in-progress，頂層 status 暫留 NOT_RUN（相容舊狀態列舉），報告顯示「登錄中；尚無最終結果」，不可當完全未測或正式通過。recording_policy=record-run-v1 為選填契約，不改 schema 1。
 - 明確 finish=true 才彙總：存在 FAIL 優先，其次 BLOCKED、INCONCLUSIVE；所有步驟 PASS 且原案例 ready 才可 PASS。尚有 NOT_RUN 則不能 PASS，提前結束須 reason；僅剩 PASS 與 NOT_RUN 時結果為 INCONCLUSIVE。BLOCKED 指環境／操作阻塞，不能掩蓋已觀測的產品 FAIL。
 - 實際 started_at、finished_at 及有結果步驟的 at 用含時區 ISO 8601；步驟須位於執行區間。缺實際步驟時間時用 at=null 與 time_unknown_reason 保存未完成觀察，不能 finish；不要用 now 補造。recording_events.recorded_at 才是工具自動產生的登錄時間。
