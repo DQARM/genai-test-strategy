@@ -1086,6 +1086,104 @@ class WorkflowTests(unittest.TestCase):
         for hook in ("case-filter-level", "case-filter-type", "case-filter-quality", "case-filter-technique"):
             self.assertIn(hook, page.ids)
 
+    def contract_assessment_fixture(self):
+        reg, _ = self.fixture()
+        reg['sources'][0]['version'] = 'Control contract v3'
+        for sid, kind, name, content in [
+            ('SRC-DOC', 'harness', 'generated.md', 'Generated document mirrors the control contract.'),
+            ('SRC-OBS', 'observation', 'build9.log', 'B9 bench-A: received OFF after evaluate.'),
+        ]:
+            path = 'inputs/' + name
+            (self.root / path).write_text(content, encoding='utf-8')
+            src = {'id': sid, 'kind': kind, 'path': path, 'locator': 'whole file',
+                   'sha256': sha(self.root / path), 'status': 'confirmed'}
+            if kind == 'observation':
+                src.update(observed_build='B9', observed_environment='bench-A')
+            src['readings'] = [self.reading_fixture(src)]
+            reg['sources'].append(src)
+        row = {'id': 'CMP-01', 'clause': 'ON after evaluation', 'ac_ids': ['AC-001'], 'contract_ref': 'SRC-SPEC',
+               'derived_refs': ['SRC-DOC'], 'observation_refs': ['SRC-OBS'], 'status': 'gap', 'target_build': 'B9',
+               'environment': 'bench-A', 'scope_basis': 'Control contract v3 applies to B9 on bench-A.',
+               'observed': 'Output read OFF after evaluate. The build and I/O target were verified.',
+               'source_citations': [self.cite(sid) for sid in ('SRC-SPEC', 'SRC-DOC', 'SRC-OBS')]}
+        reg['contract_assessments'] = [row]
+        return reg, row
+
+    def test_contract_assessment_report_and_frozen_requirement(self):
+        reg, assessed = self.contract_assessment_fixture()
+        rules = copy.deepcopy((reg['requirements'], reg['acceptance']))
+        reg['contract_assessments'] += [
+            {**assessed, 'id': 'CMP-02', 'status': 'blocked', 'observation_refs': [],
+             'scope_basis': 'Bench was unavailable', 'observed': 'Verification could not start.',
+             'source_citations': [self.cite('SRC-SPEC'), self.cite('SRC-DOC')]},
+            {**assessed, 'id': 'CMP-03', 'status': 'conflict', 'observation_refs': [],
+             'scope_basis': 'Two accepted clauses disagree on whether output is active low.',
+             'observed': '', 'source_citations': [self.cite('SRC-SPEC'), self.cite('SRC-DOC')]},
+        ]
+        path = self.root / 'qa/registry.json'
+        put(path, reg)
+        self.run_tool('check')
+        self.run_tool('start-run', '--id', 'RUN-001', '--case', 'TC-001', '--sut-version', 'B9', '--environment', 'bench-A')
+        snapshot = get(self.root / 'qa/runs/RUN-001.json')
+        self.run_tool('render')
+        html = ReportParser((self.root / 'qa/report.html').read_text(encoding='utf-8'))
+        self.assertIn('contract-assessments', html.ids)
+        gap = html.records['CMP-01']
+        for destination in ('SRC-SPEC', 'SRC-DOC', 'SRC-OBS', 'AC-001'):
+            self.assertIn('#' + html.records[destination]['anchor'], gap['links'])
+        for phrase in ('落差', 'B9', 'bench-A', 'Output read OFF'):
+            self.assertIn(phrase, gap['text'])
+        for rid, status in [('CMP-02', '受阻'), ('CMP-03', '衝突')]:
+            self.assertIn(status, html.records[rid]['text'])
+        self.assertEqual((get(path)['requirements'], get(path)['acceptance']), rules)
+        # New observations may close a finding for a later build; older runs retain their own assessment.
+        assessed.update(status='match', observed='The replacement build outputs ON under the same control request.',
+                        target_build='B10', scope_basis='The same clause applies to B10.')
+        source = next(s for s in reg['sources'] if s['id'] == 'SRC-OBS')
+        source.update(id='SRC-OBS2', path='inputs/build10.log', observed_build='B10')
+        (self.root / source['path']).write_text('B10 bench-A: output ON after evaluate.', encoding='utf-8')
+        source['sha256'] = sha(self.root / source['path'])
+        source['readings'] = [self.reading_fixture(source)]
+        assessed['observation_refs'] = ['SRC-OBS2']
+        assessed['source_citations'][-1] = self.cite('SRC-OBS2')
+        put(path, reg)
+        self.run_tool('check')
+        self.run_tool('render')
+        self.assertNotEqual(snapshot['artifact_digest'], self.run_tool('digest').stdout.strip())
+        self.assertEqual(get(self.root / 'qa/runs/RUN-001.json'), snapshot)
+        self.assertEqual(snapshot['registry_snapshot']['contract_assessments'][0]['status'], 'gap')
+        page = ReportParser((self.root / 'qa/report.html').read_text(encoding='utf-8'))
+        self.assertIn('B10', page.records['CMP-01']['text'])
+        self.assertIn('歷史版本', page.records['RUN-001']['text'])
+
+    def test_contract_assessment_rejects_unsupported_or_stale_claims(self):
+        reg, assessed = self.contract_assessment_fixture()
+        path = self.root / 'qa/registry.json'
+        put(path, reg)
+        self.run_tool('check')
+        for status in ('match', 'gap'):
+            for delta in ({'ac_ids': []}, {'ac_ids': ['AC-404']}, {'observation_refs': []},
+                          {'contract_ref': 'SRC-HARNESS'}, {'target_build': 'B8'}, {'environment': 'another bench'},
+                          {'source_citations': [self.cite('SRC-SPEC'), self.cite('SRC-DOC')]},
+                          {'derived_refs': ['SRC-DOC', 'SRC-OBS']}):
+                with self.subTest(status=status, delta=delta):
+                    put(path, {**reg, 'contract_assessments': [{**assessed, 'status': status, **delta}]})
+                    self.run_tool('check', ok=False)
+        for target in ('acceptance', 'requirements'):
+            with self.subTest(unconfirmed=target):
+                altered = copy.deepcopy(reg)
+                altered[target][0]['status'] = 'proposed'
+                put(path, altered)
+                self.run_tool('check', ok=False)
+        # A new ID, filename, observation tag and reading for a copied contract do not provide independent evidence.
+        original = self.root / 'inputs/spec.md'
+        obs = next(s for s in reg['sources'] if s['id'] == 'SRC-OBS')
+        shutil.copyfile(original, self.root / obs['path'])
+        obs['sha256'] = sha(self.root / obs['path'])
+        obs['readings'] = [self.reading_fixture(obs)]
+        put(path, reg)
+        self.run_tool('check', ok=False)
+
     def test_measurement_profile_and_planned_levels_validate_and_render(self):
         reg, case = self.fixture()
         choice = reg["design_choices"][0]
@@ -2156,10 +2254,13 @@ class WorkflowTests(unittest.TestCase):
         self.run_tool("checkpoint", "-m", "reject symlink", "--include", "outside", ok=False)
         self.assertEqual(self.git("diff", "--cached"), "")
 
-    def begin_recording(self, two_steps=False):
+    def begin_recording(self, two_steps=False, required_dependencies=None):
         _, case = self.fixture()
         if two_steps:
             case['steps'].append({**copy.deepcopy(case['steps'][0]), 'n': 2})
+        if required_dependencies is not None:
+            case['environment']['required_dependencies'] = required_dependencies
+        if two_steps or required_dependencies is not None:
             put(self.root / 'qa/cases/TC-001.json', case)
         self.run_tool('start-run', '--id', 'RUN-001', '--case', 'TC-001', '--sut-version', 'synthetic-build', '--environment', 'isolated fixture')
         evidence = self.root / 'qa/evidence/觀測 #1.log'
@@ -2172,10 +2273,110 @@ class WorkflowTests(unittest.TestCase):
         row.update(changes)
         return row
 
-    def record_result(self, steps=None, ok=True, **extra):
+    def record_result(self, steps=None, ok=True, run_id='RUN-001', **extra):
         data = {'operator': 'synthetic-operator', 'steps': steps if steps is not None else [self.observation()], **extra}
         put(self.root / 'qa/result-input.json', data)
-        return self.run_tool('record-run', '--id', 'RUN-001', '--input', 'qa/result-input.json', ok=ok)
+        return self.run_tool('record-run', '--id', run_id, '--input', 'qa/result-input.json', ok=ok)
+
+    def test_peer_scope_limits_run_verdict_and_preserves_each_run_in_report(self):
+        required = [{'key': 'radio', 'target': 'Fixture RU firmware 7', 'mode': 'real'},
+                    {'key': 'clock', 'target': 'Fixture clock 2', 'mode': 'either'}]
+        original = self.begin_recording(required_dependencies=required)
+        self.run_tool('check')
+        identity = 'qa/evidence/peer-identity.log'
+        (self.root / identity).write_text('Fixture RU firmware 7 and clock 2', encoding='utf-8')
+        observations = [{'key': peer['key'], 'target': peer['target'], 'mode': mode, 'evidence_paths': [identity]}
+                        for peer, mode in zip(required, ('real', 'simulated'))]
+        real, clock = observations
+        trials = [
+            ('RUN-001', [{**real, 'target': 'Simulator A', 'mode': 'simulated'}, clock], 'PASS', 'INCONCLUSIVE'),
+            ('RUN-002', [real, clock], 'PASS', 'PASS'),
+            ('RUN-003', [{**real, 'target': 'Fixture RU firmware 6'}, clock], 'PASS', 'INCONCLUSIVE'),
+            ('RUN-004', [{**real, 'evidence_paths': []}, clock], 'PASS', 'INCONCLUSIVE'),
+            ('RUN-005', None, 'FAIL', 'INCONCLUSIVE'),
+            ('RUN-006', [real], 'PASS', 'INCONCLUSIVE'),
+            ('RUN-007', None, 'BLOCKED', 'BLOCKED'),
+            ('RUN-008', [real, clock], 'FAIL', 'FAIL')]
+        for rid, peers, step_status, verdict in trials:
+            with self.subTest(rid=rid):
+                if rid != 'RUN-001':
+                    self.run_tool('start-run', '--id', rid, '--case', 'TC-001',
+                                  '--sut-version', 'synthetic-build', '--environment', 'isolated fixture')
+                scope = {'actual_dependencies': peers} if peers is not None else {}
+                self.record_result([self.observation(status=step_status)], run_id=rid, finish=True,
+                                   started_at='2026-11-14T10:00:00+08:00', finished_at='2026-11-14T10:00:03+08:00', **scope)
+                run = get(self.root / f'qa/runs/{rid}.json')
+                self.assertEqual(run['steps'][0]['status'], step_status)
+                self.assertEqual(run['status'], verdict)
+                self.assertEqual(run['case_snapshot'], original['case_snapshot'])
+                self.run_tool('check-run', '--id', rid)
+
+        # A later case revision must not recast the simulator run or its original target.
+        case = get(self.root / 'qa/cases/TC-001.json')
+        case['revision'] += 1
+        case['environment']['required_dependencies'][0]['target'] = 'Revised fixture RU firmware 8'
+        put(self.root / 'qa/cases/TC-001.json', case)
+        self.run_tool('render')
+        page = ReportParser((self.root / 'qa/report.html').read_text(encoding='utf-8'))
+        simulated = page.records['RUN-001']
+        self.assertIn('Simulator A', simulated['text'])
+        self.assertIn('Fixture RU firmware 7', simulated['text'])
+        self.assertIn('INCONCLUSIVE', simulated['text'])
+        self.assertNotIn('Revised fixture RU firmware 8', simulated['text'])
+        self.assertNotIn('Simulator A', page.records['RUN-002']['text'])
+        self.assertIn('#' + simulated['anchor'] + '-dependencies', page.records['TC-001']['links'])
+        self.assertTrue(any(unquote(href).endswith(identity) for href in simulated['links']))
+        self.assertTrue(all(link[1:] in page.ids for link in page.links if link.startswith('#')))
+
+    def test_peer_scope_corrections_keep_fingerprints_and_reject_stale_or_tampered_proof(self):
+        requirement = {'key': 'radio', 'mode': 'real', 'target': 'Bench radio A1'}
+        self.begin_recording(required_dependencies=[requirement])
+        dep_file = 'qa/evidence/radio-id.txt'
+        (self.root / dep_file).write_text('Synthetic bench serial and firmware', encoding='utf-8')
+        actual = {**requirement, 'evidence_paths': [dep_file]}
+        mistaken = {**actual, 'mode': 'simulated'}
+        self.record_result(finish=True, started_at='2026-11-14T10:00:00+08:00', finished_at='2026-11-14T10:00:03+08:00',
+                           actual_dependencies=[mistaken])
+        path = self.root / 'qa/runs/RUN-001.json'
+        before = path.read_bytes()
+        self.record_result([], finish=True, actual_dependencies=[actual], ok=False)
+        self.record_result([], finish=True, reason='Fix transcription', expected_revision=0, actual_dependencies=[actual], ok=False)
+        self.assertEqual(path.read_bytes(), before)
+        self.record_result([], finish=True, reason='Original bench record identifies physical radio', expected_revision=1,
+                           actual_dependencies=[actual])
+        run = get(path)
+        self.assertEqual(run['status'], 'PASS')
+        self.assertEqual(run['recording_events'][-1]['before']['actual_dependencies'], json.loads(before)['actual_dependencies'])
+        self.assertEqual(run['recording_events'][-1]['after']['actual_dependencies'], run['actual_dependencies'])
+        self.assertEqual(run['actual_dependencies'][0]['evidence'], [{'path': dep_file, 'sha256': sha(self.root / dep_file)}])
+        self.run_tool('check-run', '--id', 'RUN-001')
+        (self.root / dep_file).write_text('Replaced historical log', encoding='utf-8')
+        original = path.read_bytes()
+        self.run_tool('check-run', '--id', 'RUN-001', ok=False)
+        self.record_result([], finish=True, reason='Attempt to overwrite changed evidence', actual_dependencies=[actual], ok=False)
+        self.assertEqual(original, path.read_bytes())
+
+    def test_peer_scope_validation_and_legacy_record(self):
+        frozen = self.begin_recording()
+        path = self.root / 'qa/cases/TC-001.json'
+        case = get(path)
+        dependency = {'key': 'radio', 'target': 'Bench radio A1', 'mode': 'real'}
+        for bad in ([dependency, dependency], [{**dependency, 'mode': 'automatic'}], [{**dependency, 'target': ''}]):
+            case['environment']['required_dependencies'] = bad
+            put(path, case)
+            self.run_tool('check', ok=False)
+        case['environment']['required_dependencies'] = [dependency]
+        put(path, case)
+        self.run_tool('check')
+        for peers in ([{**dependency, 'evidence_paths': ['../outside']}], [{**dependency, 'evidence_paths': ['qa/evidence/absent.txt']}],
+                      [{**dependency, 'mode': 'automatic', 'evidence_paths': []}]):
+            self.record_result([], actual_dependencies=peers, ok=False)
+        self.assertEqual(get(self.root / 'qa/runs/RUN-001.json'), frozen)
+        self.record_result(finish=True, started_at='2026-11-14T10:00:00+08:00', finished_at='2026-11-14T10:00:03+08:00')
+        run = get(self.root / 'qa/runs/RUN-001.json')
+        self.assertEqual(run['status'], 'PASS')
+        self.assertEqual(run['case_snapshot'], frozen['case_snapshot'])
+        self.run_tool('check-run', '--id', 'RUN-001')
 
     def test_record_run_progress_finalization_preserves_all_snapshots(self):
         before = self.begin_recording(two_steps=True)

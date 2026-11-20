@@ -115,6 +115,12 @@
       "skill": "strategy",
       "files": ["delivery.md"],
       "task": "task.txt"
+    },
+    {
+      "id": "case-15",
+      "skill": "strategy",
+      "files": ["shift.md"],
+      "task": "task.txt"
     }
   ]
 }

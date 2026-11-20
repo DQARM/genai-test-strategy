@@ -17,7 +17,7 @@ import zipfile
 from datetime import datetime, timezone
 from urllib.parse import quote
 
-VERSION = "1.12.0"
+VERSION = "1.13.0"
 DESIGN_POLICY = "coverage-items-v1"
 METHOD_POLICY = "design-choices-v1"
 RISK_POLICY = "requirement-risk-v1"
@@ -39,6 +39,7 @@ ID_TERMS = {
     "RISK": ("Risk", "風險", "追蹤失敗情境、影響與取捨"),
     "SC": ("Scenario", "測試情境", "表示待選或已選的測試情境"),
     "DES": ("Design", "測試設計選擇", "記錄驗證目的、方法取捨、覆蓋準則與模型"),
+    "CMP": ("Comparison", "契約與實作比對", "追蹤單一條款在指定版本與環境下的比對依據"),
     "COV": ("Coverage", "覆蓋項目", "表示測試方法導出的分區、邊界、組合或轉移；COV 取自 Coverage"),
     "EXP": ("Exploration", "探索任務", "限定探索目的、時間與觀察；EXP 取自 Exploration"),
     "TC": ("Test Case", "測試案例", "保存完整前置、步驟、判準與證據要求"),
@@ -51,7 +52,7 @@ ID_TERMS = {
 }
 ROUNDS = ["traceability", "executable", "coverage", "consistency"]
 GROUPS = ["sources", "decisions", "questions", "requirements", "acceptance", "risks", "scenarios"]
-OPTIONAL_GROUPS = ["coverage_items", "charters", "interactions", "design_choices"]
+OPTIONAL_GROUPS = ["coverage_items", "charters", "interactions", "design_choices", "contract_assessments"]
 GROUPS += OPTIONAL_GROUPS
 SKIP_DIRS = {".git", ".venv", "venv", "node_modules", "__pycache__", ".pytest_cache"}
 PRIVATE = re.compile(r"(^\.env($|\.)|\.(pem|key|p12|pfx)$|^id_(rsa|ed25519)$|^credentials($|\.))", re.I)
@@ -675,9 +676,38 @@ def validate_readings(root, source, errors):
                 errors.append(f"{label}: {exc}")
 
 
+def check_located_citations(root, obj, label, needed, sources, errors, gaps):
+    citations = obj.get("source_citations", [])
+    if not isinstance(citations, list):
+        errors.append(f"{label}: source_citations must be a list")
+        citations = []
+    supported = set()
+    for cite in citations:
+        if not isinstance(cite, dict):
+            errors.append(f"{label}: citation must be an object")
+            continue
+        sid, seq, index = cite.get("source_id"), cite.get("reading_seq"), cite.get("finding_index")
+        if not isinstance(sid, str) or sid not in sources or sid not in needed:
+            errors.append(f"{label}: citation must name an explicitly linked source")
+            continue
+        entry = reading_entry(sources[sid], seq) if type(seq) is int else None
+        if not entry or type(index) is not int or not 1 <= index <= len(entry.get("findings", [])):
+            errors.append(f"{label}: citation {sid} has unknown reading/finding")
+            continue
+        problems = reading_problems(root, sources[sid], entry)
+        if entry.get("depth") != "content":
+            problems.append("index-only reading does not provide content evidence")
+        if problems:
+            gaps.append(f"{label}: citation {sid} reading {seq}: " + "; ".join(problems))
+        else:
+            supported.add(sid)
+    for sid in sorted(needed - supported):
+        gaps.append(f"{label}: {sid} needs current source_citations to located reading findings")
+
+
 def inspect_source_reading(root, reg, cases, gate, errors, warnings):
     sources = {s["id"]: s for s in reg.get("sources", [])}
-    records = {r["id"]: r for g in GROUPS if g not in ("sources", "interactions") for r in reg.get(g, [])}
+    records = {r["id"]: r for g in GROUPS if g not in ("sources", "interactions", "contract_assessments") for r in reg.get(g, [])}
     records.update(cases)
     policy = reg.get("project", {}).get("source_reading_policy")
     if policy != READING_POLICY:
@@ -713,32 +743,7 @@ def inspect_source_reading(root, reg, cases, gate, errors, warnings):
         needed = {sid for key in ("source_refs", "binding_refs", "reference_refs") for sid in ref_list(obj.get(key))}
         if isinstance(obj.get("basis"), str) and obj["basis"] in sources:
             needed.add(obj["basis"])
-        citations = obj.get("source_citations", [])
-        if not isinstance(citations, list):
-            errors.append(f"{label}: source_citations must be a list")
-            citations = []
-        supported = set()
-        for cite in citations:
-            if not isinstance(cite, dict):
-                errors.append(f"{label}: citation must be an object")
-                continue
-            sid, seq, index = cite.get("source_id"), cite.get("reading_seq"), cite.get("finding_index")
-            if not isinstance(sid, str) or sid not in sources or sid not in needed:
-                errors.append(f"{label}: citation must name an explicitly linked source")
-                continue
-            entry = reading_entry(sources[sid], seq) if type(seq) is int else None
-            if not entry or type(index) is not int or not 1 <= index <= len(entry.get("findings", [])):
-                errors.append(f"{label}: citation {sid} has unknown reading/finding")
-                continue
-            problems = reading_problems(root, sources[sid], entry)
-            if entry.get("depth") != "content":
-                problems.append("index-only reading does not provide content evidence")
-            if problems:
-                (errors if strict else warnings).append(f"{label}: citation {sid} reading {seq}: " + "; ".join(problems))
-            else:
-                supported.add(sid)
-        for sid in sorted(needed - supported):
-            (errors if strict else warnings).append(f"{label}: {sid} needs current source_citations to located reading findings")
+        check_located_citations(root, obj, label, needed, sources, errors, errors if strict else warnings)
         for key, value in obj.items():
             if key not in ("source_citations", "readings"):
                 visit(value, label + "." + key, strict)
@@ -979,6 +984,98 @@ def inspect_design_choices(reg, maps, gate, errors, warnings, refs, techniques):
             gaps.append(f"{cid}: no adopted model row for retained coverage")
 
 
+def contract_assessment_problems(root, row, maps):
+    """Verify the evidence behind a recorded comparison; this does not execute the product."""
+    errors = []
+    label = row.get("id", "CMP")
+    sources = maps["sources"]
+    status = row.get("status")
+    final = status in ("match", "gap")
+    if status not in ("not-assessed", "blocked", "conflict", "match", "gap"):
+        errors.append(f"{label}: invalid comparison status")
+    fields = ["clause"]
+    if final or status in ("blocked", "conflict"):
+        fields.append("scope_basis")
+    if final:
+        fields.extend(("target_build", "environment", "observed"))
+    for key in fields:
+        if not known_model_expected(row.get(key)):
+            errors.append(f"{label}: needs concrete {key}")
+
+    def linked(field, group):
+        values = row.get(field, [])
+        if not isinstance(values, list) or any(not isinstance(v, str) or v not in maps[group] for v in values):
+            errors.append(f"{label}: invalid {field} references")
+            return set()
+        if len(values) != len(set(values)):
+            errors.append(f"{label}: duplicate {field}")
+        return set(values)
+
+    ac_ids = linked("ac_ids", "acceptance")
+    requirements = linked("requirement_ids", "requirements")
+    derived = linked("derived_refs", "sources")
+    observed = linked("observation_refs", "sources")
+    linked("question_ids", "questions")
+    canonical = row.get("contract_ref")
+    origin = set()
+    if canonical is not None:
+        if isinstance(canonical, str) and canonical in sources:
+            origin.add(canonical)
+        else:
+            errors.append(f"{label}: contract_ref must name an existing source")
+    if origin & derived or (origin | derived) & observed:
+        errors.append(f"{label}: contract, derived artifacts and observations must have distinct roles")
+    required = origin | observed if final else set()
+    related = origin | derived | observed
+    # Drafts can list artifacts before they are read. Any supplied citation must still resolve.
+    for sid in related:
+        validate_readings(root, sources[sid], errors)
+    if not errors:
+        # Derivatives are optional to read until cited. A conclusion always cites the original and observations.
+        cited = row.get("source_citations", [])
+        if isinstance(cited, list):
+            required.update(c["source_id"] for c in cited if isinstance(c, dict)
+                            and isinstance(c.get("source_id"), str) and c["source_id"] in related)
+        check_located_citations(root, row, label, required, sources, errors, errors)
+    if not final:
+        return errors
+    if not ac_ids or not origin or not observed:
+        errors.append(f"{label}: match/gap requires confirmed applicable AC, contract_ref and observation_refs")
+    rules = [maps["acceptance"][aid] for aid in ac_ids]
+    parents = set()
+    for ac in rules:
+        ids = ac.get("requirement_ids")
+        if not isinstance(ids, list) or not ids or any(not isinstance(rid, str) or rid not in maps["requirements"] for rid in ids):
+            errors.append(f"{label}: {ac['id']} needs an applicable parent requirement")
+        else:
+            parents.update(ids)
+    if requirements - parents:
+        errors.append(f"{label}: linked requirements must be supported by the cited acceptance criteria")
+    contract_family = origin | derived
+    for rule in [*rules, *(maps["requirements"][rid] for rid in sorted(parents))]:
+        if rule.get("status") != "confirmed" or not approval_ok(root, rule.get("confirmation")):
+            errors.append(f"{label}: {rule['id']} needs a current confirmed rule with approval evidence")
+        contract_family.update(s for s in ref_list(rule.get("source_refs")) if isinstance(s, str) and s in sources)
+    if origin:
+        source = sources[canonical]
+        if (source.get("kind") != "normative" or source.get("status") != "confirmed"
+                or not known_model_expected(source.get("version"))):
+            errors.append(f"{label}: contract_ref needs a confirmed normative versioned source")
+    # Remember provenance even when a later comparison cites the generated artifact under another role.
+    for comparison in maps.get("contract_assessments", {}).values():
+        contract_family.update(s for s in ref_list(comparison.get("derived_refs")) if isinstance(s, str) and s in sources)
+    contract_hashes = {sources[s].get("sha256") for s in contract_family if isinstance(sources[s].get("sha256"), str)}
+    for sid in sorted(observed):
+        source = sources[sid]
+        if source.get("kind") != "observation" or source.get("status") != "confirmed":
+            errors.append(f"{label}: {sid} must be a confirmed implementation observation")
+        if sid in contract_family or (isinstance(source.get("sha256"), str) and source["sha256"] in contract_hashes):
+            errors.append(f"{label}: {sid} duplicates contract or requirement evidence")
+        if source.get("observed_build") != row.get("target_build") or source.get("observed_environment") != row.get("environment"):
+            errors.append(f"{label}: {sid} observation build/environment differs from the comparison target")
+    return errors
+
+
 def inspect(root, gate="draft"):
     reg, cases = load(root)
     errors, warnings = [], []
@@ -1075,6 +1172,8 @@ def inspect(root, gate="draft"):
                         for source in comparison_refs:
                             if source.get("status") != "confirmed" or source.get("kind") == "experience":
                                 error(f"{rid}: comparison reference must be a confirmed artifact, not an experience checklist")
+    for comparison in maps["contract_assessments"].values():
+        errors.extend(contract_assessment_problems(root, comparison, maps))
     for qid, question in maps["questions"].items():
         require(question, ["text", "status", "owner", "due_or_trigger"], qid)
         if question.get("status") not in ("open", "resolved", "deferred"):
@@ -1182,6 +1281,12 @@ def inspect(root, gate="draft"):
                 error(f"{cid}: coverage item AC must be linked by the case")
         if "actual" in case or "result" in case:
             error(f"{cid}: Actual/result belongs in runs, not case design")
+        environment = case.get("environment")
+        if isinstance(environment, dict) and "required_dependencies" in environment:
+            try:
+                dependency_entries(environment["required_dependencies"], "required_dependencies")
+            except ValueError as exc:
+                error(f"{cid}.environment: {exc}")
         complete = status == "ready" or (gate == "baseline" and cid in selected)
         if not complete:
             warnings.append(f"{cid}: {status}; not a ready executable case")
@@ -1697,6 +1802,21 @@ def render(root):
             basis = row.get("source_refs", []) + row.get("decision_refs", []) if group != "questions" else [row.get("owner"), row.get("due_or_trigger")]
             spec.append(f"| {cell(row['id'])} | {cell(row.get('status'))} | {cell(row.get('text'))} | {cell(basis)} |")
         spec.append("")
+    assessments = ref_list(reg.get("contract_assessments"))
+    if assessments:
+        spec += ["## 契約與實作比對", "", "原登錄狀態限於指定條款、版本與環境。點選編號可核對來源與檢查結果。", "",
+                 "| 紀錄 | 介面條款 | 受測版本／環境 | 原登錄狀態 |",
+                 "|---|---|---|---|"]
+        for assessment in assessments:
+            if not isinstance(assessment, dict) or not isinstance(assessment.get("id"), str):
+                spec.append("| 資料格式待核對 | | | 未知 |")
+                continue
+            rid = assessment["id"]
+            link_text = "[" + md_text(rid) + "](report.html#contract_assessments-" + rid.encode("utf-8").hex() + ")"
+            target = str(assessment.get("target_build") or "版本待確認") + "／" + str(assessment.get("environment") or "環境待確認")
+            spec.append("| " + " | ".join((link_text, md_text(assessment.get("clause", "")), md_text(target),
+                                           contract_status_label(assessment))) + " |")
+        spec.append("")
     save_view("qa/spec.md", spec)
     safe(root, "qa/questions.md").write_text("\n".join(question_lines(root, reg)) + "\n", encoding="utf-8")
     interview = ["# 問答過程紀錄", "", "由 registry.interactions 產生；修改來源記錄後重新 render。原始問答與 AI 解讀分開；回答不自動等於產品決策或核可。", ""]
@@ -1849,6 +1969,62 @@ def result_version(row, current):
     return "對應目前完整設計；不代表已核可／放行" if version == current else "歷史版本；不適用目前完整設計"
 
 
+DEPENDENCY_MODES = {"real": "真實對端", "simulated": "模擬對端", "either": "真實或模擬皆可", "unknown": "模式未知"}
+
+
+def contract_status_label(row):
+    labels = {"not-assessed": "尚未核對", "blocked": "受阻", "conflict": "待解決衝突", "match": "一致", "gap": "落差"}
+    return labels.get(str(row.get("status")), "狀態未知")
+
+
+def peer_description(peer):
+    if not isinstance(peer, dict):
+        return "對端資料格式待核對"
+    mode = peer.get("mode")
+    return (DEPENDENCY_MODES.get(mode, "模式未知") if isinstance(mode, str) else "模式未知") + " · " + str(peer.get("target") or "對端未指定")
+
+
+def run_dependency_view(run, heading_id, pretty):
+    """Show only this execution's evidence and the requirements in its frozen case."""
+    e = lambda v: escape(str(v), quote=True)
+    case = run.get("case_snapshot")
+    case = case if isinstance(case, dict) else {}
+    env = case.get("environment")
+    required = env.get("required_dependencies") if isinstance(env, dict) else None
+    actual = run.get("actual_dependencies")
+    lines = ['<h4 id="' + heading_id + '">對端與證據範圍</h4>']
+    if required is None and actual is None:
+        return ''.join(lines) + '<p>凍結案例與本次執行均未登錄對端，對端驗證範圍未知。</p>'
+    if any(items is not None and not isinstance(items, list) for items in (required, actual)):
+        return ''.join(lines) + '<p class="gap">對端紀錄格式有誤，無法比對本次證據。</p>'
+    if not required:
+        lines.append('<p>凍結案例未列所需對端。</p>')
+    if not actual:
+        lines.append('<p>本次實際對端未登錄，無法確認哪些元件使用真機或模擬。</p>')
+    if required or actual:
+        lines.append('<div class="scroll"><table class="dependency-scope"><thead><tr><th>依賴項目</th>'
+                     '<th>凍結設計要求</th><th>本次實際對端</th><th>證據</th></tr></thead><tbody>')
+        peers = {}
+        for field, entries in (("required", required), ("actual", actual)):
+            for peer in entries or []:
+                key = peer.get("key") if isinstance(peer, dict) else None
+                key = key if isinstance(key, str) and key else "（識別資料有誤）"
+                peers.setdefault(key, {"required": [], "actual": []})[field].append(peer)
+        for key, pair in peers.items():
+            plans = '<br>'.join(e(peer_description(peer)) for peer in pair["required"]) or "未列要求"
+            seen = '<br>'.join(e(peer_description(peer)) for peer in pair["actual"]) or "未登錄"
+            evidence = ''.join(pretty(peer["evidence"]) for peer in pair["actual"]
+                               if isinstance(peer, dict) and peer.get("evidence"))
+            lines.append('<tr><th scope="row">' + e(key) + '</th><td>' + plans + '</td><td>' + seen +
+                         '</td><td>' + (evidence or "未提供") + '</td></tr>')
+        lines.append('</tbody></table></div>')
+    gaps = dependency_gaps(case, actual)
+    if gaps:
+        lines.append('<p class="gap">本次尚缺的對端證據</p><ul>' +
+                     ''.join('<li>' + e(gap) + '</li>' for gap in gaps) + '</ul>')
+    return ''.join(lines)
+
+
 def render_results(root, rows, current, cases):
     e = lambda v: escape(str(v), quote=True)
     def file_link(rel, allow_fragment=False):
@@ -1893,6 +2069,7 @@ def render_results(root, rows, current, cases):
                     same_case = cid in cases and digest(cases[cid]) == data.get("case_digest")
                     out.append('<p>案例內容比對：' + ('與目前案例相同；完整設計版本仍須另外核對' if same_case else '與目前案例不同或無法比對') + '</p>')
                     out.append(pretty({k: data.get(k) for k in ("sut_version", "environment", "operator", "started_at", "finished_at", "recording_status")}))
+                    out.append(run_dependency_view(data, result_anchor(row) + '-dependencies', pretty))
                     frozen_steps = {s.get("n"): s for s in snap.get("steps", [])}
                     out.append('<div class="scroll"><table><thead><tr><th>步驟</th><th>凍結操作／原判準</th><th>Actual／狀態／執行時間</th><th>證據</th></tr></thead><tbody>')
                     for step in data.get("steps", []):
@@ -2314,7 +2491,9 @@ def render_html(root, reg, cases):
         "purpose": "測試目的", "level": "測試層級", "type": "執行方式", "ac_ids": "關聯驗收條件",
         "risk_ids": "關聯風險", "scenario_ids": "關聯情境", "environment": "測試環境",
         "target": "受測環境／對象", "build_binding": "受測版本辨識", "tools": "工具與版本",
-        "binding_refs": "操作／觀測依據", "preconditions": "前置條件", "action": "操作",
+        "binding_refs": "操作／觀測依據", "required_dependencies": "驗收所需對端",
+        "observed_build": "觀察時的受測版本", "observed_environment": "觀察環境",
+        "preconditions": "前置條件", "action": "操作",
         "verify": "確認方式", "data": "測試資料", "name": "名稱", "value": "值", "unit": "單位",
         "basis": "依據", "input": "輸入", "observe": "觀察點", "when": "判定時機",
         "evidence": "需保存的證據", "checks": "預期結果與規則", "expected": "預期結果",
@@ -2354,7 +2533,8 @@ def render_html(root, reg, cases):
                   "rule_refs": "acceptance", "risk_ids": "risks", "scenario_ids": "scenarios",
                   "case_ids": "cases", "blockers": "questions", "merged_into": "scenarios",
                   "coverage_ids": "coverage_items", "question_ids": "questions", "reference_refs": "sources",
-                  "question_id": "questions", "interaction_refs": "interactions"}
+                  "question_id": "questions", "interaction_refs": "interactions",
+                  "contract_ref": "sources", "derived_refs": "sources", "observation_refs": "sources"}
     for key in ("ac", "risk", "scenario", "case"):
         ref_groups["selected_" + key + "_ids"] = ref_groups[key + "_ids"]
     backlinks, routes, gaps = {}, {}, {}
@@ -2434,6 +2614,14 @@ def render_html(root, reg, cases):
             '<span class="gap">（已過期／需核對）</span>' if problems else '')
 
     def value(v, key=""):
+        if key == "required_dependencies":
+            if not isinstance(v, list):
+                return '<span class="gap">所需對端資料格式待核對</span>'
+            items = []
+            for peer in v:
+                key_label = (e(peer.get("key", "未編號")) + ' · ') if isinstance(peer, dict) else ''
+                items.append('<li>' + key_label + e(peer_description(peer)) + '</li>')
+            return '<ul>' + ''.join(items) + '</ul>' if items else '未列要求'
         if v is None or v == "":
             return '<span class="muted">尚未提供</span>'
         if isinstance(v, list):
@@ -2613,7 +2801,7 @@ def render_html(root, reg, cases):
            '<p>點選編號查看完整內容，再由來源反查相關案例。各類編號的英文來源、中文意思與用途，見下方<a href="#glossary">完整縮寫表</a>。</p>',
            '<div class="meta">產生時間：' + e(now()) + ' · 工具版本：' + VERSION + '</div></header>',
            '<nav aria-label="報告章節"><a href="#design-strategy">策略總覽</a><a href="#coverage-matrix">覆蓋矩陣</a><a href="#design-models">方法模型</a><a href="#cases">案例清單</a><a href="#sources">來源清單</a>',
-           '<a href="#risk-assessment">需求風險評估</a><a href="#coverage">設計覆蓋</a><a href="#exploration">探索任務</a>',
+           '<a href="#contract-assessments">契約比對</a><a href="#risk-assessment">需求風險評估</a><a href="#coverage">設計覆蓋</a><a href="#exploration">探索任務</a>',
            '<a href="#reviews-baselines">審查與基線</a><a href="#test-runs">實測紀錄</a><a href="#interview">問答紀錄</a><a href="#rules">需求與驗收</a><a href="#other">風險與待確認</a><a href="#glossary">編號與縮寫說明</a><a href="#documents">其他成果</a></nav><main>',
            '<div class="notice">這是設計與已登錄結果的閱讀快照。連結不代表已覆蓋、已核可或已執行；本頁不產生實際測試結果，也不自動判定放行。</div>',
            '<div class="stats">' + ''.join('<div class="stat"><b>' + str(n) + '</b>' + label + '</div>' for n, label in
@@ -2630,7 +2818,40 @@ def render_html(root, reg, cases):
         out.append('<tr>' + ''.join('<td>' + e(x) + '</td>' for x in (prefix, *terms)) + '</tr>')
     out += ['</tbody></table></div></section>', strategy_view,
             '<section id="design-models"><h2>設計方法與模型</h2>', model_view or '<p>尚未登錄方法模型。</p>', '</section>',
-            '<section id="sources"><h2>來源清單</h2>',
+            '<section id="contract-assessments"><h2>契約與實作比對</h2>']
+    assessed = maps.get("contract_assessments", {})
+    raw_assessed = reg.get("contract_assessments", [])
+    if not isinstance(raw_assessed, list) or len(raw_assessed) != len(assessed):
+        out.append('<p class="gap">部分契約比對紀錄缺少有效或唯一編號，請核對原始記錄。</p>')
+    if not assessed:
+        out.append('<p>尚未登錄契約與實作比對。</p>')
+    for rid, assessment in assessed.items():
+        problems = contract_assessment_problems(root, assessment, maps)
+        rule_ids = [aid for aid in ids(assessment.get("ac_ids")) if isinstance(aid, str)]
+        requirements = {req for req in ids(assessment.get("requirement_ids")) if isinstance(req, str)}
+        for aid in rule_ids:
+            requirements.update(req for req in ids(maps["acceptance"].get(aid, {}).get("requirement_ids")) if isinstance(req, str))
+        status = contract_status_label(assessment)
+        out += ['<article class="record" id="' + anchor("contract_assessments", rid) + '" data-record-id="' + e(rid) + '"><h3>' +
+                e(rid) + ' · ' + e(assessment.get("clause") or "條款待確認") + '</h3>',
+                '<p class="gap">依據待核對（原登錄：' + status + '）</p>' if problems else '<p class="badge">狀態 · ' + status + '</p>']
+        if problems:
+            out.append('<ul class="gap">' + ''.join('<li>' + e(problem) + '</li>' for problem in problems) + '</ul>')
+        fields = (("對應需求", sorted(requirements), "requirement_ids"), ("驗收條件", assessment.get("ac_ids"), "ac_ids"),
+                  ("採用的契約來源", assessment.get("contract_ref"), "contract_ref"),
+                  ("同源衍生文件或測試", assessment.get("derived_refs"), "derived_refs"),
+                  ("受測版本", assessment.get("target_build"), ""), ("環境", assessment.get("environment"), ""),
+                  ("適用範圍與比對依據", assessment.get("scope_basis"), ""), ("實際觀察", assessment.get("observed"), ""),
+                  ("觀察來源", assessment.get("observation_refs"), "observation_refs"),
+                  ("來源摘錄", assessment.get("source_citations"), "source_citations"),
+                  ("待釐清問題", assessment.get("question_ids"), "question_ids"))
+        out.append('<dl>' + ''.join('<dt>' + title + '</dt><dd>' + value(data, key) + '</dd>'
+                                    for title, data, key in fields) + '</dl>')
+        related_cases = sorted({cid for aid in rule_ids for cid in backlinks.get(("acceptance", aid), set())})
+        if related_cases:
+            out.append('<p>採用相同驗收條件的案例　' + '、'.join(link("cases", cid) for cid in related_cases) + '</p>')
+        out.append('</article>')
+    out += ['</section><section id="sources"><h2>來源清單</h2>',
             '<p>normative＝規格依據；harness＝操作／觀測指南；observation＝現況觀察；experience＝經驗線索（不提供 Expected）。confirmed 是來源採納狀態。指紋相符僅表示檔案未改變，不代表已閱讀、理解或核可。</p>',
             '<p>閱讀狀態依登錄紀錄呈現；已讀指定範圍不代表全文已讀。閱讀紀錄序號與摘錄序號從 1 起算，僅用於該來源／紀錄內定位。</p>',
             '<div class="scroll"><table><thead><tr><th>來源編號</th><th>名稱／檔案</th><th>用途／版本／採納</th><th>閱讀狀態與已讀範圍</th><th>未讀部分／限制</th><th>引用案例</th></tr></thead><tbody>']
@@ -2687,8 +2908,11 @@ def render_html(root, reg, cases):
     for cid, case in cases.items():
         tail = ("cleanup", "independence", "verdict_rules", "blockers", "automation", "provenance")
         choice_links = '、'.join(link("design_choices", did) for did in designs_by_case[cid] if did in maps["design_choices"])
+        comparisons = sorted({rid for aid in ids(case.get("ac_ids")) if isinstance(aid, str)
+                              for group, rid in direct_backlinks.get(("acceptance", aid), set()) if group == "contract_assessments"})
         out += ['<article class="record" id="' + anchor("cases", cid) + '" data-record-id="' + e(cid) + '"><h3>' + e(cid) + ' · ' + e(case.get("title", "")) + '</h3>',
                 '<p>方法模型　' + choice_links + '</p>' if choice_links else '',
+                '<p>相同驗收條件的契約比對　' + '、'.join(link("contract_assessments", rid) for rid in comparisons) + '</p>' if comparisons else '',
                 value({k: v for k, v in case.items() if k not in ("id", "title", "steps", "actual", "result", *tail)}), '<h4>完整操作步驟</h4>',
                 '<p>下表數字為操作順序；Expected 是預期結果，須由已確認規則支持。</p>',
                 '<div class="scroll"><table class="steps"><thead><tr>' + ''.join('<th>' + s + '</th>' for s in
@@ -2718,13 +2942,23 @@ def render_html(root, reg, cases):
             out.append('<p class="gap">引用缺口：' + '、'.join(link(g, r) for g, r in sorted(gaps[cid])) + '</p>')
         out.append('<h4>審查、基線與歷次實測（各自綁定版本）</h4>')
         linked_results = []
+        has_run = False
         for record in results:
             try:
                 if cid not in result_case_ids(record): continue
-                linked_results.append('<li><a href="#' + result_anchor(record) + '">' + e(record['id']) + '</a> · ' + e(result_version(record, current_version)) + '</li>')
+                summary = ''
+                if record["group"] == "runs":
+                    has_run = True
+                    actual = ref_list(record["data"].get("actual_dependencies"))
+                    peers = "、".join(peer_description(peer) for peer in actual) or "未登錄"
+                    summary = ' · <a href="#' + result_anchor(record) + '-dependencies">本次對端證據</a> · ' + e(peers)
+                linked_results.append('<li><a href="#' + result_anchor(record) + '">' + e(record['id']) + '</a> · ' +
+                                      e(result_version(record, current_version)) + summary + '</li>')
             except (TypeError, AttributeError):
                 continue
         out.append('<ul>' + ''.join(linked_results) + '</ul>' if linked_results else '<p>尚無明確案例關聯；不能據此認定已審／已測。</p>')
+        if not has_run and isinstance(case.get("environment"), dict) and case["environment"].get("required_dependencies"):
+            out.append('<p class="gap">尚無此案例的實測紀錄，所需對端待驗證。</p>')
         out += ['<p class="back"><a href="#cases">返回案例清單</a> · <a href="#sources">查看全部來源</a></p></article>']
     out.append('</section>')
     out += ['<section id="risk-assessment"><h2>需求風險評估</h2>',
@@ -2866,18 +3100,37 @@ def review_input_packet(root):
     risk_evidence_ids = {sid for assessment in assessments if isinstance(assessment, dict)
                          for sid in ref_list(assessment.get("source_refs"))}
     question_evidence_ids = {sid for question in reg.get("questions", []) for sid in ref_list(question.get("source_refs"))}
-    permitted = {s["id"] for s in reg["sources"] if s.get("kind") in ("normative", "harness", "experience")
-                 or s["id"] in comparison_ids or s["id"] in risk_evidence_ids or s["id"] in question_evidence_ids}
+    scope = reg.get("scope", {})
+    selected_acs = set(scope.get("selected_ac_ids", []))
+    for cid in scope.get("selected_case_ids", []):
+        selected_acs.update(data["cases"].get(cid, {}).get("ac_ids", []))
+    req_ids, risk_ids = risk_scope(reg, data["cases"])
+    comparisons = [row for row in ref_list(reg.get("contract_assessments")) if isinstance(row, dict) and
+                   (any(isinstance(aid, str) and aid in selected_acs for aid in ref_list(row.get("ac_ids"))) or
+                    (not row.get("ac_ids") and any(isinstance(rid, str) and rid in req_ids for rid in ref_list(row.get("requirement_ids")))))]
+    contract_sources = {sid for row in comparisons
+                        for sid in [row.get("contract_ref"), *ref_list(row.get("derived_refs")), *ref_list(row.get("observation_refs"))]
+                        if isinstance(sid, str)}
+    evidence_ids = comparison_ids | risk_evidence_ids | question_evidence_ids | contract_sources
+    permitted = {s["id"] for s in reg["sources"] if s.get("kind") in ("normative", "harness", "experience") or s["id"] in evidence_ids}
     filtered = json.loads(json.dumps(data))
     filtered["registry"]["sources"] = [s for s in reg["sources"] if s["id"] in permitted]
+    if "contract_assessments" in reg:
+        filtered["registry"]["contract_assessments"] = comparisons
+    if "source_reading_evidence_hashes" in filtered:
+        paths = {e["path"] for source in filtered["registry"]["sources"] for reading in source.get("readings", [])
+                 for e in reading.get("evidence_refs", [])}
+        filtered["source_reading_evidence_hashes"] = {p: h for p, h in filtered["source_reading_evidence_hashes"].items() if p in paths}
     # Only related interview evidence accompanies a review, not an entire setup/chat transcript.
     pairs = {row["id"]: row for row in reg.get("interactions", [])}
     interview_ids = {rid for decision in reg.get("decisions", []) for rid in decision.get("interaction_refs", [])}
     in_scope = set(cases_id for cases_id in data["cases"] if cases_id in reg.get("scope", {}).get("selected_case_ids", []))
     in_scope.update(x for key, values in reg.get("scope", {}).items() if key.startswith("selected_") and isinstance(values, list) for x in values)
-    req_ids, risk_ids = risk_scope(reg, data["cases"])
     in_scope.update(req_ids | risk_ids)
     selected_questions = {qid for cid, case in data["cases"].items() if cid in in_scope for qid in case.get("blockers", [])}
+    for row in comparisons:
+        in_scope.add(row["id"])
+        selected_questions.update(ref_list(row.get("question_ids")))
     for choice in ref_list(reg.get("design_choices")):
         if not isinstance(choice, dict):
             continue
@@ -2929,11 +3182,16 @@ artifact_digest 是原專案完整設計的版本識別；review_input 是按交
 原始問答須保留當時問題、選項、原話及 supersedes 更正鏈；「第二個」要對照選項。AI interpretation 不是原話，answered 不是 confirmed；缺原文、summary_only 或 partial 列限制，不能重建逐字稿。舊資料沒有 readings 不代表過去一定沒讀。
 共用／推導判準核對人的採納、適用條件、比較關係、觀察時機與限制；comparison_reference_ids 只支持已確認關係，參考版本行為不自動正確。experience 只供情境線索，風險觀察只支持風險分析。
 
+有契約比對時，查原始需求、適用的已確認條款、受測版本與配置及實作證據。追溯端點文件、衍生規格和測試的共同來源，多份同源產物只算一個判準來源。需求與契約衝突列待決；環境無法連線列受阻。實作落差須有該版本違反特定已確認條款的證據，保留原驗收條件。
+
 ## 2. executable：可執行且可判定
 逐步檢查環境、權限、版本、工具、可建立並驗證的初態、具體資料／單位、操作介面、觀測點、判定時機／容差、證據及清理。人工、設備與黑箱測試同樣適用，不要求 CI/CD 或原始碼。
 「測試正常」「確認處理正確」或只有 Gherkin 不足以執行。指出缺哪個欄位與介面，不能補猜 UI 路徑、命令、API、數值、等待秒數。檢查快取、待處理事件及共用 fixture 是否被隔離與重置，每案可獨立重跑。
 
+承諾涉及外部依賴時，核對案例所需的對端、版本與允許的模擬程度。有實測材料才核對該次的對端身分、版本、真實／模擬／未知模式、證據及可支持的斷言。指定實機互通若僅跑過模擬器，註明尚缺該實機證據；純本機邏輯可按允許的替身審查。設計交接包只含計畫時，檢查預定取證是否可行，註明「未審實測」。
+
 ## 3. coverage：已選範圍覆蓋
+若承諾包括業務內容，檢查是否有獨立於待測輸出的內容判準及可辨識錯誤的斷言。例如 HTTP 200 只支持請求成功；若另承諾摘要忠實呈現會議決議，就應核對原文中的決議或業務人員確認的參照。
 若專案已登錄 technique_catalog，自訂方法採相同的覆蓋檢查。核對適用條件、所需資料、產物及限制，再用該目標已確認的驗收條件判斷模型列。
 依本版 design_choices 的目的、規則／風險、適用性、取捨、理由與覆蓋準則核對各模型列。逐列查輸入、當次預期、COV 以及已選案例的具體步驟與斷言；逐一回看本輪保留的覆蓋項目。測試性質、品質面向、設計方法及手動／自動各自說明不同資訊。未分類舊資料記限制；候選與待確認項目依本輪範圍處理。
 以完整已選 AC／風險／情境及保留 COV 為分母；先查設計方法與項目本身，再看已選案例的具體資料和斷言是否承接，不只數連結。檢查分區、邊界等號與鄰值、可行條件組合、初態／轉移及適用異常。資料型別、單位與解析度不明時不能猜相鄰值。
@@ -3254,6 +3512,7 @@ def start_run(args, root):
         fail("Identify the actual tested SUT build/artifact and execution environment.")
     data = artifacts(root)
     case = cases[args.case]
+    required_dependency_entries(case)
     path = safe(root, "qa/runs/" + valid_id(args.id) + ".json")
     head = git(root, "rev-parse", "HEAD", check=False)
     run = {"id": args.id, "created_at": now(), "status": "NOT_RUN", "case_id": args.case,
@@ -3281,29 +3540,104 @@ def execution_time(value):
     return stamp
 
 
-def run_outcome(steps):
+def dependency_entries(items, field):
+    """Validate and index required peers or operator observations, without inferring identity."""
+    planned = field == "required_dependencies"
+    modes = ("real", "simulated", "either") if planned else ("real", "simulated", "unknown")
+    if not isinstance(items, list):
+        fail(f"{field} must be a list")
+    peers = {}
+    for item in items:
+        if not isinstance(item, dict):
+            fail(f"Invalid {field} entry")
+        key, target, mode = item.get("key"), item.get("target"), item.get("mode")
+        if not isinstance(key, str) or not meaningful(key) or key != key.strip() or key in peers:
+            fail(f"{field} keys must be distinct nonempty identifiers")
+        if mode not in modes:
+            fail(f"{field} {key}: invalid mode")
+        if (not isinstance(target, str) or target != target.strip()
+                or (mode != "unknown" and not meaningful(target))):
+            fail(f"{field} {key}: identify the target and applicable version")
+        fields = {"key", "mode", "target"}
+        if not planned:
+            evidence_field = "evidence_paths" if field == "dependency input" else "evidence"
+            fields.add(evidence_field)
+            if not isinstance(item.get(evidence_field), list):
+                fail(f"{field} {key}: {evidence_field} must be a list")
+        if set(item) != fields:
+            fail(f"{field} {key}: unexpected or missing entry fields")
+        peers[key] = item
+    return peers
+
+
+def required_dependency_entries(case):
+    environment = case.get("environment") if isinstance(case, dict) else None
+    entries = environment.get("required_dependencies", []) if isinstance(environment, dict) else []
+    return dependency_entries(entries, "required_dependencies")
+
+
+def dependency_gaps(case, actual_dependencies):
+    """Describe what a run's recorded dependencies support against the frozen case."""
+    try:
+        planned = required_dependency_entries(case)
+        actual = dependency_entries(actual_dependencies if actual_dependencies is not None else [], "actual_dependencies")
+    except ValueError:
+        return ["對端紀錄格式有誤，需核對原始資料。"]
+    gaps = []
+    for key, requirement in planned.items():
+        observed = actual.get(key)
+        if observed is None:
+            gaps.append(f"{key}：缺少本次對端紀錄。")
+        elif observed["mode"] == "unknown":
+            gaps.append(f"{key}：實際對端模式待確認。")
+        elif requirement["mode"] not in ("either", observed["mode"]):
+            gaps.append(f"{key}：實際對端模式與案例要求不符。")
+        elif observed["target"] != requirement["target"]:
+            gaps.append(f"{key}：實際對端識別或版本與案例要求不符。")
+        elif not observed["evidence"]:
+            gaps.append(f"{key}：缺少本次對端的佐證檔案。")
+    return gaps
+
+
+def capture_evidence(root, paths, run_path, lock):
+    if not isinstance(paths, list) or any(not isinstance(rel, str) for rel in paths):
+        fail("evidence must contain project-relative file paths")
+    evidence = {}
+    for rel in paths:
+        path = safe(root, rel)
+        name = path.relative_to(root).as_posix()
+        if name in evidence:
+            fail("evidence must contain unique project-relative file paths")
+        if not path.is_file() or path in (run_path, lock):
+            fail("Evidence must be an existing independent file: " + rel)
+        evidence[name] = {"path": name, "sha256": file_hash(path)}
+    return list(evidence.values())
+
+
+def run_outcome(steps, gaps=()):
     statuses = [s.get("status") for s in steps]
     # A recorded product failure remains visible even when later steps were blocked.
     for status in ("FAIL", "BLOCKED", "INCONCLUSIVE"):
         if status in statuses:
-            return status
-    return "PASS" if statuses and all(s == "PASS" for s in statuses) else "INCONCLUSIVE"
+            return "INCONCLUSIVE" if status == "FAIL" and gaps else status
+    return "PASS" if statuses and all(s == "PASS" for s in statuses) and not gaps else "INCONCLUSIVE"
 
 
 def record_run(args, root):
     """Append a result event, then materialize results without editing frozen design."""
     repo(root)
     payload = json.load(sys.stdin) if args.input == "-" else read(safe(root, args.input))
-    allowed = {"operator", "steps", "started_at", "finished_at", "finish", "reason", "expected_revision"}
+    allowed = {"operator", "steps", "started_at", "finished_at", "finish", "reason", "expected_revision",
+               "actual_dependencies"}
     if not isinstance(payload, dict) or set(payload) - allowed:
-        fail("record-run accepts only operator, steps, execution times, finish, reason and expected_revision")
+        fail("record-run accepts only operator, steps, actual_dependencies, execution times, finish, reason and expected_revision")
     if not isinstance(payload.get("operator"), str) or not meaningful(payload["operator"]):
         fail("Identify the actual operator; do not invent a person")
     if type(payload.get("finish", False)) is not bool:
         fail("finish must be a boolean")
     updates = payload.get("steps", [])
-    if not isinstance(updates, list) or (not updates and not payload.get("finish")):
-        fail("Provide steps or an explicit finish request")
+    if not isinstance(updates, list) or (not updates and not payload.get("finish") and "actual_dependencies" not in payload):
+        fail("Provide steps, actual_dependencies or an explicit finish request")
     path = safe(root, "qa/runs/" + valid_id(args.id) + ".json")
     lock = safe(root, path.relative_to(root).as_posix() + ".lock")
     fd = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
@@ -3327,6 +3661,14 @@ def record_run(args, root):
         if original.get("recording_status") == "finalized" or original.get("status") != "NOT_RUN":
             if not reason:
                 fail("Changing a completed record requires a correction reason; reruns need a new RUN")
+        if "actual_dependencies" in payload:
+            observations = dependency_entries(payload["actual_dependencies"], "dependency input")
+            recorded = [{"key": key, "target": peer["target"], "mode": peer["mode"],
+                         "evidence": capture_evidence(root, peer["evidence_paths"], path, lock)}
+                        for key, peer in observations.items()]
+            if "actual_dependencies" in original and recorded != original["actual_dependencies"] and not reason:
+                fail("Changing recorded dependencies requires a correction reason; reruns need a new RUN")
+            run["actual_dependencies"] = recorded
         by_n = {s["n"]: s for s in run["steps"]}
         seen, changes = set(), []
         for item in updates:
@@ -3346,15 +3688,7 @@ def record_run(args, root):
                     fail("Unknown execution time needs time_unknown_reason; do not substitute the entry time")
             else:
                 execution_time(item["at"])
-            paths = item.get("evidence", [])
-            if not isinstance(paths, list) or any(not isinstance(x, str) for x in paths) or len(paths) != len(set(paths)):
-                fail("evidence must contain unique project-relative file paths")
-            evidence = []
-            for rel in paths:
-                p = safe(root, rel)
-                if not p.is_file() or p == path or p == lock:
-                    fail("Evidence must be an existing independent file: " + rel)
-                evidence.append({"path": p.relative_to(root).as_posix(), "sha256": file_hash(p)})
+            evidence = capture_evidence(root, item.get("evidence", []), path, lock)
             if item["status"] in {"PASS", "FAIL"} and not evidence:
                 fail("PASS/FAIL requires evidence; a file hash does not determine the product verdict")
             before = copy.deepcopy(by_n[n])
@@ -3379,7 +3713,8 @@ def record_run(args, root):
         run["operator"] = payload["operator"]
         run["recording_policy"] = "record-run-v1"
         run["recording_status"] = "finalized" if payload.get("finish") else "in-progress"
-        run["status"] = run_outcome(run["steps"]) if payload.get("finish") else "NOT_RUN"
+        gaps = dependency_gaps(run["case_snapshot"], run.get("actual_dependencies"))
+        run["status"] = run_outcome(run["steps"], gaps) if payload.get("finish") else "NOT_RUN"
         if not payload.get("finish"):
             run["finished_at"] = None
         if payload.get("finish") and any(s["status"] == "NOT_RUN" for s in run["steps"]) and not reason:
@@ -3390,6 +3725,9 @@ def record_run(args, root):
                     ("status", "operator", "started_at", "finished_at", "recording_status")},
                  "after": {k: run.get(k) for k in
                     ("status", "operator", "started_at", "finished_at", "recording_status")}}
+        if "actual_dependencies" in run:
+            event["before"]["actual_dependencies"] = original.get("actual_dependencies")
+            event["after"]["actual_dependencies"] = run["actual_dependencies"]
         run.setdefault("recording_events", []).append(event)
         problems = run_problems(root, run, partial=not payload.get("finish"))
         if problems:
@@ -3407,7 +3745,7 @@ def record_run(args, root):
         finally:
             if tmp and tmp.exists(): tmp.unlink()
         print(json.dumps({"id": args.id, "recording_revision": run["recording_revision"],
-                          "recording_status": run["recording_status"], "status": run["status"],
+                          "recording_status": run["recording_status"], "status": run["status"], "dependency_gaps": gaps,
                           "steps": [{"n": s["n"], "status": s["status"], "at": s.get("at")} for s in run["steps"]],
                           "note": "Recorded observations only; no SUT execution or product approval performed."}, ensure_ascii=False, indent=2))
     finally:
@@ -3429,6 +3767,23 @@ def run_problems(root, run, partial=False):
         errors.append("Case snapshot does not match frozen design")
     if run.get("design_snapshot", {}).get("registry") != run.get("registry_snapshot"):
         errors.append("Registry snapshot does not match frozen design")
+    frozen_case = run.get("case_snapshot") or {}
+    actual_dependencies = run.get("actual_dependencies", [])
+    try:
+        required_dependency_entries(frozen_case)
+        for key, observed in dependency_entries(actual_dependencies, "actual_dependencies").items():
+            seen_paths = set()
+            for evidence in observed["evidence"]:
+                if not isinstance(evidence, dict) or not isinstance(evidence.get("path"), str):
+                    errors.append(f"Dependency {key}: invalid evidence record")
+                    continue
+                path = safe(root, evidence["path"])
+                if path in seen_paths or not path.is_file() or file_hash(path) != evidence.get("sha256"):
+                    errors.append(f"Dependency {key}: duplicate, missing or changed evidence")
+                seen_paths.add(path)
+    except ValueError as exc:
+        errors.append(str(exc))
+    gaps = dependency_gaps(frozen_case, actual_dependencies)
     expected_ns = [s["n"] for s in run.get("case_snapshot", {}).get("steps", [])]
     if [s.get("n") for s in run.get("steps", [])] != expected_ns:
         errors.append("Run step numbers differ from frozen case")
@@ -3453,6 +3808,8 @@ def run_problems(root, run, partial=False):
             errors.append("Blocked/draft case cannot produce a formal PASS")
     if run.get("status") == "FAIL" and not any(s.get("status") == "FAIL" for s in run.get("steps", [])):
         errors.append("Run FAIL requires a failed step")
+    if run.get("status") in ("PASS", "FAIL") and gaps:
+        errors.append("Run verdict unsupported by required dependencies: " + " ".join(gaps))
     if run.get("status") != "NOT_RUN" and not partial:
         for key in ("started_at", "finished_at", "operator"):
             if not meaningful(run.get(key)):
@@ -3463,7 +3820,7 @@ def run_problems(root, run, partial=False):
                 errors.append("Invalid recording status")
             if partial and (run.get("status") != "NOT_RUN" or run.get("finished_at") is not None):
                 errors.append("In-progress record must not claim a final verdict")
-            if not partial and run.get("status") != run_outcome(run.get("steps", [])):
+            if not partial and run.get("status") != run_outcome(run.get("steps", []), gaps):
                 errors.append("Run verdict differs from recorded step outcomes")
             start = execution_time(run["started_at"]) if run.get("started_at") else None
             end = execution_time(run["finished_at"]) if run.get("finished_at") else None
@@ -3478,8 +3835,14 @@ def run_problems(root, run, partial=False):
                 errors.append("Invalid recording event sequence")
             else:
                 latest = {}
+                latest_dependencies = None
                 for event in events:
                     execution_time(event["recorded_at"])
+                    before, after = event["before"], event["after"]
+                    if (before.get("actual_dependencies") != latest_dependencies
+                            or ("actual_dependencies" in before) != ("actual_dependencies" in after)):
+                        errors.append("Dependency correction chain mismatch")
+                    latest_dependencies = after.get("actual_dependencies")
                     for change in event["changes"]:
                         n = change["n"]
                         if n in latest and latest[n] != change["before"]:
@@ -3490,6 +3853,8 @@ def run_problems(root, run, partial=False):
                         errors.append("Step differs from latest recording event")
                 if any(run.get(k) != v for k, v in events[-1]["after"].items()):
                     errors.append("Run summary differs from latest recording event")
+                if run.get("actual_dependencies") != latest_dependencies:
+                    errors.append("Dependencies differ from latest recording event")
         except (ValueError, KeyError, TypeError) as exc:
             errors.append("Invalid recording metadata: " + str(exc))
     return errors
@@ -3500,6 +3865,7 @@ def check_run(args, root):
     partial = run.get("recording_policy") == "record-run-v1" and run.get("recording_status") == "in-progress"
     errors = run_problems(root, run, partial=partial)
     report = {"errors": errors, "recording_status": run.get("recording_status", "legacy"),
+              "dependency_gaps": dependency_gaps(run.get("case_snapshot"), run.get("actual_dependencies")),
               "note": "In-progress observations are incomplete, not a final result." if partial else
                       "Checks record completeness only; evidence must still be reviewed."}
     print(json.dumps(report, ensure_ascii=False, indent=2))
