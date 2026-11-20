@@ -24,6 +24,7 @@
 | DEC | Decision | 決策 | 記錄人的決定與依據 |
 | RISK | Risk | 風險 | 追蹤失敗情境、影響與取捨 |
 | SC | Scenario | 測試情境 | 表示待選或已選的測試情境 |
+| DES | Design | 方法選用紀錄 | 說明某驗證目標的方法、覆蓋準則及模型列 |
 | COV | Coverage | 覆蓋項目 | COV 取自 Coverage；列出方法導出的分區、邊界、組合或轉移 |
 | EXP | Exploration | 探索任務 | EXP 取自 Exploration；限定探索目的、時間與觀察 |
 | TC | Test Case | 測試案例 | 保存完整前置、步驟、判準與證據要求 |

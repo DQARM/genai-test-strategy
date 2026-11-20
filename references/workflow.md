@@ -118,7 +118,7 @@ qa_project.py 不提供 token 計量、費用硬限制或宿主歷史裁切。�
 
 ## 風險策略
 
-先按 [quality-characteristics.md](quality-characteristics.md) 由 AI 篩選適用品質特性及系統風險，在策略記理由與未知；不把清單逐項變成訪談，不在已選先產出時重啟追問。
+先按 [quality-characteristics.md](quality-characteristics.md) 篩選品質面向及系統風險，再依 [test-design.md](test-design.md) 和已選驗收條件主動選方法、寫覆蓋準則與模型列。將已採用、暫緩及有重大缺口的選擇呈現給使用者；只有需要人的產品決策或範圍取捨時才依原訪談節奏提問。
 
 按 [risk-assessment.md](risk-assessment.md) 批次初評每筆需求及跨整合／變更／環境等風險，保留直接關聯、評估狀態、失敗後果、嚴重度、可能性、優先序與各自理由。unknown 與未評估不是低風險。只有影響取捨的重要分歧才依原續問狀態確認，不逐欄訪談。
 

@@ -20,7 +20,7 @@ python3 qa/tools/qa_project.py prepare-review . --portable
 
 | 包內檔案 | 用途 |
 | --- | --- |
-| packet.json | 完整已選範圍、案例、結構化規則、相關原始問答、更正鏈、來源引用、版本與 review_focus |
+| packet.json | 完整已選範圍、方法選用紀錄與模型列（若有）、案例、結構化規則、相關原始問答、更正鏈、來源引用、版本與 review_focus |
 | manifest.json | 每個包內檔案 hash、原始路徑與副本對應、available／missing／changed／excluded 狀態 |
 | PROMPT.md、HANDOFF.md | 接手入口與實際交接位置；HANDOFF 另外說明跨平台提供方式 |
 | REVIEW_GUIDE.md | 不依賴安裝 Skill 的四輪完整準則、獨立性與回傳要求 |
@@ -55,6 +55,8 @@ review-pack 保留來源 readings、source_citations 與 source_reading_summary�
 沿用原 session 的焦點、累計題數、本批額度、續問狀態與選擇依據。已確認答案不重問；只有本批仍可提問且確有必要時才釐清。等待選擇時先依原檢查點取得續問選擇，已選先產出或明訂總上限已到時只列待辦，不藉修正重新訪談。操作缺口先查文件或交合適負責人。
 
 產品規則、範圍或案例一旦修改，更新 revision／supersedes、相關覆蓋項目、進度及閱讀網頁，再取得新 digest 交回重審。保留舊 review；記錄發現與修正的關聯，不改舊 digest。只改 Finding 為 fixed 不代表新內容已審查。
+
+初審前固定範圍、方法、覆蓋準則與版本。預設一次完整初審加一次修正複核。複核以原發現、修訂差異和受影響的條件、模型列及斷言為範圍；新提出的範圍外方法列後續候選。仍有爭議交決策人，缺證據保留受阻。只有足以支持新版本完整範圍的實際檢查才可進入核可基線；局部複核如實記錄範圍與限制。
 
 ## 核可基線
 

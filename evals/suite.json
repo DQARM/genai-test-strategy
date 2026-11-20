@@ -101,6 +101,20 @@
       ],
       "task": "task.txt",
       "project_seed": "project.json"
+    },
+    {
+      "id": "case-13",
+      "skill": "strategy",
+      "files": [
+        "station.md"
+      ],
+      "task": "task.txt"
+    },
+    {
+      "id": "case-14",
+      "skill": "strategy",
+      "files": ["delivery.md"],
+      "task": "task.txt"
     }
   ]
 }

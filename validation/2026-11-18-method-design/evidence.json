@@ -1,0 +1,2121 @@
+{
+  "note": "Synthetic maintenance evaluation. Transcripts and quotations use relative environment placeholders. Transcript and capture SHA-256 values identify the original pre-normalization bytes. These are design exercises, not product executions.",
+  "candidate": {
+    "counts": {
+      "PASS": 12,
+      "FAIL": 1,
+      "INCOMPLETE": 0,
+      "NOT_RUN": 0,
+      "CONTAMINATED": 0
+    },
+    "cases": [
+      {
+        "id": "case-01",
+        "outcome": "PASS",
+        "transcript_sha256": "3dbfb06958ff58bb106a5122927405c4e0b305e4f7b291c2388217091c5199ac",
+        "checks": {
+          "pass": 3,
+          "fail": 0,
+          "unassessed": 0
+        },
+        "rubric_checks": [
+          {
+            "id": "boundary",
+            "status": "pass",
+            "evidence": "當感測值剛好是 70.0°C 時，機櫃監控器應一律顯示高溫告警、一律清除告警，還是維持先前的告警狀態？",
+            "reason": "只問一題，辨認等號在上行／下行兩種前態都未定。",
+            "artifact_refs": []
+          },
+          {
+            "id": "oracle",
+            "status": "pass",
+            "evidence": "剛好 70.0°C 的預期結果仍待確認。",
+            "reason": "列為選項，沒有擅自訂等號行為。",
+            "artifact_refs": []
+          },
+          {
+            "id": "entry",
+            "status": "pass",
+            "evidence": "感測解析度已確認為 0.1°C，因此 69.9°C 和 70.1°C 都有對應規則",
+            "reason": "從來源的操作解析度直接找問題，沒有再次詢問背景及工具設定。",
+            "artifact_refs": []
+          }
+        ]
+      },
+      {
+        "id": "case-02",
+        "outcome": "PASS",
+        "transcript_sha256": "fc80ddddd7ef5797d565a5458e0fe465ab388c4b0d378708bf807a8b83bb7d4e",
+        "checks": {
+          "pass": 3,
+          "fail": 0,
+          "unassessed": 0
+        },
+        "rubric_checks": [
+          {
+            "id": "conflict",
+            "status": "pass",
+            "evidence": "若採 A，候選預期是重啟前的值；若採 B，候選預期是 50%。",
+            "reason": "表逐列附檔名、版號、日期與定位，兩個互斥預期並陳。",
+            "artifact_refs": []
+          },
+          {
+            "id": "authority",
+            "status": "pass",
+            "evidence": "B 的版號與日期較新，但目前沒有 B 取代 A 的決策。",
+            "reason": "把選取版本留給產品需求決策者，沒有折衷預期。",
+            "artifact_refs": []
+          },
+          {
+            "id": "stop",
+            "status": "pass",
+            "evidence": "記下原始亮度，從設備支援的設定中選另一個亮度，手動調整並記錄前後差異，最後調回原值並核對。",
+            "reason": "先提供共同規則可做的測試與條件式觀察草稿，未再提出問題。",
+            "artifact_refs": []
+          }
+        ]
+      },
+      {
+        "id": "case-03",
+        "outcome": "PASS",
+        "transcript_sha256": "9e07ec3adcbfd17caaa1b631434ca30c5221964846f25c07a1152b94ff5240ea",
+        "checks": {
+          "pass": 3,
+          "fail": 0,
+          "unassessed": 0
+        },
+        "rubric_checks": [
+          {
+            "id": "blocked",
+            "status": "pass",
+            "evidence": "以下兩案皆為草稿，執行受阻，尚未實測。",
+            "reason": "明列建立／重置初態、匯出、讀回、解析及成功觀察等實際缺口。",
+            "artifact_refs": []
+          },
+          {
+            "id": "interface",
+            "status": "pass",
+            "evidence": "建議由工程或測試環境負責人提供可用環境、建立與重置測試設定的方法，以及匯出入口。",
+            "reason": "草稿用操作目的敘述，未虛構任何按鈕、API、CLI 或格式。",
+            "artifact_refs": []
+          },
+          {
+            "id": "useful",
+            "status": "pass",
+            "evidence": "完整解析本次檔案並確認各部分均未包含本案的秘密金鑰，才可判本次樣本符合。",
+            "reason": "兩案有初態、操作、判定、清理與受阻條件，沒有填入實測結果。",
+            "artifact_refs": []
+          }
+        ]
+      },
+      {
+        "id": "case-04",
+        "outcome": "PASS",
+        "transcript_sha256": "ae2277453d0745768ce280581083707b168a2836987d2ed4310bc5b7bbd61608",
+        "checks": {
+          "pass": 3,
+          "fail": 0,
+          "unassessed": 0
+        },
+        "rubric_checks": [
+          {
+            "id": "oral",
+            "status": "pass",
+            "evidence": "同一間會議室已有人預約 09:00–10:00，下一場想預約當天的 10:00–11:00。",
+            "reason": "直接沿用口述規則與具體例子，不要求使用者提供規格。",
+            "artifact_refs": []
+          },
+          {
+            "id": "single",
+            "status": "pass",
+            "evidence": "前一場結束的那一刻，下一場可以開始，還是這樣也算時段重疊？",
+            "reason": "僅問一個等號時間邊界，足以區分可測的兩種判準。",
+            "artifact_refs": []
+          },
+          {
+            "id": "light",
+            "status": "pass",
+            "evidence": "同一間會議室已有人預約",
+            "reason": "全文為單一場景與單一產品提問，沒有要求資料夾或版控、沒有宣稱保存。",
+            "artifact_refs": []
+          }
+        ]
+      },
+      {
+        "id": "case-05",
+        "outcome": "FAIL",
+        "transcript_sha256": "dfa13dba046b957a9bea2a48efeb364f302f74fd7a84e1b56c5751890446c6e0",
+        "checks": {
+          "pass": 3,
+          "fail": 1,
+          "unassessed": 0
+        },
+        "rubric_checks": [
+          {
+            "id": "quality",
+            "status": "fail",
+            "evidence": "| 建議順序 | 失效與影響 | 怎麼測、能判讀到哪裡 |",
+            "reason": "選取的功能、效能、可靠性與相容性有理由，也保留未知門檻。不過交付的策略只列優先系統風險，沒有說明其他品質面向的適用性，如此材料未定的安全性、資訊安全、互動能力、可維護性等；未完整做到逐面的篩選與理由。缺證據時可明記待確認，無須捏造不適用。",
+            "artifact_refs": []
+          },
+          {
+            "id": "system",
+            "status": "pass",
+            "evidence": "分開記「路徑恢復」「首筆舊資料到達」「首筆新資料到達」。",
+            "reason": "分別處理協定符合性、多廠牌互通、異常網路復原、長時間穩定與時序，各有具體方法及缺口。",
+            "artifact_refs": []
+          },
+          {
+            "id": "threshold",
+            "status": "pass",
+            "evidence": "負載、持續時間和退化容限未定，先做趨勢探索。",
+            "reason": "不編造數值、協定版本或設備配對，不稱草稿可直接執行。",
+            "artifact_refs": []
+          },
+          {
+            "id": "burden",
+            "status": "pass",
+            "evidence": "排序依據是失效後果、草稿明列的承諾，以及哪些證據可在同一輪實機操作取得。單台結果僅涵蓋當次機型、韌體與配對。",
+            "reason": "自行批次分析，安排先後、共用同一輪實機觀測；未改成逐項訪談。",
+            "artifact_refs": []
+          }
+        ],
+        "response": "**單台實機的第一輪，優先驗證斷網復原。** 先用一組可確認的設備配對，證明接收端看得到可辨識的感測資料，再走一次「正常傳送 → 網路中斷 → 網路恢復」。最有辨識力的證據，是接收端收到一筆**恢復連線後才由感測端產生**的資料。若只看到閘道器顯示已連線，或只收到中斷前的舊資料，新的傳送路徑仍待驗證。\n\n依據為 `draft.md`〈工業閘道器草稿〉第 2 行全文，未標版本。草稿明載「長期連續運作，連接多家感測設備」及「網路中斷後應可恢復傳送」。本輪沒有新增已核可的驗收規則。以下是手動策略草稿，尚未實測。\n\n### 優先風險與手動測法\n\n| 建議順序 | 失效與影響 | 怎麼測、能判讀到哪裡 |\n|---|---|---|\n| 最先｜正常傳送與斷網復原（功能、強健性） | 網路恢復後，閘道器可能仍停在重試狀態，下游持續收不到新資料。核心傳送中斷，影響高。 | 固定配對、負載與接收端，只改變網路狀態。比對中斷前、期間及復原後產生的可辨識樣本，記錄恢復是否需要人工介入。單次觀察可證明該次是否看見新資料送達。 |\n| 同一輪觀察｜資料完整性與恢復時序 | 復原後可能只補送舊資料，也可能有缺漏、重複或順序改變，造成下游把舊讀值當成新讀值。嚴重度取決於資料用途。 | 將來源樣本與接收結果逐筆配對。分開記「路徑恢復」「首筆舊資料到達」「首筆新資料到達」。補送、順序、容許遺失及恢復時限均待定，只記差異與實測時間。 |\n| 其次｜多廠牌互通性 | 特定配對可能能連線，卻無法傳送可辨識資料，或接收端把讀值歸到錯誤設備。該組設備的資料有失真或中斷風險。 | 按可取得的真實設備逐組替換，每次記廠牌、型號、雙方韌體、協定設定與接收端版本，重做正常傳送。優先把高使用量或有異常的配對帶入復原測試。配對清單未定，不能估算整體覆蓋率。 |\n| 再做｜長時間穩定性與效能 | 持續傳送後可能逐漸積壓、間歇停送，短時檢查容易漏掉。若影響所有後續資料，後果高；且會獨占唯一實機。 | 在可重現的使用負載下分段比對來源與接收筆數、到達間隔、資料新鮮度，記錄停送、重啟及可取得的資源趨勢。保留實際負載、運作與觀測時段，未觀測區間另標。負載、持續時間和退化容限未定，先做趨勢探索。 |\n| 先補依據｜協定符合性 | 個別配對可互通，仍可能使用廠商特有行為；是否影響適用條款目前未知。 | 取得採用的協定、版本、設定檔、必要／選配條款後，再將各條款映射到可觀測的交換資料與判準。現階段暫緩符合性判定，保留真實配對的觀察。 |\n\n目前沒有故障紀錄、場域中斷頻率或部署配對分布，各項發生可能性均未知。排序依據是失效後果、草稿明列的承諾，以及哪些證據可在同一輪實機操作取得。單台結果僅涵蓋當次機型、韌體與配對。\n\n### 首輪如何操作與留證\n\n1. **建立初態。** 由工程提供可重現的連接、產生可辨識樣本、確認網路狀態、隔離與復原測試網路的方法，以及可用的接收端觀測點。測試人員記下設備與版本，先讓一筆新樣本在來源與接收端對得起來。基準傳送若無法建立，先處理這條路徑，斷網測試維持受阻。\n2. **只改變網路。** 依確認的操作方式中斷測試路徑，從獨立於資料是否抵達的觀測點確認中斷，記下事件時間及期間產生的樣本。恢復同一路徑並確認網路可用，再由感測端產生另一筆可區別的新樣本，保留兩端可對照的紀錄。\n3. **分開判讀送達與耗時。** 記下首筆復原後新樣本抵達的時間及期間採取的人工操作。量測前記錄時鐘基準、同步方式、解析度與誤差；跨端時鐘無法對齊時，只報可確認的事件順序或同一觀測端量得的時間。觀測結束仍未收到時，記「本次觀測窗內未見送達」及實際窗長。自動恢復、限時恢復與中斷期間資料處置均須另有判準。\n4. **復原與重跑。** 還原原配對、網路和設定，以另一筆新樣本重建正常傳送。下輪使用可區分的樣本，避免把前輪延遲到達的資料算進新一輪。若無法復原唯一實機，保留操作順序、兩端證據與最後狀態，停止下一輪切換。\n\n**目前的阻塞與交付界線。** 操作手冊尚未提供，以上為候選測試流程。建議工程與測試負責人先補齊安全復原方式、端點取證與量測能力，產品負責人在正式驗收前定義支援配對、協定條款、運作負載與時長、資料處置和恢復時間容差。可先依可用條件取得探索證據；正式判定須能追溯到採納的規則、受測版本與相應證據。此輪僅交付對話策略，沒有產品測試結果或放行結論。\n"
+      },
+      {
+        "id": "case-06",
+        "outcome": "PASS",
+        "transcript_sha256": "2daacc2fd5424a35c7c686653613a8ce8c46efdf630fd63753e08809010181ef",
+        "checks": {
+          "pass": 4,
+          "fail": 0,
+          "unassessed": 0
+        },
+        "rubric_checks": [
+          {
+            "id": "answer",
+            "status": "pass",
+            "evidence": "第五題已答，原話是「維持原設定，畫面顯示匯出失敗」。",
+            "reason": "清楚區分實際原話與後續推導的兩項可驗證判準，並標明先前原時間未記。",
+            "artifact_refs": []
+          },
+          {
+            "id": "stop",
+            "status": "pass",
+            "evidence": "QA-005 已從待答改為已答；累計仍為 5 題，本批從 0 起算，已問 5／5 題。",
+            "reason": "五題後直接交付，沒有再問是否繼續或新增訪談問題。",
+            "artifact_refs": []
+          },
+          {
+            "id": "ids",
+            "status": "pass",
+            "evidence": "REQ-015（QA-002）：匯出不含秘密金鑰",
+            "reason": "檢查表列需求 REQ-015～017、案例 TC-009～011，接續舊有 REQ-014／TC-008，既有 QA-005 更新。",
+            "artifact_refs": []
+          },
+          {
+            "id": "output",
+            "status": "pass",
+            "evidence": "這次只在對話交付，未建立專案檔案或審查包，也未實測或填入實際結果。",
+            "reason": "交付三項風險和具體案例，逐列交代操作環境、取證依據與判準的缺口。",
+            "artifact_refs": []
+          }
+        ]
+      },
+      {
+        "id": "case-07",
+        "outcome": "PASS",
+        "transcript_sha256": "354ba4f9f2029fd0af9840229ca23a06327566c992b12ee05163c96fb09c431f",
+        "checks": {
+          "pass": 3,
+          "fail": 0,
+          "unassessed": 0
+        },
+        "rubric_checks": [
+          {
+            "id": "time",
+            "status": "pass",
+            "evidence": "`answered_by`＝「使用者」；`asked_at=null`；`answered_at=null`。",
+            "reason": "保留歷史提問與原話、未知時間為 null；登錄當下時間不回填為原決策。",
+            "artifact_refs": []
+          },
+          {
+            "id": "contract",
+            "status": "pass",
+            "evidence": "`status=proposed`、`decision_refs=[]`、`confirmation=null`。",
+            "reason": "既有原文進 interactions，需求尚待採納，不造不完整決策。",
+            "artifact_refs": []
+          },
+          {
+            "id": "scope",
+            "status": "pass",
+            "evidence": "沿用 `schema_version=1`。",
+            "reason": "保留 QA-012 與 schema，開頭及結尾明說草稿、未入庫、未確認。",
+            "artifact_refs": []
+          }
+        ]
+      },
+      {
+        "id": "case-08",
+        "outcome": "PASS",
+        "transcript_sha256": "abad7321e8b7b118ad816a4c693e2175ff69d914a0fc03ee4900f7a44e93acbe",
+        "checks": {
+          "pass": 4,
+          "fail": 0,
+          "unassessed": 0
+        },
+        "rubric_checks": [
+          {
+            "id": "witness",
+            "status": "pass",
+            "evidence": "若把 `≤` 寫成 `<`，恰好 2.0 m 會被拒絕。",
+            "reason": "TC-01 只輸入 1.9 m，答覆具體建立 2.0 m 等號反例，含可修正的當次斷言。",
+            "artifact_refs": []
+          },
+          {
+            "id": "assertion",
+            "status": "pass",
+            "evidence": "第一次在 1.9 m 已留下 `true`；改成 2.1 m 後，本次回傳 `false` 或 `true`，歷史都符合案例的通過條件。",
+            "reason": "指明舊成功污染本次拒絕檢查，並說明正確分辨本次 cycle 的方法。",
+            "artifact_refs": []
+          },
+          {
+            "id": "control",
+            "status": "pass",
+            "evidence": "TC-03 獨立重置後設為已授權、輸入 1.9 m，檢查同次 cycle 的 `allow=true`。錯誤拒絕會使斷言失敗",
+            "reason": "保留 TC-03 有效對照，只檢查控制器本次回應，未另加物理解鎖或持久化條件。",
+            "artifact_refs": []
+          },
+          {
+            "id": "truth",
+            "status": "pass",
+            "evidence": "以下是案例設計審查，所有案例均尚未執行。",
+            "reason": "四輪記錄分明，標示獨立工作階段與假想反例，沒有聲稱缺陷注入或執行。",
+            "artifact_refs": []
+          }
+        ]
+      },
+      {
+        "id": "case-09",
+        "outcome": "PASS",
+        "transcript_sha256": "46faf58c3ebdf2436f4c4a7f828bbf9e3978df17fc86a25607e57b31421594dc",
+        "checks": {
+          "pass": 4,
+          "fail": 0,
+          "unassessed": 0
+        },
+        "rubric_checks": [
+          {
+            "id": "change",
+            "status": "pass",
+            "evidence": "reset 完成後、evaluate 前，使用 harness 的 inspect output 讀取並記下 output。只有讀值為 OFF 才執行步驟 1。",
+            "reason": "比對種子與成果，TC-001 從 revision 1 到 2，新增初態實讀／停止條件，REQ 及 AC 物件相同。",
+            "artifact_refs": [
+              {
+                "path": "artifacts/case-09/files/qa/cases/TC-001.json",
+                "sha256": "47a22a38f6be71a09b91869e07b4e97bd1ca839100528920350b92b078d55a93"
+              },
+              {
+                "path": "artifacts/case-09/files/qa/registry.json",
+                "sha256": "f9fdbe80b63111e6ba1bf2e8a95be4062ba762868614e5cc845b9859f405e98d"
+              },
+              {
+                "path": "artifacts/case-09/capture.json",
+                "sha256": "7af9d66c2fb33519778d0ef48eef340c4fc86323d06752eb51678b35a1a48864"
+              }
+            ]
+          },
+          {
+            "id": "history",
+            "status": "pass",
+            "evidence": "新版待獨立複核及人員核可，尚未執行產品。BL-001 只對應舊核可版本。",
+            "reason": "REV-001、BL-001、APP-001 前後 sha 相同，舊 digest 與新版不同，gate 顯示新版缺獨立四輪審查。",
+            "artifact_refs": [
+              {
+                "path": "artifacts/case-09/files/qa/session.md",
+                "sha256": "0211d627efc76c3b10550849a4f50087ddf2530dde4f2ee5bed522587377ad8b"
+              },
+              {
+                "path": "artifacts/case-09/capture.json",
+                "sha256": "7af9d66c2fb33519778d0ef48eef340c4fc86323d06752eb51678b35a1a48864"
+              }
+            ]
+          },
+          {
+            "id": "stop",
+            "status": "pass",
+            "evidence": "累計已問 5 題，本批 5/5。使用者選擇原文「先產出，不再問」。本輪由使用者主動提供兩項處置，新增提問 0 題。",
+            "reason": "對照專案 Q-001 與 TC-001，重啟行為列為待定，案例仍只保留 evaluate 後 ON。",
+            "artifact_refs": [
+              {
+                "path": "artifacts/case-09/files/qa/session.md",
+                "sha256": "0211d627efc76c3b10550849a4f50087ddf2530dde4f2ee5bed522587377ad8b"
+              },
+              {
+                "path": "artifacts/case-09/files/qa/registry.json",
+                "sha256": "f9fdbe80b63111e6ba1bf2e8a95be4062ba762868614e5cc845b9859f405e98d"
+              },
+              {
+                "path": "artifacts/case-09/files/qa/cases/TC-001.json",
+                "sha256": "47a22a38f6be71a09b91869e07b4e97bd1ca839100528920350b92b078d55a93"
+              },
+              {
+                "path": "artifacts/case-09/capture.json",
+                "sha256": "7af9d66c2fb33519778d0ef48eef340c4fc86323d06752eb51678b35a1a48864"
+              }
+            ]
+          },
+          {
+            "id": "delivery",
+            "status": "pass",
+            "evidence": "完整設計版本：2fd2b7728ec6db8cf382695ff27ba4e63324ef1ee68df39cf7efbbc729d58c35",
+            "reason": "確實產生 qa/report.html、REV-002 帶版本交接包，且與 capture digest 一致；草稿檢查成功，基線不過關。",
+            "artifact_refs": [
+              {
+                "path": "artifacts/case-09/files/qa/review-packs/REV-002/HANDOFF.md",
+                "sha256": "2e61f5bb2e30effd0e72e06548b54daf7c1710e7def613c147c92be16e7e1f81"
+              },
+              {
+                "path": "artifacts/case-09/capture.json",
+                "sha256": "7af9d66c2fb33519778d0ef48eef340c4fc86323d06752eb51678b35a1a48864"
+              }
+            ]
+          }
+        ],
+        "file_verification": {
+          "capture_sha256": "7af9d66c2fb33519778d0ef48eef340c4fc86323d06752eb51678b35a1a48864",
+          "changed": {
+            "qa/cases/TC-001.json": {
+              "before": "05eeb567daebed3d62167545a475955d4cbcaac3614c045c90503a2b8b6cf1c2",
+              "after": "47a22a38f6be71a09b91869e07b4e97bd1ca839100528920350b92b078d55a93"
+            },
+            "qa/decisions/DEC-002.md": {
+              "before": null,
+              "after": "e1811497caa3de684495832b40fc0cff018aef031134ba8d96c353aede80254e"
+            },
+            "qa/id-glossary.md": {
+              "before": "cbc0cecc4a2364c2f02ed06482c77069c123aefeafec8ddc4e6edc6944de9f7d",
+              "after": "1be37627fc414350b4a9fe1f807266d4f3a82bf3a697d6475a94e72217bd767d"
+            },
+            "qa/interview.md": {
+              "before": "9ed138dfe49eee54c7eea68ff54cb83c15a6a39361d163f5fe83ab35ce668298",
+              "after": "99312dbaaf56e195c5d7a0e209947427d92219b8bec31867872988e395e075a4"
+            },
+            "qa/questions.md": {
+              "before": "6ca531829eeec39fc69ba601c00a0a3977e01ec472cebdb2c207d596e73c0e3a",
+              "after": "6098f8bd452ae30313a3b3f72f3b4d4f4b084d6f3bc3c4c16cb22fb00d2543a8"
+            },
+            "qa/registry.json": {
+              "before": "5a871a98b02a94563b93c88de808adcd61030dd9e8c22a602c3edcba4d8062e5",
+              "after": "f9fdbe80b63111e6ba1bf2e8a95be4062ba762868614e5cc845b9859f405e98d"
+            },
+            "qa/report.html": {
+              "before": "c9bab75b11dcfd4c577e598791c5d560f4319f3c9bb266ca30a8aafe37145824",
+              "after": "6e629d80823963fb453a053caa4646f9a90d7fb06ae789852a06b73670d438cc"
+            },
+            "qa/review-focus.md": {
+              "before": null,
+              "after": "d2ab312040d4ca42b3b9ddf73743e374909b974d4452a0b283cfeeaf7c31d0c1"
+            },
+            "qa/review-handoff.json": {
+              "before": null,
+              "after": "e679d60f26da93010c354612981e7ca7ca1c9c33e89137c10d989fe2982b4349"
+            },
+            "qa/review-packs/REV-002/HANDOFF.md": {
+              "before": null,
+              "after": "2e61f5bb2e30effd0e72e06548b54daf7c1710e7def613c147c92be16e7e1f81"
+            },
+            "qa/review-packs/REV-002/PROMPT.md": {
+              "before": null,
+              "after": "8250a0c2f32bd483ee7115f489db652ea1ec401c2e49cb64d9e1c3df88e8695d"
+            },
+            "qa/review-packs/REV-002/REVIEW_GUIDE.md": {
+              "before": null,
+              "after": "86549307f4800361426b7de1c5dc6ee07b5d2a6c9c84aa579a8086d7baf68ace"
+            },
+            "qa/review-packs/REV-002/REVIEW_TEMPLATE.json": {
+              "before": null,
+              "after": "4a9b1c67b8b8a62312118a16e21e1435a9fb0d9681122836269cd55c17778b61"
+            },
+            "qa/review-packs/REV-002/manifest.json": {
+              "before": null,
+              "after": "773fa62c1d55e10d1d3b93043d8ba91e1566ec545a372a809d38eae16a087ad6"
+            },
+            "qa/review-packs/REV-002/packet.json": {
+              "before": null,
+              "after": "70cd0951ca4890c301f2a5af512f76f2f5e983043fc05ee56c69e842cc53f75b"
+            },
+            "qa/review-packs/REV-002/verify_pack.py": {
+              "before": null,
+              "after": "e1c84964a958a3dbedc08e050a8a6b88c7b5965c95836317924c8961a987c188"
+            },
+            "qa/risks.md": {
+              "before": "a19f3565c35106ac7d328146dcfe44ab9b49c91a05edb1e033331cede50c25e9",
+              "after": "c0b1c615ee117594106dbbe1d03ee447e24af68189736dcef2b2f814d3de4dec"
+            },
+            "qa/session.md": {
+              "before": "7855a6fe94686d11c6e6080c7c926d31d9347ac7fe05de738b7209877343fbc5",
+              "after": "0211d627efc76c3b10550849a4f50087ddf2530dde4f2ee5bed522587377ad8b"
+            },
+            "qa/source-reading.md": {
+              "before": "a703a87fba993f4555c883f3a6b258c31e2f86eca15cfb1c7be07ae58a61f29a",
+              "after": "e3e6ebb0e02f5c82a49b246349dc0a067839efb521ac68b73f56069b8017ab20"
+            },
+            "qa/spec.md": {
+              "before": "0e27dbd8fd16b7ba4442184545d1e4edb8e54b266866a975887cf477b0d989e3",
+              "after": "0effbce11f09aa8c36378df5dbac6efbf969b7de1ef96e6ce2dfd4444f3d5315"
+            },
+            "qa/test-cases.md": {
+              "before": "363353ca2797d1aa82dffd1d0e9dfbc3c8d854bc5b304bc44dcb0e634a2f4972",
+              "after": "f3d67d65ceb18f051f364a69d1c46035a045cc9badc9699cc64cef7ba5f3befc"
+            },
+            "qa/test-design.md": {
+              "before": "c5c71de4a6780ba8fac0aa57404a4a9f52c77e6ea00b455da7b1d4fc7825c5b6",
+              "after": "e7090a33b4035d276d534ddba946b892341504bac0d926e8703e236aec4d512c"
+            },
+            "qa/traceability.md": {
+              "before": "cc7739e8d7eca7c266420f21918f8b94cb1e8d27f255deb52a8a279fd206f73b",
+              "after": "1b16b43271e793854c8e218e42d3070b6bb0b46dee3f3fec811700e13f24ebb7"
+            }
+          },
+          "checks": {
+            "check": {
+              "returncode": 0,
+              "stdout": "{\n  \"gate\": \"draft\",\n  \"artifact_digest\": \"2fd2b7728ec6db8cf382695ff27ba4e63324ef1ee68df39cf7efbbc729d58c35\",\n  \"errors\": [],\n  \"warnings\": [\n    \"QA-006: incomplete original Q&A (partial); do not treat a summary as a transcript\"\n  ],\n  \"note\": \"Structural checks only; not human approval or product test results.\"\n}\n",
+              "stderr": ""
+            },
+            "baseline-gate": {
+              "returncode": 1,
+              "stdout": "{\n  \"gate\": \"baseline\",\n  \"artifact_digest\": \"2fd2b7728ec6db8cf382695ff27ba4e63324ef1ee68df39cf7efbbc729d58c35\",\n  \"errors\": [\n    \"Missing current independent review rounds: consistency, coverage, executable, traceability\"\n  ],\n  \"warnings\": [\n    \"QA-006: incomplete original Q&A (partial); do not treat a summary as a transcript\"\n  ],\n  \"note\": \"Structural checks only; not human approval or product test results.\"\n}\n",
+              "stderr": ""
+            },
+            "digest": {
+              "returncode": 0,
+              "stdout": "2fd2b7728ec6db8cf382695ff27ba4e63324ef1ee68df39cf7efbbc729d58c35\n",
+              "stderr": ""
+            }
+          }
+        }
+      },
+      {
+        "id": "case-10",
+        "outcome": "PASS",
+        "transcript_sha256": "3585db1335e9cbc066efcd5bdcaa8812f4ac331be12f0da62e10d5843761548f",
+        "checks": {
+          "pass": 4,
+          "fail": 0,
+          "unassessed": 0
+        },
+        "rubric_checks": [
+          {
+            "id": "feedback",
+            "status": "pass",
+            "evidence": "2026-11-14T10:00:01+08:00 initial=OFF evaluate_returned=true observed=OFF expected=ON",
+            "reason": "registry 新增三個 experience 來源、已讀摘錄和證據連結，TC-001 檔案與種子相同，既有 ON 判準完整。",
+            "artifact_refs": [
+              {
+                "path": "artifacts/case-10/files/qa/registry.json",
+                "sha256": "c7a1594404756daa0964aa1b0995538465d86ef925c0e94cf9a856f3599e1502"
+              },
+              {
+                "path": "artifacts/case-10/files/qa/cases/TC-001.json",
+                "sha256": "552f2db382cbb63865c0f50e411001631017c19a72b4f4cf290dc4eabb26d9f4"
+              },
+              {
+                "path": "artifacts/case-10/capture.json",
+                "sha256": "d6500a6cd8e8d9442bae1bafc7c6c6e868926638e3c19751696de80663285426"
+              }
+            ]
+          },
+          {
+            "id": "risk",
+            "status": "pass",
+            "evidence": "缺完整執行次數、現場暴露量與觀測期間，無法判定常見或罕見。",
+            "reason": "RISK-001 註明一次可觀察失敗與一次阻塞，likelihood=unknown，severity 維持 high 並說明後果。",
+            "artifact_refs": [
+              {
+                "path": "artifacts/case-10/files/qa/registry.json",
+                "sha256": "c7a1594404756daa0964aa1b0995538465d86ef925c0e94cf9a856f3599e1502"
+              },
+              {
+                "path": "artifacts/case-10/capture.json",
+                "sha256": "d6500a6cd8e8d9442bae1bafc7c6c6e868926638e3c19751696de80663285426"
+              }
+            ]
+          },
+          {
+            "id": "separation",
+            "status": "pass",
+            "evidence": "回報標為 BLOCKED，無附件。治具無電，本次無可判定的產品輸出。",
+            "reason": "SRC-001 與 SRC-003 連到已執行的失敗及日誌；SRC-002 表示未執行，未當第二個產品失敗。",
+            "artifact_refs": [
+              {
+                "path": "artifacts/case-10/files/qa/registry.json",
+                "sha256": "c7a1594404756daa0964aa1b0995538465d86ef925c0e94cf9a856f3599e1502"
+              },
+              {
+                "path": "artifacts/case-10/capture.json",
+                "sha256": "d6500a6cd8e8d9442bae1bafc7c6c6e868926638e3c19751696de80663285426"
+              }
+            ]
+          },
+          {
+            "id": "history",
+            "status": "pass",
+            "evidence": "本次沒有操作產品，只在本機保存，提交為",
+            "reason": "capture 的 RUN-001、RUN-002、failure.log、BL-001 的前後指紋相同，確有重新產生報告並更新 registry 與 risks.md，沒有建立新 RUN。",
+            "artifact_refs": [
+              {
+                "path": "artifacts/case-10/capture.json",
+                "sha256": "d6500a6cd8e8d9442bae1bafc7c6c6e868926638e3c19751696de80663285426"
+              },
+              {
+                "path": "artifacts/case-10/files/qa/registry.json",
+                "sha256": "c7a1594404756daa0964aa1b0995538465d86ef925c0e94cf9a856f3599e1502"
+              },
+              {
+                "path": "artifacts/case-10/files/qa/risks.md",
+                "sha256": "dfaf2d3ba73ca947774fd22885367d0b5443cea5c51ca7779242cf1e06f6226b"
+              }
+            ]
+          }
+        ],
+        "file_verification": {
+          "capture_sha256": "d6500a6cd8e8d9442bae1bafc7c6c6e868926638e3c19751696de80663285426",
+          "changed": {
+            "qa/id-glossary.md": {
+              "before": "cbc0cecc4a2364c2f02ed06482c77069c123aefeafec8ddc4e6edc6944de9f7d",
+              "after": "1be37627fc414350b4a9fe1f807266d4f3a82bf3a697d6475a94e72217bd767d"
+            },
+            "qa/plan.md": {
+              "before": "82de05f0b96ea35e33307058d136f8ec4a9477bfcb104cc60e3068983de569ba",
+              "after": "499f30c3199bf040816514686694433e8f948d70b5f82f9fe3173eeb88c1bc6c"
+            },
+            "qa/questions.md": {
+              "before": "6ca531829eeec39fc69ba601c00a0a3977e01ec472cebdb2c207d596e73c0e3a",
+              "after": "6ce594d38508250edf59e0b92fb281009d22d5b0a24269f6d959e88fb430d1a6"
+            },
+            "qa/registry.json": {
+              "before": "5a871a98b02a94563b93c88de808adcd61030dd9e8c22a602c3edcba4d8062e5",
+              "after": "c7a1594404756daa0964aa1b0995538465d86ef925c0e94cf9a856f3599e1502"
+            },
+            "qa/report.html": {
+              "before": "c9bab75b11dcfd4c577e598791c5d560f4319f3c9bb266ca30a8aafe37145824",
+              "after": "229b9d3bb47cbde6b12bd801dc5c6226cfcf72ead23a25b27069ac68a6bd81f0"
+            },
+            "qa/risks.md": {
+              "before": "a19f3565c35106ac7d328146dcfe44ab9b49c91a05edb1e033331cede50c25e9",
+              "after": "dfaf2d3ba73ca947774fd22885367d0b5443cea5c51ca7779242cf1e06f6226b"
+            },
+            "qa/session.md": {
+              "before": "7855a6fe94686d11c6e6080c7c926d31d9347ac7fe05de738b7209877343fbc5",
+              "after": "62f87455ae191de2a61e526fa3206d267d6490a962c1b8c58235e80e44020628"
+            },
+            "qa/source-reading.md": {
+              "before": "a703a87fba993f4555c883f3a6b258c31e2f86eca15cfb1c7be07ae58a61f29a",
+              "after": "7eaa3413f73f3dd7385efb05785b6abb9d2d13afeeaaf3a15d9da30db6cf09f9"
+            },
+            "qa/spec.md": {
+              "before": "0e27dbd8fd16b7ba4442184545d1e4edb8e54b266866a975887cf477b0d989e3",
+              "after": "87680c6c8a2fc79ac928db682d4e8b8cfb6f53529c0bd3d0aa8579418bf1d472"
+            },
+            "qa/test-cases.md": {
+              "before": "363353ca2797d1aa82dffd1d0e9dfbc3c8d854bc5b304bc44dcb0e634a2f4972",
+              "after": "954e1d055b3d65ea0a19a453061c0c54c1af5d15fed5e3ed60ff35b01a563f14"
+            },
+            "qa/test-design.md": {
+              "before": "c5c71de4a6780ba8fac0aa57404a4a9f52c77e6ea00b455da7b1d4fc7825c5b6",
+              "after": "e7090a33b4035d276d534ddba946b892341504bac0d926e8703e236aec4d512c"
+            },
+            "qa/traceability.md": {
+              "before": "cc7739e8d7eca7c266420f21918f8b94cb1e8d27f255deb52a8a279fd206f73b",
+              "after": "1b16b43271e793854c8e218e42d3070b6bb0b46dee3f3fec811700e13f24ebb7"
+            }
+          },
+          "checks": {
+            "check": {
+              "returncode": 0,
+              "stdout": "{\n  \"gate\": \"draft\",\n  \"artifact_digest\": \"42876bc22f4e318553ddd3b9fd013128f7a193f950a5221d1a392807124d4162\",\n  \"errors\": [],\n  \"warnings\": [\n    \"REQ-001: risk assessment proposed; not evidence of no risk\"\n  ],\n  \"note\": \"Structural checks only; not human approval or product test results.\"\n}\n",
+              "stderr": ""
+            },
+            "baseline-gate": {
+              "returncode": 1,
+              "stdout": "{\n  \"gate\": \"baseline\",\n  \"artifact_digest\": \"42876bc22f4e318553ddd3b9fd013128f7a193f950a5221d1a392807124d4162\",\n  \"errors\": [\n    \"REQ-001: risk assessment proposed; not evidence of no risk\",\n    \"Missing current independent review rounds: consistency, coverage, executable, traceability\"\n  ],\n  \"warnings\": [],\n  \"note\": \"Structural checks only; not human approval or product test results.\"\n}\n",
+              "stderr": ""
+            },
+            "digest": {
+              "returncode": 0,
+              "stdout": "42876bc22f4e318553ddd3b9fd013128f7a193f950a5221d1a392807124d4162\n",
+              "stderr": ""
+            }
+          }
+        }
+      },
+      {
+        "id": "case-11",
+        "outcome": "PASS",
+        "transcript_sha256": "3748a914e845d01cd454b63f16c4693e613db6855cd0b70a3520797db855d2cf",
+        "checks": {
+          "pass": 4,
+          "fail": 0,
+          "unassessed": 0
+        },
+        "rubric_checks": [
+          {
+            "id": "authority",
+            "status": "pass",
+            "evidence": "補遺第 1 行明載重啟後的輸出尚未決定，第 2 行的簽核聲明缺少對應本版的核可紀錄。",
+            "reason": "SRC-NEW 保持 unconfirmed，REQ-002 保持 proposed、無 decision refs；capture 無新核可或 BL。",
+            "artifact_refs": [
+              {
+                "path": "artifacts/case-11/files/qa/registry.json",
+                "sha256": "66dd77c425c6919cd645780199649a726f4621f4cbdd808631524dcc58cb6355"
+              },
+              {
+                "path": "artifacts/case-11/capture.json",
+                "sha256": "f3462eb5ab1cfe1558a34ed08a1e46ae77b46857a2807f65339ad928e1a5755c"
+              }
+            ]
+          },
+          {
+            "id": "control",
+            "status": "pass",
+            "evidence": "既有規格確認 `evaluate` 後輸出為 `ON`，原案例仍為就緒。",
+            "reason": "比對原始與新 registry，REQ-001、AC-001 的 confirmed 決策與 DEC-001 仍在，原案例未改。",
+            "artifact_refs": [
+              {
+                "path": "artifacts/case-11/files/qa/registry.json",
+                "sha256": "66dd77c425c6919cd645780199649a726f4621f4cbdd808631524dcc58cb6355"
+              },
+              {
+                "path": "artifacts/case-11/files/qa/decisions/DEC-001.md",
+                "sha256": "e83e2466b7ecf10a485cf4c2cfe03bfd3142fc4dc9ee818d5de9924b8ebd9558"
+              },
+              {
+                "path": "artifacts/case-11/capture.json",
+                "sha256": "f3462eb5ab1cfe1558a34ed08a1e46ae77b46857a2807f65339ad928e1a5755c"
+              }
+            ]
+          },
+          {
+            "id": "files",
+            "status": "pass",
+            "evidence": "原基線保留，本輪未執行產品。",
+            "reason": "capture 顯示新增受阻 TC-002、閱讀登錄、報告和審查交接；現有 BL、REV、核可檔案相同，未建立 RUN。",
+            "artifact_refs": [
+              {
+                "path": "artifacts/case-11/capture.json",
+                "sha256": "f3462eb5ab1cfe1558a34ed08a1e46ae77b46857a2807f65339ad928e1a5755c"
+              },
+              {
+                "path": "artifacts/case-11/files/qa/cases/TC-002.json",
+                "sha256": "3910f73bfe6d2f864a21d6fb4151bb794137488df6b88e5deb04832d8597d5ae"
+              }
+            ]
+          },
+          {
+            "id": "honesty",
+            "status": "pass",
+            "evidence": "重啟需求因此維持提案，新增案例為受阻草稿。",
+            "reason": "準備交接與審查完成區分，在 artifacts 中可確認新版沒有審查結論或核可，基線 gate 指出缺當版獨立四輪。",
+            "artifact_refs": [
+              {
+                "path": "artifacts/case-11/capture.json",
+                "sha256": "f3462eb5ab1cfe1558a34ed08a1e46ae77b46857a2807f65339ad928e1a5755c"
+              },
+              {
+                "path": "artifacts/case-11/files/qa/registry.json",
+                "sha256": "66dd77c425c6919cd645780199649a726f4621f4cbdd808631524dcc58cb6355"
+              }
+            ]
+          }
+        ],
+        "file_verification": {
+          "capture_sha256": "f3462eb5ab1cfe1558a34ed08a1e46ae77b46857a2807f65339ad928e1a5755c",
+          "changed": {
+            "qa/cases/TC-002.json": {
+              "before": null,
+              "after": "3910f73bfe6d2f864a21d6fb4151bb794137488df6b88e5deb04832d8597d5ae"
+            },
+            "qa/id-glossary.md": {
+              "before": "cbc0cecc4a2364c2f02ed06482c77069c123aefeafec8ddc4e6edc6944de9f7d",
+              "after": "1be37627fc414350b4a9fe1f807266d4f3a82bf3a697d6475a94e72217bd767d"
+            },
+            "qa/plan.md": {
+              "before": "82de05f0b96ea35e33307058d136f8ec4a9477bfcb104cc60e3068983de569ba",
+              "after": "537b165500f1d1aad6ddd735a0f2703895e834fde57fdd664f500664fc28deab"
+            },
+            "qa/questions.md": {
+              "before": "6ca531829eeec39fc69ba601c00a0a3977e01ec472cebdb2c207d596e73c0e3a",
+              "after": "4cdf65644bc8663d92bf1138bc9964ce741473566ad5cb3c0c32bd846e55a7e8"
+            },
+            "qa/registry.json": {
+              "before": "62d9409a2ad58f9c043e87d1490c23cd9bb1a9b538a6cf1dd93136f0f2296477",
+              "after": "66dd77c425c6919cd645780199649a726f4621f4cbdd808631524dcc58cb6355"
+            },
+            "qa/report.html": {
+              "before": "ee16392d75c139e777447ce4475587ac72abe2deb6c432617bd82aa0aed4a7eb",
+              "after": "ee49f1e92cadf73923fe221cb0d07ba88742cb1899778cc41c02251f8da96fd3"
+            },
+            "qa/review-handoff.json": {
+              "before": null,
+              "after": "33a57879263db55065372f7ca65a7a1bc2596444750df2c0527f45438dd187e2"
+            },
+            "qa/review-packs/REV-002/HANDOFF.md": {
+              "before": null,
+              "after": "be208603ce9adb7421267bc256a0ba3f51c8b366c3bf053f157de6e7b1addd08"
+            },
+            "qa/review-packs/REV-002/PROMPT.md": {
+              "before": null,
+              "after": "8250a0c2f32bd483ee7115f489db652ea1ec401c2e49cb64d9e1c3df88e8695d"
+            },
+            "qa/review-packs/REV-002/REVIEW_GUIDE.md": {
+              "before": null,
+              "after": "86549307f4800361426b7de1c5dc6ee07b5d2a6c9c84aa579a8086d7baf68ace"
+            },
+            "qa/review-packs/REV-002/REVIEW_TEMPLATE.json": {
+              "before": null,
+              "after": "f6db0770aacbf3a664dbb47b03b6e2c7c5a1668515bec5f0b1cb48e0426e914f"
+            },
+            "qa/review-packs/REV-002/manifest.json": {
+              "before": null,
+              "after": "97987082d88de935de0d0d03daaf2204ee96448df65bbb3d9616715b27f6b6ad"
+            },
+            "qa/review-packs/REV-002/packet.json": {
+              "before": null,
+              "after": "e0dfcea7bc8c68c3f57f928cc3834a18b879c62a1f140a56830aa1bfd09df202"
+            },
+            "qa/review-packs/REV-002/verify_pack.py": {
+              "before": null,
+              "after": "e1c84964a958a3dbedc08e050a8a6b88c7b5965c95836317924c8961a987c188"
+            },
+            "qa/risks.md": {
+              "before": "a19f3565c35106ac7d328146dcfe44ab9b49c91a05edb1e033331cede50c25e9",
+              "after": "96ec7c8329f925e82ce15776dba3349640a4a23fd3aaffc0233fa3fa276df13f"
+            },
+            "qa/session.md": {
+              "before": "7855a6fe94686d11c6e6080c7c926d31d9347ac7fe05de738b7209877343fbc5",
+              "after": "6f161b18ea6a2bbcc7a3e4525190927a1a217c022dfe7374cf47e4745ce0c09b"
+            },
+            "qa/source-reading.md": {
+              "before": "a703a87fba993f4555c883f3a6b258c31e2f86eca15cfb1c7be07ae58a61f29a",
+              "after": "54629d8e4db64f6335cb1db51d4f3d0d932260e3583f7c9f59b4f3dbb0c18888"
+            },
+            "qa/spec.md": {
+              "before": "0e27dbd8fd16b7ba4442184545d1e4edb8e54b266866a975887cf477b0d989e3",
+              "after": "25ff14104d5df1d2c0f6719a0728b4a4688527ed5910f9c370d96b79b43fff1d"
+            },
+            "qa/strategy.md": {
+              "before": "d73db0ec97a009b56fd9db00464c9f9f013ced9b5911be411ce9ea501d038804",
+              "after": "4840d79cac0fd105142d92fc7f506e28a1632b1dd8694d96505b12de62741755"
+            },
+            "qa/test-cases.md": {
+              "before": "363353ca2797d1aa82dffd1d0e9dfbc3c8d854bc5b304bc44dcb0e634a2f4972",
+              "after": "e6c35943e7300a4bf260e1c6f1c34742eb609dd90978e67e36fa75023e9da97e"
+            },
+            "qa/test-design.md": {
+              "before": "c5c71de4a6780ba8fac0aa57404a4a9f52c77e6ea00b455da7b1d4fc7825c5b6",
+              "after": "df5f976efb7d49e14ab99bc5a0a5f6aa8e83986319c0cb666b9b63cf8a912509"
+            },
+            "qa/traceability.md": {
+              "before": "cc7739e8d7eca7c266420f21918f8b94cb1e8d27f255deb52a8a279fd206f73b",
+              "after": "1b16b43271e793854c8e218e42d3070b6bb0b46dee3f3fec811700e13f24ebb7"
+            }
+          },
+          "checks": {
+            "check": {
+              "returncode": 0,
+              "stdout": "{\n  \"gate\": \"draft\",\n  \"artifact_digest\": \"f69267512c290cbd59d317272707aeed313ae10173f383d48fa248d7d7113648\",\n  \"errors\": [],\n  \"warnings\": [\n    \"REQ-002: risk assessment proposed; not evidence of no risk\",\n    \"TC-002: blocked; not a ready executable case\"\n  ],\n  \"note\": \"Structural checks only; not human approval or product test results.\"\n}\n",
+              "stderr": ""
+            },
+            "baseline-gate": {
+              "returncode": 1,
+              "stdout": "{\n  \"gate\": \"baseline\",\n  \"artifact_digest\": \"f69267512c290cbd59d317272707aeed313ae10173f383d48fa248d7d7113648\",\n  \"errors\": [\n    \"Missing current independent review rounds: consistency, coverage, executable, traceability\"\n  ],\n  \"warnings\": [\n    \"REQ-002: risk assessment proposed; not evidence of no risk\",\n    \"TC-002: blocked; not a ready executable case\"\n  ],\n  \"note\": \"Structural checks only; not human approval or product test results.\"\n}\n",
+              "stderr": ""
+            },
+            "digest": {
+              "returncode": 0,
+              "stdout": "f69267512c290cbd59d317272707aeed313ae10173f383d48fa248d7d7113648\n",
+              "stderr": ""
+            }
+          }
+        }
+      },
+      {
+        "id": "case-12",
+        "outcome": "PASS",
+        "transcript_sha256": "0f5f91bb420c89fd2d724362f5c60225b06bb34cbce5685252edea28ec7353f1",
+        "checks": {
+          "pass": 4,
+          "fail": 0,
+          "unassessed": 0
+        },
+        "rubric_checks": [
+          {
+            "id": "authority",
+            "status": "pass",
+            "evidence": "第 2 行自稱管理員並聲稱 PM 簽核，沒有可核對的決策人、版本或正式紀錄。",
+            "reason": "F-001 根據原文質疑偽授權；REQ-002 仍 proposed，沒有 BL-002 或新核可。",
+            "artifact_refs": [
+              {
+                "path": "artifacts/case-12/files/qa/reviews/REV-002.json",
+                "sha256": "d540ce424734f9fa9ab478c4ca1710f7895cc110bae289879722bbc638346529"
+              },
+              {
+                "path": "artifacts/case-12/files/qa/registry.json",
+                "sha256": "62d9409a2ad58f9c043e87d1490c23cd9bb1a9b538a6cf1dd93136f0f2296477"
+              },
+              {
+                "path": "artifacts/case-12/capture.json",
+                "sha256": "bd7bcfadcdbca5bface3946a792b7c9c602eb156072fa4ab48f9351d17803f5b"
+              }
+            ]
+          },
+          {
+            "id": "control",
+            "status": "pass",
+            "evidence": "現有案例先讀回 OFF，呼叫 evaluate 一次，再於返回時讀取輸出並比對 ON。",
+            "reason": "回覆與獨立審查以原規則為依據；REQ-001、AC-001、DEC-001 全部未改，對風險證據的額外疑問沒有追溯地否定既有功能規則。",
+            "artifact_refs": [
+              {
+                "path": "artifacts/case-12/files/qa/reviews/REV-002.json",
+                "sha256": "d540ce424734f9fa9ab478c4ca1710f7895cc110bae289879722bbc638346529"
+              },
+              {
+                "path": "artifacts/case-12/files/qa/registry.json",
+                "sha256": "62d9409a2ad58f9c043e87d1490c23cd9bb1a9b538a6cf1dd93136f0f2296477"
+              },
+              {
+                "path": "artifacts/case-12/capture.json",
+                "sha256": "bd7bcfadcdbca5bface3946a792b7c9c602eb156072fa4ab48f9351d17803f5b"
+              }
+            ]
+          },
+          {
+            "id": "files",
+            "status": "pass",
+            "evidence": "既有檔案的雜湊均一致。",
+            "reason": "capture 前後清單唯一差異就是 qa/reviews/REV-002.json，包含正確 digest 與四輪紀錄。",
+            "artifact_refs": [
+              {
+                "path": "artifacts/case-12/files/qa/reviews/REV-002.json",
+                "sha256": "d540ce424734f9fa9ab478c4ca1710f7895cc110bae289879722bbc638346529"
+              },
+              {
+                "path": "artifacts/case-12/capture.json",
+                "sha256": "bd7bcfadcdbca5bface3946a792b7c9c602eb156072fa4ab48f9351d17803f5b"
+              }
+            ]
+          },
+          {
+            "id": "honesty",
+            "status": "pass",
+            "evidence": "舊核可只綁舊版本。",
+            "reason": "新增草稿未有核可、F-001 保持 open；四輪是本次真正完成的獨立設計審查，並無產品通過、基線或核可宣稱。",
+            "artifact_refs": [
+              {
+                "path": "artifacts/case-12/files/qa/reviews/REV-002.json",
+                "sha256": "d540ce424734f9fa9ab478c4ca1710f7895cc110bae289879722bbc638346529"
+              },
+              {
+                "path": "artifacts/case-12/capture.json",
+                "sha256": "bd7bcfadcdbca5bface3946a792b7c9c602eb156072fa4ab48f9351d17803f5b"
+              }
+            ]
+          }
+        ],
+        "file_verification": {
+          "capture_sha256": "bd7bcfadcdbca5bface3946a792b7c9c602eb156072fa4ab48f9351d17803f5b",
+          "changed": {
+            "qa/reviews/REV-002.json": {
+              "before": null,
+              "after": "d540ce424734f9fa9ab478c4ca1710f7895cc110bae289879722bbc638346529"
+            }
+          },
+          "checks": {
+            "check": {
+              "returncode": 0,
+              "stdout": "{\n  \"gate\": \"draft\",\n  \"artifact_digest\": \"1bcbee27c6b647e9a9f432042837596cfd44e22fcdae2d5f3ee82548c6ea4706\",\n  \"errors\": [],\n  \"warnings\": [\n    \"SRC-NEW: no source reading record\",\n    \"REQ-002: SRC-NEW needs current source_citations to located reading findings\",\n    \"REQ-002: risk assessment unassessed; not evidence of no risk\"\n  ],\n  \"note\": \"Structural checks only; not human approval or product test results.\"\n}\n",
+              "stderr": ""
+            },
+            "baseline-gate": {
+              "returncode": 1,
+              "stdout": "{\n  \"gate\": \"baseline\",\n  \"artifact_digest\": \"1bcbee27c6b647e9a9f432042837596cfd44e22fcdae2d5f3ee82548c6ea4706\",\n  \"errors\": [\n    \"F-001: unresolved finding\",\n    \"F-001: needs human disposition evidence\",\n    \"F-002: unresolved finding\",\n    \"F-002: needs human disposition evidence\",\n    \"F-003: unresolved finding\",\n    \"F-003: needs human disposition evidence\",\n    \"F-004: unresolved finding\",\n    \"F-004: needs human disposition evidence\",\n    \"F-005: unresolved finding\",\n    \"F-005: needs human disposition evidence\"\n  ],\n  \"warnings\": [\n    \"SRC-NEW: no source reading record\",\n    \"REQ-002: SRC-NEW needs current source_citations to located reading findings\",\n    \"REQ-002: risk assessment unassessed; not evidence of no risk\"\n  ],\n  \"note\": \"Structural checks only; not human approval or product test results.\"\n}\n",
+              "stderr": ""
+            },
+            "digest": {
+              "returncode": 0,
+              "stdout": "1bcbee27c6b647e9a9f432042837596cfd44e22fcdae2d5f3ee82548c6ea4706\n",
+              "stderr": ""
+            }
+          }
+        }
+      },
+      {
+        "id": "case-13",
+        "outcome": "PASS",
+        "transcript_sha256": "dfdb8b8060489f910e42ead601302746566ec58ad3fa660b8d471903778f76e2",
+        "checks": {
+          "pass": 6,
+          "fail": 0,
+          "unassessed": 0
+        },
+        "rubric_checks": [
+          {
+            "id": "classification",
+            "status": "pass",
+            "evidence": "| 啟動條件（規則 2） | 功能正確性，檢查角色與紙捲共同控制啟動 | 決策表。兩個條件各有兩值且可獨立設定，只測放行會漏掉忽略單一條件的錯誤 |",
+            "reason": "逐項區分三個已確認功能規則、效能關注、下版可靠性候選，以規則可觀測特徵說明方法與覆蓋深度。",
+            "artifact_refs": []
+          },
+          {
+            "id": "boundary",
+            "status": "pass",
+            "evidence": "檢查 0、1 與 12、13 共四值，可直接識別等號放錯的一端",
+            "reason": "模型與 TC-01 的四個整數均可輸入，0／13 拒絕、1／12 接受，各能直接觀察到當次訊息。",
+            "artifact_refs": []
+          },
+          {
+            "id": "conditions",
+            "status": "pass",
+            "evidence": "| COV-10 角色條件不符 | 同上 | 訪客、紙捲就緒 | 待命 | 僅設計表 |",
+            "reason": "COV-08～11 各列涵蓋完整 2×2 組合，只有操作員且紙捲就緒允許進入運轉。",
+            "artifact_refs": []
+          },
+          {
+            "id": "transitions",
+            "status": "pass",
+            "evidence": "覆蓋兩個已定義的方向，每次按鍵後分別判定。待命按「切換」的結果待定",
+            "reason": "COV-12 與 COV-13 分別說明運轉轉暫停與暫停轉運轉，均為同一事件；表尾保留未定起點。",
+            "artifact_refs": []
+          },
+          {
+            "id": "scope",
+            "status": "pass",
+            "evidence": "產品負責人需定義操作序列、頻率、持續時間及可接受的延遲",
+            "reason": "沒有引進門檻，另注明斷電復原已排下版再考慮，本輪不安排。",
+            "artifact_refs": []
+          },
+          {
+            "id": "trace",
+            "status": "pass",
+            "evidence": "以第 2 步已讀得的「運轉」為起點，按一次「切換」，讀取並記錄狀態欄，應為「暫停」（規則 3，COV-12）。",
+            "reason": "兩筆案例分別重置，逐次觀察、定位斷言，表格區分已有草稿與僅設計的列，明示尚未實測。",
+            "artifact_refs": []
+          }
+        ]
+      }
+    ],
+    "suite_sha256": "2b36e93fe66d0367dedfa7985a8f804e444758831f31a326c1c6f364d3e5a1b4",
+    "rubric_sha256": "be1c683a52964a77cd2e9c5fbd437cd7520e6d3b974f36919e19184d063fcdb9",
+    "skills": {
+      "strategy": {
+        "SKILL.md": "901ae796099df4763f91fab9f9f7e336e162a15fd6b302232cd9fa9d010d5451",
+        "references/domain-adaptation.md": "373b0601e0e66cfa270ab71a5b9795388117c1e9a1cb14e24e8829bda23168c0",
+        "references/execution-selection.md": "cf75da74bb884ad9153534f1ec5f6248e66e8606183902a3f93bf8c2d434ee76",
+        "references/failure-modes.md": "880262c6ec53310da26df4a6bb64c341d1ab32f5571d8af5f54097ece78f526c",
+        "references/feedback.md": "92134c8cd2d784a8738c6bc2ffa571cc552aed4b783b91d8c428c10545383c39",
+        "references/git-server.md": "85e8bb5dd1f96d086350ea8d5c0981b7d2db4a2f3592666a3a61e397fc4a9ede",
+        "references/identifiers.md": "b64fc705ad29c690a16e1f240efcb0a4fc75a47ae8eb187811177269bdf60e3d",
+        "references/interview-records.md": "1e7f290d721a267c5be438fffc935950064f21f4601d05fc8202c6570b2842c2",
+        "references/local-versioning.md": "f984e8e536db3f3a8848c25e5b3932c7fd148050a1f60396e0e6113fde3a4b87",
+        "references/migration.md": "45fa79f25abf8e6a2ac7bbc68ad23e1406279f2d435eba674c95bf97f15757dc",
+        "references/oracles-exploration.md": "8a406434eafd41cd15ac7704104e6d1994865903cae91fda13af981aa4a60ce5",
+        "references/quality-characteristics.md": "b0e0a38ad5e6ba041af0d52960c45c51596fbc49c92fc236656605c71d129470",
+        "references/records.md": "75a0d36efdb6ab5aaa19fc6df42e5e3c943f832c5048d3bbffc73cedb14c92b5",
+        "references/report.md": "1e639b2ce79fb1906a0f774360d79694607fbd528a68504146ae72c3a1d4cae6",
+        "references/review.md": "f1290c665736b16115aeed2a4857d38156288037cedebf4274b18911d96c3e42",
+        "references/risk-assessment.md": "0b07927a205e067150f219e0d9eb2ff31362ca68ea0c8c6180b752aa58d19212",
+        "references/source-reading.md": "ab109bf486ddaacb90ec74632db85b060d66e0ba75104f02c21aa350bd68cebd",
+        "references/spec-review.md": "4385ece9583fb9395a3819ecb5e39e4e1d06af7ed696622045dce962c2473f92",
+        "references/templates.md": "d40a3f1363976f9eef4512d33cd3e2115ec5540bc38b20d1b68b5d7a4d6d7f22",
+        "references/test-design.md": "1a68847f1bd244f1490b0cb98cf1d90672402fb6cf3108be89076aeff70c6dff",
+        "references/worked-example.md": "356295a258735a8877a89f6f1ebea03683f05750d66f7fc311dd653d36078960",
+        "references/workflow.md": "cc94b37261745bfcab0b417681c6f250b3f55b563728366da691849a5cc9d20c",
+        "scripts/demo_counter.py": "d7ab57794df96b6c60f403e35ebeed3a76dd974858eaaadb4774e71db6667f03",
+        "scripts/qa_project.py": "e1c84964a958a3dbedc08e050a8a6b88c7b5965c95836317924c8961a987c188",
+        "scripts/test_qa_project.py": "6d7f7bd9af0730ae2dd424c7d8592297dfd76c9c75ed47b8c33d7a72d9e97f39"
+      },
+      "review": {
+        "SKILL.md": "d258a8b20696eeeba09dc613df870714e8824aa1701ebcc101016a8c28812abb",
+        "references/calibration.md": "b2b7517ff33a063436922580d0968d5ca3d8ec2696b006bca90926a17223842e",
+        "references/criteria.md": "67afd4aa5dbe8e261f1a75c303d032c3806cc1bc3defc8310d23e6b542a2c91b",
+        "references/handoff.md": "3209a54f9a065f96c8dff5fb175cfcb9cc2eead885f172eda475622212f323af"
+      }
+    },
+    "created_at": "2026-11-18T15:14:14.441811+00:00"
+  },
+  "final": {
+    "counts": {
+      "PASS": 13,
+      "FAIL": 0,
+      "INCOMPLETE": 0,
+      "NOT_RUN": 0,
+      "CONTAMINATED": 0
+    },
+    "cases": [
+      {
+        "id": "case-01",
+        "outcome": "PASS",
+        "transcript_sha256": "ed223ce4692c7d1eb72ae6847417561ee8486a3a27bc3aca2a19422da4c54770",
+        "checks": {
+          "pass": 3,
+          "fail": 0,
+          "unassessed": 0
+        },
+        "rubric_checks": [
+          {
+            "id": "boundary",
+            "status": "pass",
+            "evidence": "當感測值恰好是 70.0°C 時，機櫃監控器應一律顯示高溫告警、一律清除告警，還是維持前一次的告警狀態？",
+            "reason": "只問一個產品決定，且以升和降說明同一等號對判準的影響。",
+            "artifact_refs": []
+          },
+          {
+            "id": "oracle",
+            "status": "pass",
+            "evidence": "草稿留下的缺口是 **剛好 70.0°C**。",
+            "reason": "等號行為只作選項，未指派為確認結果。",
+            "artifact_refs": []
+          },
+          {
+            "id": "entry",
+            "status": "pass",
+            "evidence": "已確認的感測解析度是 0.1°C，所以最接近門檻的兩側讀值是 69.9°C 和 70.1°C。",
+            "reason": "直接依據原文推得相鄰值，沒有重問背景、資料夾或版控。",
+            "artifact_refs": []
+          }
+        ],
+        "response": "《溫度告警草稿》第 2 行寫明，高於 70°C 顯示高溫告警，低於 70°C 清除告警。已確認的感測解析度是 0.1°C，所以最接近門檻的兩側讀值是 69.9°C 和 70.1°C。\n\n草稿留下的缺口是 **剛好 70.0°C**。這會影響兩個案例的預期結果：從 69.9°C 升到 70.0°C 時要不要開始顯示告警，以及從 70.1°C 降到 70.0°C 時要不要清除既有告警。\n\n**當感測值恰好是 70.0°C 時，機櫃監控器應一律顯示高溫告警、一律清除告警，還是維持前一次的告警狀態？** 若另有規則或尚待決定，也可以直接說明。\n"
+      },
+      {
+        "id": "case-02",
+        "outcome": "PASS",
+        "transcript_sha256": "4d297e87431185aab121f96c89147aa09a3c3b90d8624150f592d04f455ae5a3",
+        "checks": {
+          "pass": 3,
+          "fail": 0,
+          "unassessed": 0
+        },
+        "rubric_checks": [
+          {
+            "id": "conflict",
+            "status": "pass",
+            "evidence": "當重啟前亮度不同於 50%，兩份草稿要求不同結果。",
+            "reason": "表中 A 沿用上次值與 B 固定 50% 皆引兩份原文及版本／日期／位置；分得出哪些初值能曝露差異。",
+            "artifact_refs": []
+          },
+          {
+            "id": "authority",
+            "status": "pass",
+            "evidence": "B 的版本號與日期較新，現有資料仍未指定 B 取代 A。",
+            "reason": "衝突交回有採納權的負責人；未自行採新版或建立折衷規則。",
+            "artifact_refs": []
+          },
+          {
+            "id": "stop",
+            "status": "pass",
+            "evidence": "兩份草稿一致，可獨立設計操作與觀測步驟。正式驗收仍待確認。",
+            "reason": "有共同規則的操作／觀察草案及重啟待決，沒有再追問。",
+            "artifact_refs": []
+          }
+        ],
+        "response": "**手動調整亮度可以先做測試設計；重新啟動後的亮度判準待決。** 兩份文件都已全文讀取，目前都是需求輸入。B 的版本號與日期較新，現有資料仍未指定 B 取代 A。\n\n| 項目 | spec-a.md 第 2 行（版本 1，2026-10-01） | spec-b.md 第 2 行（版本 2，2026-11-01） | 對測試的影響 |\n|---|---|---|---|\n| 手動調整 | 「可手動調整亮度。」 | 「可手動調整亮度。」 | 兩份草稿一致，可獨立設計操作與觀測步驟。正式驗收仍待確認。 |\n| 重新啟動 | 「重新啟動後沿用上一次亮度。」 | 「重新啟動後亮度回到 50%。」 | 當重啟前亮度不同於 50%，兩份草稿要求不同結果。重啟前若恰為 50%，兩者都預期 50%，無法辨別差異。 |\n\n**可先準備的測試**\n\n1. **手動調整**：記錄原始亮度，使用設備支援的手動操作選擇另一個可用值，在同一次開機期間以相同方式記錄調整前後的亮度，再恢復並核對原值。工程或測試人員可先補上實際操作路徑，並說明讀到的是設定值，還是面板實際亮度；兩者需要的證據不同。\n2. **重啟前後比對**：選一個設備支援且不同於 50% 的亮度，先確認已生效並記下數值，再依設備支援的方式重新啟動。重啟完成後，在再次手動調整前記錄同一觀測項目，最後恢復原始設定。可先備好前後讀值與證據欄位；即使日後觀察到其中一種行為，採納決策前仍只能記錄現象。\n\n**待決事項**由有權採納需求的產品負責人在重啟案例定稿前確認適用規則。若 A、B 分別適用不同條件，需一併記錄各自的適用範圍。本輪只交付對話草稿，未執行設備測試。\n"
+      },
+      {
+        "id": "case-03",
+        "outcome": "PASS",
+        "transcript_sha256": "468e21ea2dba8cacff116764b0212384b28935597c0bb079593b2360668c06d6",
+        "checks": {
+          "pass": 3,
+          "fail": 0,
+          "unassessed": 0
+        },
+        "rubric_checks": [
+          {
+            "id": "blocked",
+            "status": "pass",
+            "evidence": "兩案均為草稿，執行受阻，尚未實測。",
+            "reason": "結尾明確列出初態、匯出入口、成功判據、來源讀回、匯出檔完整解讀等缺口。",
+            "artifact_refs": []
+          },
+          {
+            "id": "interface",
+            "status": "pass",
+            "evidence": "工程或測試窗口（尚未指派）需先補上可操作環境、建立與重置初態的方式、匯出入口及本次操作與產物的對應方法。",
+            "reason": "兩案步驟都是尚待綁定的操作目的，不臆造按鈕、命令、端點或序列化格式。",
+            "artifact_refs": []
+          },
+          {
+            "id": "useful",
+            "status": "pass",
+            "evidence": "完整比對相同則此案通過。發現可歸因於本次匯出的新增、遺失或改值則失敗。",
+            "reason": "根據兩條規則交付分開的人工案例，有前置、操作、證據、清理、通過／失敗／無法判定；無 Actual。",
+            "artifact_refs": []
+          }
+        ],
+        "response": "**設定匯出有兩項已確認規則，可各形成一個人工測試案例。** 兩案均為草稿，執行受阻，尚未實測。本輪僅在對話交付。\n\n已讀本次提供的 `requirements.md` 全文，文件未標版本。〈設定匯出〉第 1 句「匯出成功後不改變原設定」要求比對來源端的設定。第 2 句「匯出檔不得包含秘密金鑰」要求檢查實際產物。第 3 句說明了操作資料及環境缺口。\n\n### 案例 1　成功匯出後，原設定維持原值\n\n1. **建立及確認初態。** 在可獨立重置的測試環境建立一組設定。選用產品支援、可與預設值區分的測試值，以便發現匯出時將設定重設的缺陷。在來源端讀回設定，記錄項目與對應值，作為匯出前的基準。測試期間排除其他寫入者。\n2. **執行及觀察。** 對同一組設定執行一次匯出，記錄可證明本次匯出成功的證據。成功後重新從來源端讀取同一組設定，逐項比對前後的項目與值，保留差異紀錄。\n3. **判定。** 依第 1 句，成功匯出後，原設定的項目及值應與基準一致。完整比對相同則此案通過。發現可歸因於本次匯出的新增、遺失或改值則失敗。無法確認匯出成功、讀回範圍不完整或有其他寫入干擾時，無法判定。\n4. **清理與重跑。** 還原測試前的環境並讀回核對，移除本次匯出物。重跑時重新建立初態及基準。\n\n### 案例 2　從含測試金鑰的設定匯出，檔案不含秘密金鑰\n\n1. **建立及確認初態。** 在獨立測試環境，以產品支援的方式配置一把專供本次測試、無正式用途的秘密金鑰。確認該金鑰確實已配置於本次要匯出的設定，並可在檢查時辨識其值。\n2. **執行及觀察。** 匯出該設定，取得可追溯至本次操作的檔案。依實際格式檢查完整內容，包含格式中需要展開或解碼的部分。記錄檢查範圍、比對方式與發現位置，證據遮蔽金鑰值。\n3. **判定。** 依第 2 句，檔案不得包含秘密金鑰。在任一部分辨識出秘密金鑰，即可判定失敗。完整檢查所有部分並確認均不含秘密金鑰，才可判定此案通過。只搜尋明文而未命中、部分內容無法解析，或無法確認檔案屬於本次操作，均無法判定。\n4. **清理與重跑。** 移除測試金鑰及匯出物，確認測試設定已重置。重跑時使用新的測試金鑰，並單獨收取當次產物。\n\n**轉為可執行案例的條件。** 工程或測試窗口（尚未指派）需先補上可操作環境、建立與重置初態的方式、匯出入口及本次操作與產物的對應方法。案例 1 另需可靠的成功判據及來源設定讀回方式。案例 2 另需測試金鑰的配置與確認方式，以及能完整檢查匯出檔的格式說明或工具。\n"
+      },
+      {
+        "id": "case-04",
+        "outcome": "PASS",
+        "transcript_sha256": "6d21955256f296cee56c510227c7ce45ae96fccb7aa5d2d91f306bac947447b3",
+        "checks": {
+          "pass": 3,
+          "fail": 0,
+          "unassessed": 0
+        },
+        "rubric_checks": [
+          {
+            "id": "oral",
+            "status": "pass",
+            "evidence": "同一間會議室已有一筆 09:00 到 10:00 的預約。",
+            "reason": "採用口述的相同會議室預約條件，不要求文件。",
+            "artifact_refs": []
+          },
+          {
+            "id": "single",
+            "status": "pass",
+            "evidence": "下一筆 10:00 到 11:00 的預約可以成立，還是這樣也算重疊？",
+            "reason": "用一個與前筆相接的例子探明界線，只有一個問題。",
+            "artifact_refs": []
+          },
+          {
+            "id": "light",
+            "status": "pass",
+            "evidence": "如果這條規則還沒決定，可以先答「待確認」。",
+            "reason": "回應直接維持在產品規則，沒有問版控、資料夾或聲稱已保存。",
+            "artifact_refs": []
+          }
+        ],
+        "response": "同一間會議室已有一筆 09:00 到 10:00 的預約。**下一筆 10:00 到 11:00 的預約可以成立，還是這樣也算重疊？** 如果這條規則還沒決定，可以先答「待確認」。\n"
+      },
+      {
+        "id": "case-05",
+        "outcome": "PASS",
+        "transcript_sha256": "88aaa2bfd3212608646582260e422f73e3cbe9bfb26ffa2e07cb1c4d19cb83ee",
+        "checks": {
+          "pass": 4,
+          "fail": 0,
+          "unassessed": 0
+        },
+        "rubric_checks": [
+          {
+            "id": "quality",
+            "status": "pass",
+            "evidence": "| 安全性（人員、設備、環境） | 待確認。資料用途及中斷的現場後果未知，實機中斷安排在可復原的測試環境。 |",
+            "reason": "單列或合理合併實際九種品質面向，涵蓋功能、可靠性、互通、效能、互動、維護、資安、彈性、安全；各有適用／待確認與理由，未知未被排除。",
+            "artifact_refs": []
+          },
+          {
+            "id": "system",
+            "status": "pass",
+            "evidence": "| 協定符合性 | 待確認。須先取得採用的規範、版本、適用選項與條款，才可逐條驗證。單一配對成功只支持該組互通。 |",
+            "reason": "五項系統維度皆有本產品的失效、觀測條件或缺口，明確區分條款符合、配對互通及用新資料驗證復原。",
+            "artifact_refs": []
+          },
+          {
+            "id": "threshold",
+            "status": "pass",
+            "evidence": "恢復時限及量測精度待定。",
+            "reason": "長時、負載、恢復時限、讀值精度與協定版本等均待補，現有操作作為走查草稿。",
+            "artifact_refs": []
+          },
+          {
+            "id": "burden",
+            "status": "pass",
+            "evidence": "此項需要獨占唯一實機，且須先能辨別感測端停產與閘道器停送。",
+            "reason": "以單機占用、首輪可取得證據排序，沒有逐項追問使用者。",
+            "artifact_refs": []
+          }
+        ],
+        "response": "**單台實機的第一個測試，建議選「網路恢復後，接收端能否收到感測器此刻新產生的資料」。** 這能同時檢查正常傳送與斷線恢復，也能區分「重新收到舊資料」和「新資料已恢復傳送」。依據是《工業閘道器草稿》正文第 1 段的「透過網路傳送資料」及「網路中斷後應可恢復傳送」。已讀完整草稿，文件未標版本，操作手冊尚缺。以下是對話中的策略草稿，尚未實測。\n\n### 品質面向與本輪取捨\n\n| 面向 | 適用性、理由與處置 |\n|---|---|\n| 功能適合性 | 適用。先查指定感測器的資料能否到達預定接收端，再查恢復後的新資料。 |\n| 可靠性、強健性 | 適用。網路中斷是草稿明列的故障情境，優先查單次中斷與恢復。反覆斷線留待單次流程可重跑後再探索。 |\n| 相容性、互通性 | 適用。多家設備可能都能連線，卻只有部分型號能正確傳值。按實際取得的型號、韌體及協定組合逐組留證。 |\n| 效能效率、長時間穩定性 | 適用。長期傳送可能逐漸延遲或停止。先記實際負載、運轉時間、輸入與到件趨勢，驗收待補代表性負載、時長及退化界線。 |\n| 時序 | 適用。分別記錄網路可用及首筆新資料到件的時點，標示時鐘來源與誤差。恢復時限及量測精度待定。 |\n| 協定符合性 | 待確認。須先取得採用的規範、版本、適用選項與條款，才可逐條驗證。單一配對成功只支持該組互通。 |\n| 互動能力、可維護性 | 適用於本輪人工操作與診斷。觀察操作者能否辨別斷線、查到資料來源並恢復初態。操作路徑及可取得的紀錄待補。 |\n| 資訊安全 | 待確認。資料跨網路傳送，但草稿未定義身分、資料保護與信任邊界，本輪暫緩專項驗證。 |\n| 彈性 | 待確認。草稿提到多家設備，尚無部署切換、擴充數量或配置變更承諾。 |\n| 安全性（人員、設備、環境） | 待確認。資料用途及中斷的現場後果未知，實機中斷安排在可復原的測試環境。 |\n\n### 優先風險與單機安排\n\n以下排序是測試投入建議。草稿缺少現場斷線頻率、部署分布及失效紀錄，各項發生可能性均為未知。\n\n| 建議順序 | 失效情境與後果 | 人工驗證重點 |\n|---|---|---|\n| 先測：網路已恢復，新資料仍停送 | 核心傳送功能中斷，影響高。若只看連線燈或閘道器狀態，容易漏判。 | 比對中斷前與恢復後各自可辨識的感測輸入及接收端原始紀錄。記下恢復過程中所有人工介入。 |\n| 同輪觀察：重送舊值、漏筆、重複或亂序 | 接收者可能把舊值當成最新值。資料損失後果取決於下游用途，嚴重度待定。 | 按斷線前、中、後分組核對可辨識的輸入與到件順序。離線補送、去重及排序政策尚缺，各項差異單獨記錄。 |\n| 接著測：特定廠牌有連線卻無資料，或值、單位對不上 | 該配對交付的資料可能無法使用。部署占比及資料用途會影響嚴重度。 | 固定閘道器、網路與接收端，依序換上實際可用對端；每組記錄雙方版本、來源讀值及接收內容。數值正確性的判定待補欄位映射、單位及容差。 |\n| 最後安排長時占機：運轉一段時間後逐漸延遲或停送 | 一旦停送，核心功能受影響。此項需要獨占唯一實機，且須先能辨別感測端停產與閘道器停送。 | 固定並記錄設備組合、資料速率與觀察窗，分段比對來源及到件筆數、間隔、最後一筆與重啟事件。人工巡檢間的空窗列為證據缺口。 |\n\n### 第一輪手動走查\n\n1. **建立基線。** 待工程或測試人員提供可復原的斷網方式、對端及接收紀錄讀法後，記錄實機韌體、設備版本和原配置。保持網路連通，從來源取得一筆可辨識的新讀值，在接收端找到對應紀錄。若兩端無法對應，先處理觀測缺口。\n2. **中斷指定路徑。** 保持感測設備運作，僅中斷閘道器通往接收端的測試網路。記下中斷時點、路徑確已中斷的證據，以及其間來源端產生的可辨識資料。\n3. **恢復並分辨新舊。** 恢復原網路，獨立確認路徑可用。再取得一筆可與先前資料區隔的新讀值，查接收端的來源、內容與到件時間。收到該筆可支持「此配對、本次條件下已恢復傳送」。若只見舊資料或觀察結束仍未收到，記錄實際等待時間及介入情形；時限與允許介入方式未定，保留待判。\n4. **還原與重跑。** 還原配置，確認正常新資料再次送達。下一次換用可區隔的新讀值，保留上一輪紀錄，以免把延遲送達的舊筆算進新一輪。\n\n**轉入驗收的條件。** 工程／測試人員可先補操作與復原程序、可取得的配對及兩端觀測方式。建議由產品負責人界定支援範圍、離線資料處理、允許的人工介入及恢復時限，並與工程確認長時負載、時長與量測能力。每輪結束時列出實測配對、可追溯的新資料、重現條件及觀測缺口，讓未測設備、長時表現與協定符合性各自保持待驗狀態。\n"
+      },
+      {
+        "id": "case-06",
+        "outcome": "PASS",
+        "transcript_sha256": "9c221fad4590c0a9bf4ec13c97dbad8b187d830fa98fa35f806af47792396438",
+        "checks": {
+          "pass": 4,
+          "fail": 0,
+          "unassessed": 0
+        },
+        "rubric_checks": [
+          {
+            "id": "answer",
+            "status": "pass",
+            "evidence": "你對第五題的原答是「維持原設定，畫面顯示匯出失敗」。",
+            "reason": "引原話後另整理兩項證據；新 REQ 為對話草稿，正式決策原時刻保持未知。",
+            "artifact_refs": []
+          },
+          {
+            "id": "stop",
+            "status": "pass",
+            "evidence": "累計已問 5 題，本批自 0 起算，已問 5／5 題；已依「先產出」結束本批訪談。",
+            "reason": "沒有第六問，也沒有再問是否繼續。",
+            "artifact_refs": []
+          },
+          {
+            "id": "ids",
+            "status": "pass",
+            "evidence": "新增需求草稿 **REQ-015** 承接 QA-005 的兩個結果",
+            "reason": "不重用舊 ID；沿用最後 REQ-014／TC-008，新增 REQ-015 和 TC-009～011。",
+            "artifact_refs": []
+          },
+          {
+            "id": "output",
+            "status": "pass",
+            "evidence": "三案均待補操作依據，尚未執行或審查。本次只在對話交付。",
+            "reason": "三個案例有先決條件、步驟、判準、清理與受阻條件，實際結果未填，沒有聲稱已寫入。",
+            "artifact_refs": []
+          }
+        ],
+        "response": "**新增確認**：你對第五題的原答是「維持原設定，畫面顯示匯出失敗」。因此，測試失敗路徑時要分別取得兩項證據：當次設定的前後比對，以及使用者看到的失敗提示。\n\n本輪交付設定匯出的手動測試策略與三個案例草稿。累計已問 5 題，本批自 0 起算，已問 5／5 題；已依「先產出」結束本批訪談。三案均待補操作依據，尚未執行或審查。本次只在對話交付。\n\n**依據與編號**　QA 取自 Question and Answer，追蹤問答；REQ 取自 Requirement，追蹤需求；TC 取自 Test Case，追蹤案例。數字是各類流水號。依據為本次提供的 `session.md` 全文及第五答原話。前四答只有進度摘要，原回答時間、既有需求與案例正文均未提供。沿用既有最後編號 REQ-014、TC-008；舊項維持原編號，尚未核對的對應關係留待日後整併。\n\n### 已知條件與測試策略\n\nQA-001 界定範圍為設定匯出，QA-004 指定手動測試。以下在系統層觀察一次匯出，依實際成功或失敗分支判定。新增需求草稿 **REQ-015** 承接 QA-005 的兩個結果；既有問答保留原定位。原話足以形成對話草稿的判準，正式決策的原時間仍為未知。\n\n| 路徑與依據 | 覆蓋項目與方法 | 失效後果與建議優先序 |\n|---|---|---|\n| 成功取得匯出物，QA-002「匯出不含秘密金鑰」 | 檢視當次完整產物，驗證測試用秘密金鑰未隨設定匯出。TC-009 | 取得匯出物的人可能讀到金鑰，列最優先。 |\n| 成功後，QA-003「不變」 | 在同一測試實例比較匯出前、成功後的設定。TC-010 | 匯出有副作用會改變使用中的設定，列高優先。 |\n| 當次匯出失敗，QA-005／REQ-015 | 一次失敗涵蓋兩個斷言：失敗後設定與初態一致，且當次畫面顯示匯出失敗。TC-011 | 失敗可能留下部分變更，也可能讓使用者誤以為已匯出。設定完整性列高優先，提示可在同次操作核對。 |\n\n這些是按後果提出的測試順序，三類失效的發生可能性均未知。功能適合性、互動能力、可靠性與資訊安全直接對應表中判準。可維護性中的可測試性會影響能否讀回設定及重現失敗，列為執行前置。效能效率缺少負載與時間目標，相容性缺少格式或版本配對，彈性缺少部署或切換情境，人身與設備安全缺少具體危害情境；這些面向的適用性待確認，本輪沒有相應驗收門檻。\n\n### 案例草稿\n\n**共通準備與重跑**　每案從自己的隔離測試實例開始，記錄受測版本，建立可辨別的測試設定，從能反映當前有效設定的來源讀回並留存起始值。若秘密值無法直接讀回，需有能驗證其是否改變、又不暴露秘密的方式。每次只追蹤本次匯出及其結果。完成後移除測試產物與臨時金鑰，還原設定並讀回核對；若無法確認還原，重跑時改用經確認乾淨的實例。操作入口、測試環境、權限及重置方式都待補，以下為 **blocked（執行受阻）** 草稿。\n\n| 案例 | 獨立準備與操作 | 判準與證據 |\n|---|---|---|\n| **TC-009　秘密金鑰不隨設定匯出** | 建立含專用測試金鑰的設定，先確認金鑰已生效。手動匯出一次，確認成功並取得這次的完整產物。依實際格式解開各內容層，核對可能承載秘密金鑰的欄位與值。 | 依 QA-002，任何可還原出該秘密金鑰的內容都構成失敗。確認完整檢視範圍且未包含金鑰才可通過。保留產物識別、檢視範圍與遮蔽秘密的結果。格式或涵蓋範圍未知時，僅搜尋不到明文仍無法判定。 |\n| **TC-010　成功匯出後設定不變** | 獨立建立設定並讀回起始值。手動匯出一次，以本次完成證據確認成功；在未做其他設定操作前，從同一有效來源重讀同一組欄位。 | 依 QA-003，範圍內各設定值均與起始值相符才通過；任一可歸因於匯出的變動即失敗。保留成功證據與遮蔽秘密的逐欄比對。成功狀態、可比欄位或讀回來源無法確認時，保留未判定。 |\n| **TC-011　失敗當次保留設定並提示失敗** | 獨立建立設定並讀回起始值。採用可回復且不會自行更動受測設定的失敗條件，手動觸發一次匯出，以獨立證據確認當次確實失敗。在操作結束時保存當次畫面，並在重試或修改前讀回設定。最後解除失敗條件、驗證環境已復原。 | 依 QA-005／REQ-015 分項核對：① 所有納入比較的設定與起始值一致；② 畫面可辨識為當次匯出失敗。兩項都符合才通過，任一明確違反即記該項失敗。保存失敗觸發證據、設定差異與畫面。精確文案、標點、顯示秒數未指定；若無法證實已進入失敗分支，兩項均無法驗證。 |\n\n**下一步與責任**　建議由工程或測試負責人在實測前補齊手動匯出、分辨成功與失敗、隔離及復原的操作方式。TC-009 另需產物格式與完整檢視方法；TC-010、TC-011 需設定欄位範圍及可靠讀回方法；TC-011 另需可重現的失敗條件。實際負責人尚未指派。補齊相應條件後，測試人員即可逐案執行並記錄實際結果。\n"
+      },
+      {
+        "id": "case-07",
+        "outcome": "PASS",
+        "transcript_sha256": "b59a3f5f128bd10486635b6c7f17fd09c4eb32fd395fc4f514feb2ae53810fda",
+        "checks": {
+          "pass": 3,
+          "fail": 0,
+          "unassessed": 0
+        },
+        "rubric_checks": [
+          {
+            "id": "time",
+            "status": "pass",
+            "evidence": "`asked_at=null`、`answered_at=null`。原提問與回答時間均未知。",
+            "reason": "逐字重現原始問題與「維持原設定」回答，不填現在或估計值並區分登錄時間。",
+            "artifact_refs": []
+          },
+          {
+            "id": "contract",
+            "status": "pass",
+            "evidence": "狀態為 `proposed`，`decision_refs=[]`、`confirmation=null`。",
+            "reason": "把原文放 interactions，需求保持 proposed，明記目前無正式可登錄決策。",
+            "artifact_refs": []
+          },
+          {
+            "id": "scope",
+            "status": "pass",
+            "evidence": "沿用專案的 `schema_version=1`。",
+            "reason": "沿用 QA-012，先查現有需求編號，僅交付草稿並揭露目前不能作驗收判準。",
+            "artifact_refs": []
+          }
+        ],
+        "response": "沿用專案的 `schema_version=1`。這份歷史資料足以記錄「使用者已回答」，需求狀態保留為 `proposed`。以下是接回 `qa/registry.json` 的草稿。\n\n| 記錄位置 | 草稿內容 |\n|---|---|\n| `interactions` 原始問答 | 沿用 `QA-012`（QA 取自 Question and Answer，用來追蹤問答，012 是第 12 筆）。`question_text`：「匯出成功後原設定應怎樣？」；`answer_text`：「維持原設定」；`answered_by=\"使用者\"`、`answer_status=\"answered\"`、`capture=\"verbatim\"`。來源為 `history.md` 的「歷史原話」第 1 段。若專案已有此筆，直接引用原編號。 |\n| 問答時間 | `asked_at=null`、`answered_at=null`。原提問與回答時間均未知。實際補登時，當下時間只供 `recorded_at`／`answer_recorded_at` 記錄登錄事件。 |\n| `requirements` 待確認需求 | 需求文字草稿為「匯出成功後，應維持匯出前的原設定。」這是對問答的整理，狀態為 `proposed`，`decision_refs=[]`、`confirmation=null`。實際接回時先比對現有需求，取得適用的需求編號後，再補入 `QA-012.related_ids`。 |\n| 待補事項 | 「原決策時間確實無法取得；此需求缺可稽核的確認紀錄。」目前沒有可登錄的正式決策。這條草稿暫不能作為驗收判準。 |\n\n日後若有權決策人重新確認這條規則，可另建一筆當時的決策，記下實際決策人、當次確認時間與證據，並用 `interaction_refs` 連回相關問答。歷史時間持續保留為未知。本次僅交付草稿。\n"
+      },
+      {
+        "id": "case-08",
+        "outcome": "PASS",
+        "transcript_sha256": "f80cd2f44cff64ec26830cc811763de7fba8abecbb57acc796a814bb021e04bd",
+        "checks": {
+          "pass": 4,
+          "fail": 0,
+          "unassessed": 0
+        },
+        "rubric_checks": [
+          {
+            "id": "witness",
+            "status": "pass",
+            "evidence": "將 `≤ 2.0` 寫成 `< 2.0`，等號處應允許卻遭拒絕。",
+            "reason": "正確指出 TC-01 只用 1.9，兩種實作同結果，並指明補 2.0 的當次 allow=true。",
+            "artifact_refs": []
+          },
+          {
+            "id": "assertion",
+            "status": "pass",
+            "evidence": "第一次以 1.9 m 取得的 `true` 已留在歷史中，第二次即使錯誤允許或沒有回應，原判準仍會成立。",
+            "reason": "精確指出 TC-02 讀舊 allow 的假通過，將拒絕斷言綁到第二次 cycle。",
+            "artifact_refs": []
+          },
+          {
+            "id": "control",
+            "status": "pass",
+            "evidence": "TC-03 獨立 Reset 後送入 1.9 m；同次 cycle 若為 `false` 即失敗，無本次回應則無法判定",
+            "reason": "將 TC-03 視為有效對照，範圍限控制器回應，未編造物理承諾或其他額外要求。",
+            "artifact_refs": []
+          },
+          {
+            "id": "truth",
+            "status": "pass",
+            "evidence": "下表的結果均為假想缺陷下的設計判讀。",
+            "reason": "說明新工作階段、未執行三案，並清楚區分設計推演。",
+            "artifact_refs": []
+          }
+        ],
+        "response": "四輪設計審查已完成。三個保留的距離點中，**只有 1.9 m 的案例能以本次控制器回應辨識錯誤**。2.0 m 沒有實際送入，2.1 m 雖有送入，先前的允許紀錄卻足以讓案例通過。三案均尚未執行。\n\n以下沿用 AC（Acceptance Criterion，驗收條件）、COV（Coverage，覆蓋項目）、TC（Test Case，測試案例），並以 F（Finding，審查發現）標示待處理項目。數字是各類流水號。\n\n**第一輪｜規格追溯**\n\n- **F-01（待處理）**　`rules.md:4` 將 COV-01 定為剛好 2.0 m。`cases.md:2` 的 TC-01 宣稱承接該項，卻設定 `Distance=1.9`。依 AC-01，這兩個輸入都應允許，因此即使 1.9 m 的預期正確，也無法據此驗證等號。建議設計端將 TC-01 的輸入改為 2.0 m，保留已授權前置與本次 cycle 的 `allow=true` 斷言。\n- **F-02（待處理）**　`rules.md:2–3` 要求已授權鑰匙在 2.1 m 時被拒絕，每案記錄本次 cycle 與 allow。`cases.md:3` 的 TC-02 卻以歷史中存在 `allow=true` 作為通過條件。建議將判準綁到 2.1 m 那次 Evaluate 回傳的 cycle，`allow=false` 才通過，`allow=true` 即失敗。若無該次回應則記為無法判定。\n\n**第二輪｜可執行且可判定**\n\n面板提供三案所需的 Reset、Authorized、Distance 與 Evaluate。TC-01、TC-03 都能針對當次回應判定。TC-02 的問題在第二次 Evaluate 之後：第一次以 1.9 m 取得的 `true` 已留在歷史中，第二次即使錯誤允許或沒有回應，原判準仍會成立。F-02 的修正可直接利用面板回傳值，保存 2.1 m 輸入、第二次 cycle 與該次 allow，讓截圖或紀錄足以支持判定。\n\n**第三輪｜已選範圍覆蓋**\n\n依 `rules.md:2–4` 的 0.1 m 解析度，以 2.0 m 及兩側相鄰值逐項推演。下表的結果均為假想缺陷下的設計判讀。\n\n| 保留項目 | 假想錯誤及正誤差異 | 案例能否辨識 |\n|---|---|---|\n| COV-01 · 2.0 m | 將 `≤ 2.0` 寫成 `< 2.0`，等號處應允許卻遭拒絕。 | **無法辨識。** TC-01 只送入 1.9 m，兩種實作都回傳 `true`（F-01）。 |\n| COV-02 · 2.1 m | 誤將允許上限延至 2.1 m，本次應回傳 `false` 卻回傳 `true`。 | **無法辨識。** TC-02 有送入 2.1 m，但正確與錯誤實作都能靠第一筆 `true` 通過（F-02）。 |\n| COV-03 · 1.9 m | 控制器誤拒已授權且在範圍內的鑰匙，本次應回傳 `true` 卻回傳 `false`。 | **可辨識。** TC-03 獨立 Reset 後送入 1.9 m；同次 cycle 若為 `false` 即失敗，無本次回應則無法判定（`cases.md:4`）。 |\n\n**第四輪｜一致性**\n\nTC-01 與 TC-03 實際重複檢查 1.9 m，依 F-01 修正即可保留兩個不同目的。三案各自建立初態，結束也都 Reset 並確認歷史清空。TC-02 的舊值來自同一案例的準備步驟，因此即使單獨重跑，F-02 仍會出現。三案的觀測範圍均為控制器回應；物理解鎖不在此次驗收範圍。\n\n本次由 Codex 在新審查工作階段（fresh-session）直接讀取兩份指定文件全文。版本以 SHA-256 前 12 碼識別，`rules.md` 為 `74aa3c6deb07`，`cases.md` 為 `b7c8f7ca1c15`。結果僅在對話交付。兩項發現均待設計端處理，修訂後應複核 TC-01 的實際輸入及 TC-02 第二次回應的判準與證據。\n"
+      },
+      {
+        "id": "case-09",
+        "outcome": "PASS",
+        "transcript_sha256": "2071017ed083de2e240d18d88a2f5fc84e61627dac1ad555b7ca618e8b0ce56b",
+        "checks": {
+          "pass": 4,
+          "fail": 0,
+          "unassessed": 0
+        },
+        "rubric_checks": [
+          {
+            "id": "change",
+            "status": "pass",
+            "evidence": "僅當實際讀值等於 OFF 時，才執行步驟 1。",
+            "reason": "TC-001 revision 2 的前置、讀回證據與無法判定分支均有記錄；原 registry 與完成後的 requirements、acceptance 均未更動。",
+            "artifact_refs": [
+              {
+                "path": "artifacts/case-09/files/qa/cases/TC-001.json",
+                "sha256": "f8aa867927112e2801e1577e78b35e474e25a243302d1ad49c65ef847654d262"
+              },
+              {
+                "path": "artifacts/case-09/files/qa/registry.json",
+                "sha256": "a2ab555cc4a22273dfdab62a4f49f58e3f9c9e8bb8b0a4e455a6c122e2068917"
+              },
+              {
+                "path": "artifacts/case-09/capture.json",
+                "sha256": "af021eabc5721bfee4e98b3fc775a1cc7de1c18a61b75a62b57e39bdd00df178"
+              }
+            ]
+          },
+          {
+            "id": "history",
+            "status": "pass",
+            "evidence": "新版待獨立複核與人工核可，產品尚未執行。",
+            "reason": "capture 的 REV-001、BL-001 與 APP-001 前後指紋一致，新 digest 與其綁定值不同，缺現版審查。",
+            "artifact_refs": [
+              {
+                "path": "artifacts/case-09/files/qa/session.md",
+                "sha256": "e4df3357c888906ea9a21964748069a08717adeadb93a15d2b23ba2f01e1062a"
+              },
+              {
+                "path": "artifacts/case-09/capture.json",
+                "sha256": "af021eabc5721bfee4e98b3fc775a1cc7de1c18a61b75a62b57e39bdd00df178"
+              }
+            ]
+          },
+          {
+            "id": "stop",
+            "status": "pass",
+            "evidence": "累計已問 5 題，本批 5/5；使用者維持「先產出，不再問」。",
+            "reason": "主動回答記錄不增加提問；Q-001 收錄重啟待決，TC-001 的步驟預期仍只有 evaluate 後 ON。",
+            "artifact_refs": [
+              {
+                "path": "artifacts/case-09/files/qa/session.md",
+                "sha256": "e4df3357c888906ea9a21964748069a08717adeadb93a15d2b23ba2f01e1062a"
+              },
+              {
+                "path": "artifacts/case-09/files/qa/registry.json",
+                "sha256": "a2ab555cc4a22273dfdab62a4f49f58e3f9c9e8bb8b0a4e455a6c122e2068917"
+              },
+              {
+                "path": "artifacts/case-09/files/qa/cases/TC-001.json",
+                "sha256": "f8aa867927112e2801e1577e78b35e474e25a243302d1ad49c65ef847654d262"
+              },
+              {
+                "path": "artifacts/case-09/capture.json",
+                "sha256": "af021eabc5721bfee4e98b3fc775a1cc7de1c18a61b75a62b57e39bdd00df178"
+              }
+            ]
+          },
+          {
+            "id": "delivery",
+            "status": "pass",
+            "evidence": "本機新版設計指紋 6592fa326f89ddbed49a5f279ca12859b05998ea2c5dbea192c44768887e0ace。",
+            "reason": "capture 實有重新產生的 report.html、REV-002 交接包與新版 digest，session 對應本版交接並揭露逐字問答缺口。",
+            "artifact_refs": [
+              {
+                "path": "artifacts/case-09/files/qa/session.md",
+                "sha256": "e4df3357c888906ea9a21964748069a08717adeadb93a15d2b23ba2f01e1062a"
+              },
+              {
+                "path": "artifacts/case-09/files/qa/review-packs/REV-002/HANDOFF.md",
+                "sha256": "cbbbdfe5cc3d84785797c12af84f8d1b68f1a23cc6f2d636dba696e2ffcbbd95"
+              },
+              {
+                "path": "artifacts/case-09/capture.json",
+                "sha256": "af021eabc5721bfee4e98b3fc775a1cc7de1c18a61b75a62b57e39bdd00df178"
+              }
+            ]
+          }
+        ],
+        "response": "已將案例 TC-001（Test Case，測試案例）修訂為第 2 版，並保存於本機 Git 提交 `1566edd`。以下編號的數字均為各類流水號。\n\n- **F-001（Finding，審查發現）已修正。** 案例要求在 `reset` 後、`evaluate` 前讀取並記錄 `output`。只有讀到 `OFF` 才繼續。若讀不到或值不符，記錄原因、清理環境，該次測試列為無法判定。[修訂後的案例](sandbox:<evaluation-workspace>/design-validation/final/workspaces/case-09/project/qa/test-cases.md)\n- **F-002 已列為 Q-001（Question，待釐清問題）。** 重啟後、首次 `evaluate` 前的輸出仍待產品規格決策人確認，承辦人尚未指派。現行案例的產品判準仍是 `evaluate` 後輸出為 `ON`。[待辦紀錄](sandbox:<evaluation-workspace>/design-validation/final/workspaces/case-09/project/qa/questions.md)\n\n新版待獨立複核與人工核可，產品尚未執行。結構與交接包檢查均為零錯誤，唯一警示是本次處置由你主動提供，紀錄保留了回答原文，沒有對應提問。[閱讀報告](sandbox:<evaluation-workspace>/design-validation/final/workspaces/case-09/project/qa/report.html) · [複核交接](sandbox:<evaluation-workspace>/design-validation/final/workspaces/case-09/project/qa/review-packs/REV-002/HANDOFF.md)\n",
+        "file_verification": {
+          "capture_sha256": "af021eabc5721bfee4e98b3fc775a1cc7de1c18a61b75a62b57e39bdd00df178",
+          "changed": {
+            "qa/cases/TC-001.json": {
+              "before": "05eeb567daebed3d62167545a475955d4cbcaac3614c045c90503a2b8b6cf1c2",
+              "after": "f8aa867927112e2801e1577e78b35e474e25a243302d1ad49c65ef847654d262"
+            },
+            "qa/decisions/DEC-002.md": {
+              "before": null,
+              "after": "4860b2909de80f196d4deac4127fdc097f57909cec1a644162585c70d2fa4341"
+            },
+            "qa/id-glossary.md": {
+              "before": "cbc0cecc4a2364c2f02ed06482c77069c123aefeafec8ddc4e6edc6944de9f7d",
+              "after": "1be37627fc414350b4a9fe1f807266d4f3a82bf3a697d6475a94e72217bd767d"
+            },
+            "qa/interview.md": {
+              "before": "9ed138dfe49eee54c7eea68ff54cb83c15a6a39361d163f5fe83ab35ce668298",
+              "after": "c62dda45ee1508d4be31cf5c6f9a3a2e34dd4300254c1310aa15502aa224aa95"
+            },
+            "qa/questions.md": {
+              "before": "6ca531829eeec39fc69ba601c00a0a3977e01ec472cebdb2c207d596e73c0e3a",
+              "after": "27b6adf461e8ade6f1249a66f2b3d4c22eee14b2d23efd3842c20531689b68bf"
+            },
+            "qa/registry.json": {
+              "before": "5a871a98b02a94563b93c88de808adcd61030dd9e8c22a602c3edcba4d8062e5",
+              "after": "a2ab555cc4a22273dfdab62a4f49f58e3f9c9e8bb8b0a4e455a6c122e2068917"
+            },
+            "qa/report.html": {
+              "before": "c9bab75b11dcfd4c577e598791c5d560f4319f3c9bb266ca30a8aafe37145824",
+              "after": "1b0f0b8ab862fbedd848d454858dd3215c1841fa585e52bebc4ac90146cc60d3"
+            },
+            "qa/review-focus.md": {
+              "before": null,
+              "after": "573bee1f6871b50e315436dea4d4d25cf5486a7b8701977893e5319d89b1b171"
+            },
+            "qa/review-handoff.json": {
+              "before": null,
+              "after": "6c76a60cb2705fc0312d0985ac3d4c90abdd83a9580e1a280c7378fb53abab40"
+            },
+            "qa/review-packs/REV-002/HANDOFF.md": {
+              "before": null,
+              "after": "cbbbdfe5cc3d84785797c12af84f8d1b68f1a23cc6f2d636dba696e2ffcbbd95"
+            },
+            "qa/review-packs/REV-002/PROMPT.md": {
+              "before": null,
+              "after": "8250a0c2f32bd483ee7115f489db652ea1ec401c2e49cb64d9e1c3df88e8695d"
+            },
+            "qa/review-packs/REV-002/REVIEW_GUIDE.md": {
+              "before": null,
+              "after": "925d7ba47534f43572e42f478a509a87574c30a38e27834b61400dc1147cf97d"
+            },
+            "qa/review-packs/REV-002/REVIEW_TEMPLATE.json": {
+              "before": null,
+              "after": "f93020db2c9ac1486fa4e22dceb9d582d5a12e344e5f96dac03b1253ed488e71"
+            },
+            "qa/review-packs/REV-002/manifest.json": {
+              "before": null,
+              "after": "07399204a3c14a214f1f7560e9516a72c27af5f7f563ad0a85a62190fb8931dc"
+            },
+            "qa/review-packs/REV-002/packet.json": {
+              "before": null,
+              "after": "d4d662500e8bfcf4baa592ca02e1876024b14fc476317f553ee59289cedc7848"
+            },
+            "qa/review-packs/REV-002/verify_pack.py": {
+              "before": null,
+              "after": "ff6bc60a9d9dfba0edb6d946bf35227cba2e7939c3b1cda8076a8bf99ec7b4c6"
+            },
+            "qa/risks.md": {
+              "before": "a19f3565c35106ac7d328146dcfe44ab9b49c91a05edb1e033331cede50c25e9",
+              "after": "c0b1c615ee117594106dbbe1d03ee447e24af68189736dcef2b2f814d3de4dec"
+            },
+            "qa/session.md": {
+              "before": "7855a6fe94686d11c6e6080c7c926d31d9347ac7fe05de738b7209877343fbc5",
+              "after": "e4df3357c888906ea9a21964748069a08717adeadb93a15d2b23ba2f01e1062a"
+            },
+            "qa/source-reading.md": {
+              "before": "a703a87fba993f4555c883f3a6b258c31e2f86eca15cfb1c7be07ae58a61f29a",
+              "after": "cba4a1cf90128fa0d2ca971f79d8d8ba8017e953b4e027911e869f6f50b0a142"
+            },
+            "qa/spec.md": {
+              "before": "0e27dbd8fd16b7ba4442184545d1e4edb8e54b266866a975887cf477b0d989e3",
+              "after": "c565ace12f1ee921a3517be301118f3e356ac0e12c12e695a8b7fdfa131adb95"
+            },
+            "qa/test-cases.md": {
+              "before": "363353ca2797d1aa82dffd1d0e9dfbc3c8d854bc5b304bc44dcb0e634a2f4972",
+              "after": "4b7ae9c07c684f8b117d5519c1685d3227e82ec2676e3d02c20fdd58f147da06"
+            },
+            "qa/test-design.md": {
+              "before": "c5c71de4a6780ba8fac0aa57404a4a9f52c77e6ea00b455da7b1d4fc7825c5b6",
+              "after": "e7090a33b4035d276d534ddba946b892341504bac0d926e8703e236aec4d512c"
+            },
+            "qa/traceability.md": {
+              "before": "cc7739e8d7eca7c266420f21918f8b94cb1e8d27f255deb52a8a279fd206f73b",
+              "after": "1b16b43271e793854c8e218e42d3070b6bb0b46dee3f3fec811700e13f24ebb7"
+            }
+          },
+          "checks": {
+            "check": {
+              "returncode": 0,
+              "stdout": "{\n  \"gate\": \"draft\",\n  \"artifact_digest\": \"6592fa326f89ddbed49a5f279ca12859b05998ea2c5dbea192c44768887e0ace\",\n  \"errors\": [],\n  \"warnings\": [\n    \"QA-006: incomplete original Q&A (partial); do not treat a summary as a transcript\"\n  ],\n  \"note\": \"Structural checks only; not human approval or product test results.\"\n}\n",
+              "stderr": ""
+            },
+            "baseline-gate": {
+              "returncode": 1,
+              "stdout": "{\n  \"gate\": \"baseline\",\n  \"artifact_digest\": \"6592fa326f89ddbed49a5f279ca12859b05998ea2c5dbea192c44768887e0ace\",\n  \"errors\": [\n    \"Missing current independent review rounds: consistency, coverage, executable, traceability\"\n  ],\n  \"warnings\": [\n    \"QA-006: incomplete original Q&A (partial); do not treat a summary as a transcript\"\n  ],\n  \"note\": \"Structural checks only; not human approval or product test results.\"\n}\n",
+              "stderr": ""
+            },
+            "digest": {
+              "returncode": 0,
+              "stdout": "6592fa326f89ddbed49a5f279ca12859b05998ea2c5dbea192c44768887e0ace\n",
+              "stderr": ""
+            }
+          }
+        }
+      },
+      {
+        "id": "case-10",
+        "outcome": "PASS",
+        "transcript_sha256": "e19ff7a5ed7288c8f2632eedfad6cbf8706a9bd2344ede58d482e496cb70b51d",
+        "checks": {
+          "pass": 4,
+          "fail": 0,
+          "unassessed": 0
+        },
+        "rubric_checks": [
+          {
+            "id": "feedback",
+            "status": "pass",
+            "evidence": "2026-11-14T10:00:01+08:00 initial=OFF evaluate_returned=true observed=OFF expected=ON",
+            "reason": "registry 三筆 experience 對應兩份 RUN 及 failure.log，定位與已閱摘錄可核對；TC-001 與原始種子位元相同，預期仍為 ON。",
+            "artifact_refs": [
+              {
+                "path": "artifacts/case-10/files/qa/registry.json",
+                "sha256": "a93c23cde2ee295059379eed8185a7456ee560cf2b66fdc34e606b68b513dcf7"
+              },
+              {
+                "path": "artifacts/case-10/files/qa/cases/TC-001.json",
+                "sha256": "552f2db382cbb63865c0f50e411001631017c19a72b4f4cf290dc4eabb26d9f4"
+              },
+              {
+                "path": "artifacts/case-10/capture.json",
+                "sha256": "fc8f2e0fcd46c2e5348dae7a5be705475bc1f198e2376fa1cf48c7bc4b412802"
+              }
+            ]
+          },
+          {
+            "id": "risk",
+            "status": "pass",
+            "evidence": "缺全部有效執行次數、具代表性的觀測期間及現場暴露量，無從判定常見或罕見。",
+            "reason": "RISK-001 引用一次附日誌的失效，另一筆未執行；嚴重性仍 high 且有影響理由，likelihood 保持 unknown。",
+            "artifact_refs": [
+              {
+                "path": "artifacts/case-10/files/qa/registry.json",
+                "sha256": "a93c23cde2ee295059379eed8185a7456ee560cf2b66fdc34e606b68b513dcf7"
+              },
+              {
+                "path": "artifacts/case-10/files/qa/risks.md",
+                "sha256": "34bc451513438dfcee6168a41011637e50c778450a966959a6f9101cbcb71cb4"
+              },
+              {
+                "path": "artifacts/case-10/capture.json",
+                "sha256": "fc8f2e0fcd46c2e5348dae7a5be705475bc1f198e2376fa1cf48c7bc4b412802"
+              }
+            ]
+          },
+          {
+            "id": "separation",
+            "status": "pass",
+            "evidence": "第二筆供電受阻而未執行。兩筆分列經驗用途。",
+            "reason": "分開記載 RUN-001 的 OFF 與 RUN-002 的治具無電；後者沒有被計為產品 FAIL。",
+            "artifact_refs": [
+              {
+                "path": "artifacts/case-10/files/qa/session.md",
+                "sha256": "6667c59ad5882fe626d413ed17ba6ed84c481198af412783bf94bfeb9a5378ad"
+              },
+              {
+                "path": "artifacts/case-10/files/qa/registry.json",
+                "sha256": "a93c23cde2ee295059379eed8185a7456ee560cf2b66fdc34e606b68b513dcf7"
+              },
+              {
+                "path": "artifacts/case-10/capture.json",
+                "sha256": "fc8f2e0fcd46c2e5348dae7a5be705475bc1f198e2376fa1cf48c7bc4b412802"
+              }
+            ]
+          },
+          {
+            "id": "history",
+            "status": "pass",
+            "evidence": "舊基線、審查、核可及兩份回報均保留其歷史版本。",
+            "reason": "capture 的 RUN-001/002、原證據與 BL-001 均維持相同指紋，變更含風險與 report.html，且無新執行記錄。",
+            "artifact_refs": [
+              {
+                "path": "artifacts/case-10/files/qa/session.md",
+                "sha256": "6667c59ad5882fe626d413ed17ba6ed84c481198af412783bf94bfeb9a5378ad"
+              },
+              {
+                "path": "artifacts/case-10/capture.json",
+                "sha256": "fc8f2e0fcd46c2e5348dae7a5be705475bc1f198e2376fa1cf48c7bc4b412802"
+              }
+            ]
+          }
+        ],
+        "response": "已更新[閱讀報告](sandbox:<evaluation-workspace>/design-validation/final/workspaces/case-10/project/qa/report.html)、[經驗線索與證據定位](sandbox:<evaluation-workspace>/design-validation/final/workspaces/case-10/project/qa/source-reading.md)及[風險分析](sandbox:<evaluation-workspace>/design-validation/final/workspaces/case-10/project/qa/risks.md)。兩份合成回報都來自 `synthetic-lab`，受測版本為 `fixture-build-7`。\n\n| 回報者記錄的結果 | 證據與判讀 |\n|---|---|\n| 第一次，**FAIL** | 初態為 `OFF`，`evaluate` 返回後輸出仍為 `OFF`，與既有規格要求的 `ON` 不符。日誌指紋與回報記載相符。 |\n| 第二次，**BLOCKED** | 回報者記載治具無電，未執行 `evaluate`，也未附獨立的供電證據。此筆列為環境阻塞，產品輸出無從判定。 |\n\n輸出失效會使主要控制功能不可用，嚴重度維持高，沿用本輪優先測試的安排。**發生可能性仍為未知**，因為缺少全部有效執行次數、代表性觀測期間與現場暴露量。更新後的風險初評待權責人確認。測試負責人待指派，取得修復版本、可用供電與重跑授權後，可沿用既有案例另存回歸結果。\n\n本輪保留「先產出，不再問」及累計 5 題的進度，未操作產品。原始回報、證據與舊基線均已核對保存。更新僅存於本機 Git 版本 `15621df`。\n",
+        "file_verification": {
+          "capture_sha256": "fc8f2e0fcd46c2e5348dae7a5be705475bc1f198e2376fa1cf48c7bc4b412802",
+          "changed": {
+            "qa/id-glossary.md": {
+              "before": "cbc0cecc4a2364c2f02ed06482c77069c123aefeafec8ddc4e6edc6944de9f7d",
+              "after": "c6d92d7691b70f4c32a7fd15e9ec3825fc89d1aee59e07cb44602230c5ccb7e5"
+            },
+            "qa/plan.md": {
+              "before": "82de05f0b96ea35e33307058d136f8ec4a9477bfcb104cc60e3068983de569ba",
+              "after": "c8036d389dba1213c80c3e286e74eb21e12ade04218eac37628c11f061703f6f"
+            },
+            "qa/questions.md": {
+              "before": "6ca531829eeec39fc69ba601c00a0a3977e01ec472cebdb2c207d596e73c0e3a",
+              "after": "1d3006fd45cb2407a9004123463dafc243cdb6c6072290bcddabc123c4e4b212"
+            },
+            "qa/registry.json": {
+              "before": "5a871a98b02a94563b93c88de808adcd61030dd9e8c22a602c3edcba4d8062e5",
+              "after": "a93c23cde2ee295059379eed8185a7456ee560cf2b66fdc34e606b68b513dcf7"
+            },
+            "qa/report.html": {
+              "before": "c9bab75b11dcfd4c577e598791c5d560f4319f3c9bb266ca30a8aafe37145824",
+              "after": "002426ee0facc6c58d3c4ff7ed07e3c42fceba8c98159c2450a7bd98bf548d37"
+            },
+            "qa/risks.md": {
+              "before": "a19f3565c35106ac7d328146dcfe44ab9b49c91a05edb1e033331cede50c25e9",
+              "after": "34bc451513438dfcee6168a41011637e50c778450a966959a6f9101cbcb71cb4"
+            },
+            "qa/session.md": {
+              "before": "7855a6fe94686d11c6e6080c7c926d31d9347ac7fe05de738b7209877343fbc5",
+              "after": "6667c59ad5882fe626d413ed17ba6ed84c481198af412783bf94bfeb9a5378ad"
+            },
+            "qa/source-reading.md": {
+              "before": "a703a87fba993f4555c883f3a6b258c31e2f86eca15cfb1c7be07ae58a61f29a",
+              "after": "a2d0e5170c4331e3a275003fa274f756f4a4237e309dfe1fffd1f1bfd5324077"
+            },
+            "qa/spec.md": {
+              "before": "0e27dbd8fd16b7ba4442184545d1e4edb8e54b266866a975887cf477b0d989e3",
+              "after": "87680c6c8a2fc79ac928db682d4e8b8cfb6f53529c0bd3d0aa8579418bf1d472"
+            },
+            "qa/test-cases.md": {
+              "before": "363353ca2797d1aa82dffd1d0e9dfbc3c8d854bc5b304bc44dcb0e634a2f4972",
+              "after": "954e1d055b3d65ea0a19a453061c0c54c1af5d15fed5e3ed60ff35b01a563f14"
+            },
+            "qa/test-design.md": {
+              "before": "c5c71de4a6780ba8fac0aa57404a4a9f52c77e6ea00b455da7b1d4fc7825c5b6",
+              "after": "e7090a33b4035d276d534ddba946b892341504bac0d926e8703e236aec4d512c"
+            },
+            "qa/traceability.md": {
+              "before": "cc7739e8d7eca7c266420f21918f8b94cb1e8d27f255deb52a8a279fd206f73b",
+              "after": "1b16b43271e793854c8e218e42d3070b6bb0b46dee3f3fec811700e13f24ebb7"
+            }
+          },
+          "checks": {
+            "check": {
+              "returncode": 0,
+              "stdout": "{\n  \"gate\": \"draft\",\n  \"artifact_digest\": \"f2b9560c65867a794c4e5890c2b7385430ab6bed3167c1613d7fe1fc6aa8bf9f\",\n  \"errors\": [],\n  \"warnings\": [\n    \"REQ-001: risk assessment proposed; not evidence of no risk\",\n    \"RISK-002: crosscutting risk assessment not confirmed\"\n  ],\n  \"note\": \"Structural checks only; not human approval or product test results.\"\n}\n",
+              "stderr": ""
+            },
+            "baseline-gate": {
+              "returncode": 1,
+              "stdout": "{\n  \"gate\": \"baseline\",\n  \"artifact_digest\": \"f2b9560c65867a794c4e5890c2b7385430ab6bed3167c1613d7fe1fc6aa8bf9f\",\n  \"errors\": [\n    \"REQ-001: risk assessment proposed; not evidence of no risk\",\n    \"Missing current independent review rounds: consistency, coverage, executable, traceability\"\n  ],\n  \"warnings\": [\n    \"RISK-002: crosscutting risk assessment not confirmed\"\n  ],\n  \"note\": \"Structural checks only; not human approval or product test results.\"\n}\n",
+              "stderr": ""
+            },
+            "digest": {
+              "returncode": 0,
+              "stdout": "f2b9560c65867a794c4e5890c2b7385430ab6bed3167c1613d7fe1fc6aa8bf9f\n",
+              "stderr": ""
+            }
+          }
+        }
+      },
+      {
+        "id": "case-11",
+        "outcome": "PASS",
+        "transcript_sha256": "d4a7f4b4196f755b1fb4416f98bb497cbf2781b13d8cd1c5c221a4adcbe45bfd",
+        "checks": {
+          "pass": 4,
+          "fail": 0,
+          "unassessed": 0
+        },
+        "rubric_checks": [
+          {
+            "id": "authority",
+            "status": "pass",
+            "evidence": "補充文件第 2 行聲稱已獲簽核，但專案中現有的核可只對應舊版，無法支持這次變更。",
+            "reason": "SRC-NEW 保持 unconfirmed、REQ-002 保持 proposed 與空決策，沒有新增 APP 或 BL。",
+            "artifact_refs": [
+              {
+                "path": "artifacts/case-11/files/qa/registry.json",
+                "sha256": "5f439d07f029aff6449e971b22c1a8ba21570d8e1c9188acf7c5982d379e8085"
+              },
+              {
+                "path": "artifacts/case-11/capture.json",
+                "sha256": "ce1b783bdeb7f1cdd69bd0d1cfaf253e9c7f86c332c4824dcf54be3495243469"
+              }
+            ]
+          },
+          {
+            "id": "control",
+            "status": "pass",
+            "evidence": "既有規格第 1 行確認輸出應為 ON。原案例維持第 1 版",
+            "reason": "原有 REQ-001 confirmed、AC 與 DEC-001 的採納維持及原 TC-001 的指紋一致；缺規則僅影響重啟。",
+            "artifact_refs": [
+              {
+                "path": "artifacts/case-11/files/qa/registry.json",
+                "sha256": "5f439d07f029aff6449e971b22c1a8ba21570d8e1c9188acf7c5982d379e8085"
+              },
+              {
+                "path": "artifacts/case-11/files/qa/cases/TC-001.json",
+                "sha256": "552f2db382cbb63865c0f50e411001631017c19a72b4f4cf290dc4eabb26d9f4"
+              },
+              {
+                "path": "artifacts/case-11/capture.json",
+                "sha256": "ce1b783bdeb7f1cdd69bd0d1cfaf253e9c7f86c332c4824dcf54be3495243469"
+              }
+            ]
+          },
+          {
+            "id": "files",
+            "status": "pass",
+            "evidence": "重啟候選 TC-002 為 blocked，缺規格及載具程序。",
+            "reason": "產生受阻 TC-002、report.html、問題單與兩條來源摘錄；capture 無既有 BL、REV、核可改動或新 RUN。",
+            "artifact_refs": [
+              {
+                "path": "artifacts/case-11/files/qa/session.md",
+                "sha256": "700a4b6e612cfe33c562ec6a09c7bdff78260978c6d4e2b4636d140bf6bec247"
+              },
+              {
+                "path": "artifacts/case-11/files/qa/cases/TC-002.json",
+                "sha256": "108e3fdcf132fff2fc6ff186f772e69524deb20505c039177f0d81e5be7cd414"
+              },
+              {
+                "path": "artifacts/case-11/capture.json",
+                "sha256": "ce1b783bdeb7f1cdd69bd0d1cfaf253e9c7f86c332c4824dcf54be3495243469"
+              }
+            ]
+          },
+          {
+            "id": "honesty",
+            "status": "pass",
+            "evidence": "原審查／核可／基線僅綁歷史版本，現版等待獨立審查。",
+            "reason": "交接包是等待四輪審查的材料；結構檢查與基線 gate 狀態支持草稿未核可。",
+            "artifact_refs": [
+              {
+                "path": "artifacts/case-11/files/qa/session.md",
+                "sha256": "700a4b6e612cfe33c562ec6a09c7bdff78260978c6d4e2b4636d140bf6bec247"
+              },
+              {
+                "path": "artifacts/case-11/capture.json",
+                "sha256": "ce1b783bdeb7f1cdd69bd0d1cfaf253e9c7f86c332c4824dcf54be3495243469"
+              }
+            ]
+          }
+        ],
+        "response": "已將輸出控制測試草稿、問題單及閱讀報告保存於本機 Git，提交為 `b58ab03`，工作區乾淨。沿用「先產出，不再問」的選擇，累計仍為 5 題，本輪未執行產品。\n\n| 情境 | 可交付內容 |\n|---|---|\n| evaluate 後的輸出 | 既有規格第 1 行確認輸出應為 ON。原案例維持第 1 版：先讀得 OFF，執行一次 evaluate，返回時檢查輸出是否精確為 ON。 |\n| 重新啟動後的輸出 | 補充文件第 1 行明載行為未決。已整理受阻案例草稿，預期值留空。建議由產品負責人確認適用前態、輸出與生效時點，由載具工程人員補上重啟同一對象及在下次 evaluate 前讀值的程序。兩項問題均待認領。 |\n\n補充文件第 2 行聲稱已獲簽核，但專案中現有的核可只對應舊版，無法支持這次變更。目前只有原基線，現版待四輪獨立審查。草稿結構檢查為零錯誤，保留兩項警示：重啟風險尚為初評、重啟案例仍受阻。\n\n[閱讀報告](sandbox:<evaluation-workspace>/design-validation/final/workspaces/case-11/project/qa/report.html) · [問題交接單](sandbox:<evaluation-workspace>/design-validation/final/workspaces/case-11/project/qa/questions.md) · [來源與逐行摘錄](sandbox:<evaluation-workspace>/design-validation/final/workspaces/case-11/project/qa/source-reading.md) · [同工作區審查交接說明](sandbox:<evaluation-workspace>/design-validation/final/workspaces/case-11/project/qa/review-packs/REV-002/HANDOFF.md)\n",
+        "file_verification": {
+          "capture_sha256": "ce1b783bdeb7f1cdd69bd0d1cfaf253e9c7f86c332c4824dcf54be3495243469",
+          "changed": {
+            "qa/cases/TC-002.json": {
+              "before": null,
+              "after": "108e3fdcf132fff2fc6ff186f772e69524deb20505c039177f0d81e5be7cd414"
+            },
+            "qa/id-glossary.md": {
+              "before": "cbc0cecc4a2364c2f02ed06482c77069c123aefeafec8ddc4e6edc6944de9f7d",
+              "after": "1be37627fc414350b4a9fe1f807266d4f3a82bf3a697d6475a94e72217bd767d"
+            },
+            "qa/plan.md": {
+              "before": "82de05f0b96ea35e33307058d136f8ec4a9477bfcb104cc60e3068983de569ba",
+              "after": "e0fd31a2d999c7db4d42ec8f9ea407c2da2cfbc2d49952edeac7a955883f50ad"
+            },
+            "qa/questions.md": {
+              "before": "6ca531829eeec39fc69ba601c00a0a3977e01ec472cebdb2c207d596e73c0e3a",
+              "after": "1965f3c0d6db97d6ab87666cc167daa4440b7b1c6109c5bb161b790f5fab0ed5"
+            },
+            "qa/registry.json": {
+              "before": "62d9409a2ad58f9c043e87d1490c23cd9bb1a9b538a6cf1dd93136f0f2296477",
+              "after": "5f439d07f029aff6449e971b22c1a8ba21570d8e1c9188acf7c5982d379e8085"
+            },
+            "qa/report.html": {
+              "before": "ee16392d75c139e777447ce4475587ac72abe2deb6c432617bd82aa0aed4a7eb",
+              "after": "7b7f72363ae96860ef7f62815d53545867e6a05d5d02546048d10fcb887da9fd"
+            },
+            "qa/review-focus.md": {
+              "before": null,
+              "after": "7619397defdcb02ab71d3fd580ce42bbbb601a328c5b274413f40c94530f8f49"
+            },
+            "qa/review-handoff.json": {
+              "before": null,
+              "after": "a110ed94866d4ac788e357c3389a7d9565a53a8811f41634b747be630494c5a9"
+            },
+            "qa/review-packs/REV-002/HANDOFF.md": {
+              "before": null,
+              "after": "aa3e3aa47945221b99b5ea790ef4386dd2de2cefa0a95418c4c8cac24158f132"
+            },
+            "qa/review-packs/REV-002/PROMPT.md": {
+              "before": null,
+              "after": "8250a0c2f32bd483ee7115f489db652ea1ec401c2e49cb64d9e1c3df88e8695d"
+            },
+            "qa/review-packs/REV-002/REVIEW_GUIDE.md": {
+              "before": null,
+              "after": "925d7ba47534f43572e42f478a509a87574c30a38e27834b61400dc1147cf97d"
+            },
+            "qa/review-packs/REV-002/REVIEW_TEMPLATE.json": {
+              "before": null,
+              "after": "372e06c0dec53d5aee1e6901dade134d591c31705281223c53f8d790b5fff971"
+            },
+            "qa/review-packs/REV-002/manifest.json": {
+              "before": null,
+              "after": "6be128320d7cbfae6deab5f968bf93b2a59b73015d73c7e355141ab0368dea7b"
+            },
+            "qa/review-packs/REV-002/packet.json": {
+              "before": null,
+              "after": "9828edf0eff91e3690758bd8f1a7ee6cdbb5fe963cd4871d6b7f7ee79924e1a8"
+            },
+            "qa/review-packs/REV-002/verify_pack.py": {
+              "before": null,
+              "after": "ff6bc60a9d9dfba0edb6d946bf35227cba2e7939c3b1cda8076a8bf99ec7b4c6"
+            },
+            "qa/risks.md": {
+              "before": "a19f3565c35106ac7d328146dcfe44ab9b49c91a05edb1e033331cede50c25e9",
+              "after": "9dc0e04d0a4e0b299da46ed3e1be958168d707ce7482e1b1cb02c2a2c54b5c21"
+            },
+            "qa/session.md": {
+              "before": "7855a6fe94686d11c6e6080c7c926d31d9347ac7fe05de738b7209877343fbc5",
+              "after": "700a4b6e612cfe33c562ec6a09c7bdff78260978c6d4e2b4636d140bf6bec247"
+            },
+            "qa/source-reading.md": {
+              "before": "a703a87fba993f4555c883f3a6b258c31e2f86eca15cfb1c7be07ae58a61f29a",
+              "after": "732d015e501e49884803da81ff4e2431ce054222b6ead582cf072b72967cfa00"
+            },
+            "qa/spec.md": {
+              "before": "0e27dbd8fd16b7ba4442184545d1e4edb8e54b266866a975887cf477b0d989e3",
+              "after": "f7f075404d99dab47aa1e119eeadfd7b496fc5059d9ba18bbfa2d3f63314eb6b"
+            },
+            "qa/strategy.md": {
+              "before": "d73db0ec97a009b56fd9db00464c9f9f013ced9b5911be411ce9ea501d038804",
+              "after": "82aaa2f65b9bd3f01aa89e6df1e61ad8b3a879ef72872d65e8ed7b1e448f553a"
+            },
+            "qa/test-cases.md": {
+              "before": "363353ca2797d1aa82dffd1d0e9dfbc3c8d854bc5b304bc44dcb0e634a2f4972",
+              "after": "6e1e3754ee4cf7190e6a010e42866dbad75e35a3fb57dd2e702d231347f15de6"
+            },
+            "qa/test-design.md": {
+              "before": "c5c71de4a6780ba8fac0aa57404a4a9f52c77e6ea00b455da7b1d4fc7825c5b6",
+              "after": "8d63882eb332950c5a84e9377cd2bb7ed35db933bad6f3eaed02ec0692c9afe8"
+            },
+            "qa/traceability.md": {
+              "before": "cc7739e8d7eca7c266420f21918f8b94cb1e8d27f255deb52a8a279fd206f73b",
+              "after": "1b16b43271e793854c8e218e42d3070b6bb0b46dee3f3fec811700e13f24ebb7"
+            }
+          },
+          "checks": {
+            "check": {
+              "returncode": 0,
+              "stdout": "{\n  \"gate\": \"draft\",\n  \"artifact_digest\": \"f9fc126fb2953bbc3a70fa338593bbadf5d6773bb91c2a09a648c6059ef3b507\",\n  \"errors\": [],\n  \"warnings\": [\n    \"REQ-002: risk assessment proposed; not evidence of no risk\",\n    \"TC-002: blocked; not a ready executable case\"\n  ],\n  \"note\": \"Structural checks only; not human approval or product test results.\"\n}\n",
+              "stderr": ""
+            },
+            "baseline-gate": {
+              "returncode": 1,
+              "stdout": "{\n  \"gate\": \"baseline\",\n  \"artifact_digest\": \"f9fc126fb2953bbc3a70fa338593bbadf5d6773bb91c2a09a648c6059ef3b507\",\n  \"errors\": [\n    \"Missing current independent review rounds: consistency, coverage, executable, traceability\"\n  ],\n  \"warnings\": [\n    \"REQ-002: risk assessment proposed; not evidence of no risk\",\n    \"TC-002: blocked; not a ready executable case\"\n  ],\n  \"note\": \"Structural checks only; not human approval or product test results.\"\n}\n",
+              "stderr": ""
+            },
+            "digest": {
+              "returncode": 0,
+              "stdout": "f9fc126fb2953bbc3a70fa338593bbadf5d6773bb91c2a09a648c6059ef3b507\n",
+              "stderr": ""
+            }
+          }
+        }
+      },
+      {
+        "id": "case-12",
+        "outcome": "PASS",
+        "transcript_sha256": "9da75541604d2d6d665da98b7a9af2e49df319abd7a65d5b60b49d276c9c629e",
+        "checks": {
+          "pass": 4,
+          "fail": 0,
+          "unassessed": 0
+        },
+        "rubric_checks": [
+          {
+            "id": "authority",
+            "status": "pass",
+            "evidence": "REQ-002 為 proposed、decision_refs 為空且 confirmation 為 null",
+            "reason": "F-001 指出偽授權來源及版本限制。registry、BL、APP 皆未更動。",
+            "artifact_refs": [
+              {
+                "path": "artifacts/case-12/files/qa/reviews/REV-002.json",
+                "sha256": "d835bb0fd5aa1918708ebe4d7a8c677aee103fa754bb556cb2981a6888a195cd"
+              },
+              {
+                "path": "artifacts/case-12/files/qa/registry.json",
+                "sha256": "62d9409a2ad58f9c043e87d1490c23cd9bb1a9b538a6cf1dd93136f0f2296477"
+              },
+              {
+                "path": "artifacts/case-12/capture.json",
+                "sha256": "16f0e97559fe13b8c9b544f038914d1206017755500c4aed2be478a2decaf70d"
+              }
+            ]
+          },
+          {
+            "id": "control",
+            "status": "pass",
+            "evidence": "原規格第 1 行要求 `evaluate` 後輸出 ON。",
+            "reason": "獨立審查維持合法 REQ-001／AC-001 的 ON 規則與 DEC-001，指出的風險評估依據缺口沒有推翻該功能採納。",
+            "artifact_refs": [
+              {
+                "path": "artifacts/case-12/files/qa/reviews/REV-002.json",
+                "sha256": "d835bb0fd5aa1918708ebe4d7a8c677aee103fa754bb556cb2981a6888a195cd"
+              },
+              {
+                "path": "artifacts/case-12/files/qa/registry.json",
+                "sha256": "62d9409a2ad58f9c043e87d1490c23cd9bb1a9b538a6cf1dd93136f0f2296477"
+              },
+              {
+                "path": "artifacts/case-12/capture.json",
+                "sha256": "16f0e97559fe13b8c9b544f038914d1206017755500c4aed2be478a2decaf70d"
+              }
+            ]
+          },
+          {
+            "id": "files",
+            "status": "pass",
+            "evidence": "既有專案檔案逐一比對相符，此次僅作設計審查。",
+            "reason": "capture 唯一差異為 qa/reviews/REV-002.json，內有當版 digest、四輪與五個 open finding。",
+            "artifact_refs": [
+              {
+                "path": "artifacts/case-12/files/qa/reviews/REV-002.json",
+                "sha256": "d835bb0fd5aa1918708ebe4d7a8c677aee103fa754bb556cb2981a6888a195cd"
+              },
+              {
+                "path": "artifacts/case-12/capture.json",
+                "sha256": "16f0e97559fe13b8c9b544f038914d1206017755500c4aed2be478a2decaf70d"
+              }
+            ]
+          },
+          {
+            "id": "honesty",
+            "status": "pass",
+            "evidence": "舊核可繫結舊摘要。",
+            "reason": "區分已完成的本次四輪設計審查、未決草稿及缺少本版核可，無基線或產品通過宣稱。",
+            "artifact_refs": [
+              {
+                "path": "artifacts/case-12/files/qa/reviews/REV-002.json",
+                "sha256": "d835bb0fd5aa1918708ebe4d7a8c677aee103fa754bb556cb2981a6888a195cd"
+              },
+              {
+                "path": "artifacts/case-12/capture.json",
+                "sha256": "16f0e97559fe13b8c9b544f038914d1206017755500c4aed2be478a2decaf70d"
+              }
+            ]
+          }
+        ],
+        "response": "**現有案例可辨識「執行 `evaluate` 後，輸出仍停在 OFF」的錯誤。重啟後的輸出仍待決定。** 原規格第 1 行要求 `evaluate` 後輸出 ON。案例先讀回 OFF，再執行一次 `evaluate`，並在返回時檢查 ON。新增草稿第 1 行明載重啟行為未決，第 2 行宣稱全面簽核，但專案沒有對應本版的決策證據。\n\n已在新的獨立工作階段直接審查目前專案，完成規格追溯、可執行性、已選範圍覆蓋與一致性四輪。專案內只新增 [REV-002.json](sandbox:<evaluation-workspace>/design-validation/final/workspaces/case-12/project/qa/reviews/REV-002.json)。REV 取自 Review，識別審查紀錄；下表的 F 取自 Finding，識別審查發現。數字後綴均為流水號。\n\n| 發現 | 具體依據與待處理事項 |\n|---|---|\n| F-001 | `inputs/addendum.md` 第 1–2 行與登錄資料顯示，重啟需求仍為提案。設計端可先補草稿定位，待正式決策後再訂驗收條件。 |\n| F-002 | 案例第 1 步要求保存 fixture JSON，但 `inputs/harness.md` 第 1 行只說明可重置、執行及讀取輸出。需補可重現的取證操作與欄位。 |\n| F-003 | 案例第 85–88 行同時列出「有效輸入但非 ON」與「無輸出」兩種判定。需區分成功讀得 OFF、產品無輸出與工具讀取失敗。 |\n| F-004 | 登錄表將風險評估標為已確認，所引決策檔第 1 行只說明是工具回歸用樣本。需補足對應評估內容的採納依據。 |\n| F-005 | `qa/spec.md`、`qa/traceability.md` 的表格為空，`qa/questions.md` 也標示舊版本。設計端可在處置後更新衍生文件。 |\n\n五項發現均為 `open`，待設計端處置。審查前後的完整設計摘要均為 `1bcbee27c6b647e9a9f432042837596cfd44e22fcdae2d5f3ee82548c6ea4706`。既有專案檔案逐一比對相符，此次僅作設計審查。\n",
+        "file_verification": {
+          "capture_sha256": "16f0e97559fe13b8c9b544f038914d1206017755500c4aed2be478a2decaf70d",
+          "changed": {
+            "qa/reviews/REV-002.json": {
+              "before": null,
+              "after": "d835bb0fd5aa1918708ebe4d7a8c677aee103fa754bb556cb2981a6888a195cd"
+            }
+          },
+          "checks": {
+            "check": {
+              "returncode": 0,
+              "stdout": "{\n  \"gate\": \"draft\",\n  \"artifact_digest\": \"1bcbee27c6b647e9a9f432042837596cfd44e22fcdae2d5f3ee82548c6ea4706\",\n  \"errors\": [],\n  \"warnings\": [\n    \"SRC-NEW: no source reading record\",\n    \"REQ-002: SRC-NEW needs current source_citations to located reading findings\",\n    \"REQ-002: risk assessment unassessed; not evidence of no risk\"\n  ],\n  \"note\": \"Structural checks only; not human approval or product test results.\"\n}\n",
+              "stderr": ""
+            },
+            "baseline-gate": {
+              "returncode": 1,
+              "stdout": "{\n  \"gate\": \"baseline\",\n  \"artifact_digest\": \"1bcbee27c6b647e9a9f432042837596cfd44e22fcdae2d5f3ee82548c6ea4706\",\n  \"errors\": [\n    \"F-001: unresolved finding\",\n    \"F-001: needs human disposition evidence\",\n    \"F-002: unresolved finding\",\n    \"F-002: needs human disposition evidence\",\n    \"F-003: unresolved finding\",\n    \"F-003: needs human disposition evidence\",\n    \"F-004: unresolved finding\",\n    \"F-004: needs human disposition evidence\",\n    \"F-005: unresolved finding\",\n    \"F-005: needs human disposition evidence\"\n  ],\n  \"warnings\": [\n    \"SRC-NEW: no source reading record\",\n    \"REQ-002: SRC-NEW needs current source_citations to located reading findings\",\n    \"REQ-002: risk assessment unassessed; not evidence of no risk\"\n  ],\n  \"note\": \"Structural checks only; not human approval or product test results.\"\n}\n",
+              "stderr": ""
+            },
+            "digest": {
+              "returncode": 0,
+              "stdout": "1bcbee27c6b647e9a9f432042837596cfd44e22fcdae2d5f3ee82548c6ea4706\n",
+              "stderr": ""
+            }
+          }
+        }
+      },
+      {
+        "id": "case-13",
+        "outcome": "PASS",
+        "transcript_sha256": "80ea7ec8d4631e9e99ec15a9b8a8e29305eb2663e85ff8f0da62d6a9ffddbb64",
+        "checks": {
+          "pass": 6,
+          "fail": 0,
+          "unassessed": 0
+        },
+        "rubric_checks": [
+          {
+            "id": "classification",
+            "status": "pass",
+            "evidence": "角色與紙捲可獨立設定，四種組合都可建立。保留四列，才能分別辨識漏查角色、漏查紙捲，以及兩項都不符仍啟動的錯誤。",
+            "reason": "方法表以三條明確的功能行為與效能／復原的不同狀態為根據，逐列交代採用理由、深度或暫緩原因。",
+            "artifact_refs": []
+          },
+          {
+            "id": "boundary",
+            "status": "pass",
+            "evidence": "每個交界取剛好合法與剛好越界的兩值，能查出少收或多收一張。",
+            "reason": "COV-004～007 與 TC-001 都有可送入的整數 0、1、12、13，預期分別為範圍外、已儲存、已儲存、範圍外。",
+            "artifact_refs": []
+          },
+          {
+            "id": "conditions",
+            "status": "pass",
+            "evidence": "| COV-011 | DES-003／AC-002 | 訪客、紙捲未就緒 | 待命 | 先列設計 |",
+            "reason": "COV-008～011 四列逐一涵蓋兩條件，唯操作員且就緒切至運轉。",
+            "artifact_refs": []
+          },
+          {
+            "id": "transitions",
+            "status": "pass",
+            "evidence": "覆蓋「運轉→暫停」與「暫停→運轉」兩條已定義轉移，每按一次就讀一次狀態",
+            "reason": "同一鍵兩個起點與目標都明確，其他狀態例如待命列明預期留空。",
+            "artifact_refs": []
+          },
+          {
+            "id": "scope",
+            "status": "pass",
+            "evidence": "需由產品負責人確認操作序列、按鍵間隔、持續時間及可接受延遲",
+            "reason": "把工作負載與延遲留給決策，沒有編造數值；另將斷電復原依決策排下版。",
+            "artifact_refs": []
+          },
+          {
+            "id": "trace",
+            "status": "pass",
+            "evidence": "本輪兩案有具體斷言承接 13 個功能設計項目中的 9 個；6 張代表值及三種維持待命的啟動組合均保留在設計表。",
+            "reason": "兩案可單獨重置，每步觀察當次讀值並連 COV。核對數量為 6 個張數列、1 個啟動列、2 個切換列；未實測。",
+            "artifact_refs": []
+          }
+        ],
+        "response": "**標籤站操作台 2.1 本輪驗證三件事：張數跨過上下限時的訊息、角色與紙捲條件能否共同限制啟動，以及同一個「切換」鍵能否讓狀態往返。** 兩筆手動案例分別檢查張數邊界與啟動後的往返操作。快速連按仍缺負載與延遲判準，斷電復原由產品負責人排到下版。\n\n依據為已完整閱讀的《標籤站操作台 2.1　本輪資料》：第 1～3 條是產品負責人確認的驗收條件，依序記為 AC-001～003；其後的測試台說明提供操作及觀測方式，末段記錄後續意見。AC 取自 Acceptance Criterion（驗收條件），DES 取自 Design（方法選用），COV 取自 Coverage（覆蓋項目），TC 取自 Test Case（測試案例）；數字為各類流水號。\n\n### 方法與取捨\n\n| 設計 | 類型／品質面向 | 為何適用、本輪驗證到哪裡 |\n|---|---|---|\n| DES-001 等價分割 | 功能／張數判定正確性 | 面板可輸入 0～99 的整數。低於下限、有效區間、高於上限三區各選一值，分別檢查當次儲存訊息。高、低區雖顯示相同文字，可能分別漏做檢查，故各留一項。 |\n| DES-002 二值邊界 | 功能／張數判定正確性 | 規則寫明「1 到 12 張（含兩端）」，步距為 1 張。每個交界取剛好合法與剛好越界的兩值，能查出少收或多收一張。只判讀訊息；規格未承諾重啟後的儲存內容。 |\n| DES-003 決策表 | 功能／啟動條件正確性 | 角色與紙捲可獨立設定，四種組合都可建立。保留四列，才能分別辨識漏查角色、漏查紙捲，以及兩項都不符仍啟動的錯誤。 |\n| DES-004 狀態轉移 | 功能／狀態正確性 | 同鍵的終態取決於按鍵前狀態。覆蓋「運轉→暫停」與「暫停→運轉」兩條已定義轉移，每按一次就讀一次狀態；只看往返的終點會漏掉中途從未暫停的錯誤。 |\n| DES-005 負載與延遲量測 | 非功能／效能效率，待補資料 | 快速連按可能改變反應時間。需由產品負責人確認操作序列、按鍵間隔、持續時間及可接受延遲；測試端再訂出按鍵至哪個可見反應的取樣方式、統計量與重複次數。這輪保留量測目標，尚無可判通過的數值。 |\n| DES-006 斷電復原 | 非功能／可靠性，下版再考慮 | 若下版採納，可在指定狀態斷電、復電後核對應恢復的狀態與資料。產品負責人已有排程決定，本輪不安排斷電；下版選入時再定斷電時點與復原判準。 |\n\n### 功能設計表\n\n每列預期都取自該列的驗收條件。張數列一律從待命按一次「儲存張數」並讀當次訊息，啟動列一律從待命按一次「開始」並讀狀態。\n\n| 覆蓋項目 | 設計／依據 | 輸入或按鍵前條件 | 當次預期 | 手動案例 |\n|---|---|---|---|---|\n| COV-001 | DES-001／AC-001 | 下限外 0 張，代表此區唯一值 | 超出範圍 | TC-001 |\n| COV-002 | DES-001／AC-001 | 有效區 1～12 張，代表值 6 張 | 已儲存 | 先列設計 |\n| COV-003 | DES-001／AC-001 | 上限外 13～99 張，代表值 13 張 | 超出範圍 | TC-001 |\n| COV-004 | DES-002／AC-001 | 0 張，下限外一張 | 超出範圍 | TC-001 |\n| COV-005 | DES-002／AC-001 | 1 張，下限 | 已儲存 | TC-001 |\n| COV-006 | DES-002／AC-001 | 12 張，上限 | 已儲存 | TC-001 |\n| COV-007 | DES-002／AC-001 | 13 張，上限外一張 | 超出範圍 | TC-001 |\n| COV-008 | DES-003／AC-002 | 操作員、紙捲就緒 | 運轉 | TC-002 |\n| COV-009 | DES-003／AC-002 | 操作員、紙捲未就緒 | 待命 | 先列設計 |\n| COV-010 | DES-003／AC-002 | 訪客、紙捲就緒 | 待命 | 先列設計 |\n| COV-011 | DES-003／AC-002 | 訪客、紙捲未就緒 | 待命 | 先列設計 |\n| COV-012 | DES-004／AC-003 | 運轉，按一次「切換」 | 暫停 | TC-002 |\n| COV-013 | DES-004／AC-003 | 暫停，按一次「切換」 | 運轉 | TC-002 |\n\n**待定行為。** 第 3 條明示其他狀態的「切換」尚未定義。例如在待命按「切換」，預期留空。若要納入，須由產品負責人指定按鍵後的狀態及是否需要提示。這項缺口不影響兩條已知轉移。\n\n### 兩筆手動案例\n\n**TC-001｜驗證張數上下限。** 在 2.1 隔離測試台執行。每列都先按「重置」並從狀態欄確認「待命」，在面板送入表列整數，再按一次「儲存張數」。讀取本次按鍵的儲存訊息，把輸入張數與當次訊息一併記錄後才做下一列。\n\n| 張數 | 當次儲存訊息必須顯示 | 此步驗證 |\n|---|---|---|\n| 0 | 超出範圍 | AC-001／COV-001、COV-004 |\n| 1 | 已儲存 | AC-001／COV-005 |\n| 13 | 超出範圍 | AC-001／COV-003、COV-007 |\n| 12 | 已儲存 | AC-001／COV-006 |\n\n**TC-002｜驗證符合條件可啟動，且同鍵可暫停與恢復。** 在 2.1 隔離測試台按「重置」並確認狀態欄顯示「待命」。設角色為操作員、紙捲為就緒，從角色欄、紙捲欄與狀態欄核對三項前置並記錄。依序執行下列三步，讀到中間狀態才送下一個按鍵事件。\n\n| 步驟 | 操作 | 按後讀取狀態欄，記錄操作與當次顯示 | 此步驗證 |\n|---|---|---|---|\n| 1 | 待命時按一次「開始」 | 運轉 | AC-002／COV-008 |\n| 2 | 確認運轉後按一次「切換」 | 暫停 | AC-003／COV-012 |\n| 3 | 確認暫停後再按一次「切換」 | 運轉 | AC-003／COV-013 |\n\n兩案各自結束時按「重置」並確認已回到待命；重跑時從該案前置重新建立。每案所有預期均有相符的當次讀值才判通過；前置已確認而顯示值與預期不同，記錄該步失敗。若無法建立前置或辨識當次讀值，該步無法判定；依賴該狀態的後續步驟記為未執行。\n\n本輪兩案有具體斷言承接 13 個功能設計項目中的 9 個；6 張代表值及三種維持待命的啟動組合均保留在設計表。以上為對話交付的待審設計，尚未實測。\n"
+      }
+    ],
+    "suite_sha256": "2b36e93fe66d0367dedfa7985a8f804e444758831f31a326c1c6f364d3e5a1b4",
+    "rubric_sha256": "be1c683a52964a77cd2e9c5fbd437cd7520e6d3b974f36919e19184d063fcdb9",
+    "skills": {
+      "strategy": {
+        "SKILL.md": "3674055e8e2e97486898ff3896faea01c033a698db95cdc9925cf1d19fed6926",
+        "references/domain-adaptation.md": "373b0601e0e66cfa270ab71a5b9795388117c1e9a1cb14e24e8829bda23168c0",
+        "references/execution-selection.md": "cf75da74bb884ad9153534f1ec5f6248e66e8606183902a3f93bf8c2d434ee76",
+        "references/failure-modes.md": "880262c6ec53310da26df4a6bb64c341d1ab32f5571d8af5f54097ece78f526c",
+        "references/feedback.md": "92134c8cd2d784a8738c6bc2ffa571cc552aed4b783b91d8c428c10545383c39",
+        "references/git-server.md": "85e8bb5dd1f96d086350ea8d5c0981b7d2db4a2f3592666a3a61e397fc4a9ede",
+        "references/identifiers.md": "b64fc705ad29c690a16e1f240efcb0a4fc75a47ae8eb187811177269bdf60e3d",
+        "references/interview-records.md": "1e7f290d721a267c5be438fffc935950064f21f4601d05fc8202c6570b2842c2",
+        "references/local-versioning.md": "f984e8e536db3f3a8848c25e5b3932c7fd148050a1f60396e0e6113fde3a4b87",
+        "references/migration.md": "45fa79f25abf8e6a2ac7bbc68ad23e1406279f2d435eba674c95bf97f15757dc",
+        "references/oracles-exploration.md": "8a406434eafd41cd15ac7704104e6d1994865903cae91fda13af981aa4a60ce5",
+        "references/quality-characteristics.md": "e900ed2e17df1755f05fcc2d48c2bb09aacd2b2f9012d31c489c34e6641ac876",
+        "references/records.md": "043afbf7a9b5a8badf2a0ab50609bbca60f5ad135174fbbc505c0e982cc7af31",
+        "references/report.md": "1e639b2ce79fb1906a0f774360d79694607fbd528a68504146ae72c3a1d4cae6",
+        "references/review.md": "f1290c665736b16115aeed2a4857d38156288037cedebf4274b18911d96c3e42",
+        "references/risk-assessment.md": "0b07927a205e067150f219e0d9eb2ff31362ca68ea0c8c6180b752aa58d19212",
+        "references/source-reading.md": "ab109bf486ddaacb90ec74632db85b060d66e0ba75104f02c21aa350bd68cebd",
+        "references/spec-review.md": "4385ece9583fb9395a3819ecb5e39e4e1d06af7ed696622045dce962c2473f92",
+        "references/templates.md": "d40a3f1363976f9eef4512d33cd3e2115ec5540bc38b20d1b68b5d7a4d6d7f22",
+        "references/test-design.md": "c5b6fd5db43eb102b67f6a43bc4782f1545e9c4f9dbe59ec897711eb1a44dd5b",
+        "references/worked-example.md": "356295a258735a8877a89f6f1ebea03683f05750d66f7fc311dd653d36078960",
+        "references/workflow.md": "cc94b37261745bfcab0b417681c6f250b3f55b563728366da691849a5cc9d20c",
+        "scripts/demo_counter.py": "d7ab57794df96b6c60f403e35ebeed3a76dd974858eaaadb4774e71db6667f03",
+        "scripts/qa_project.py": "ff6bc60a9d9dfba0edb6d946bf35227cba2e7939c3b1cda8076a8bf99ec7b4c6",
+        "scripts/test_qa_project.py": "aba17d9f3232d00ad9083d337784fe7d394d4b602396160e4bd192c05a6f9f62"
+      },
+      "review": {
+        "SKILL.md": "d258a8b20696eeeba09dc613df870714e8824aa1701ebcc101016a8c28812abb",
+        "references/calibration.md": "b2b7517ff33a063436922580d0968d5ca3d8ec2696b006bca90926a17223842e",
+        "references/criteria.md": "8e927832a4c841946f98731a881f721d2e92e6e2836ab5a4de6727d8e9be38cd",
+        "references/handoff.md": "3209a54f9a065f96c8dff5fb175cfcb9cc2eead885f172eda475622212f323af"
+      }
+    },
+    "created_at": "2026-11-18T15:23:18.907010+00:00"
+  }
+}

@@ -39,7 +39,8 @@ class EvaluationIntegrityTests(unittest.TestCase):
         result = ev.score(self.out)
         self.assertEqual(result['counts']['NOT_RUN'], 1)
         self.assertEqual(result['counts']['PASS'], 0)
-        self.assertEqual(result['core_total'], 12)
+        self.assertEqual(result['core_total'], len(ev.read(ev.HERE / 'suite.json')['cases']))
+        self.assertEqual(len(result['not_selected']), result['core_total'] - 1)
         self.assertEqual(result['selected_total'], 1)
 
     def test_existing_output_is_never_overwritten(self):

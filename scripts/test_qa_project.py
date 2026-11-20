@@ -65,7 +65,9 @@ class ReportParser(HTMLParser):
     def __init__(self, content):
         super().__init__()
         self.ids, self.links, self.records, self.scripts = [], [], {}, []
+        self.in_script = False
         self.current = None
+        self.matrix_cells, self.cell = {}, None
         self.feed(content)
 
     def handle_starttag(self, tag, attrs):
@@ -75,19 +77,33 @@ class ReportParser(HTMLParser):
         if tag == 'article' and 'data-record-id' in attrs:
             self.current = attrs['data-record-id']
             self.records[self.current] = {'anchor': attrs['id'], 'links': [], 'text': ''}
+        if tag == 'td' and 'data-aspect' in attrs and 'data-level' in attrs:
+            self.cell = {'text': '', 'links': []}
+            self.matrix_cells[(attrs['data-level'], attrs['data-aspect'])] = self.cell
         if tag == 'a':
             href = attrs.get('href', '')
             self.links.append(href)
+            if self.cell is not None:
+                self.cell['links'].append(href)
             if self.current:
                 self.records[self.current]['links'].append(href)
         if tag == 'script':
-            self.scripts.append(attrs)
+            self.in_script = True
+            self.scripts.append((attrs, []))
 
     def handle_endtag(self, tag):
+        if tag == 'td':
+            self.cell = None
+        if tag == 'script':
+            self.in_script = False
         if tag == 'article':
             self.current = None
 
     def handle_data(self, data):
+        if self.cell is not None:
+            self.cell['text'] += data
+        if self.in_script:
+            self.scripts[-1][1].append(data)
         if self.current:
             self.records[self.current]['text'] += data
 
@@ -97,6 +113,7 @@ class WorkflowTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory(prefix="qa-test-")
         self.root = Path(self.temp.name) / "專案 with spaces"
         self.run_tool("init", "--name", "Synthetic fixture")
+        self.initial_report = (self.root / "qa/report.html").read_text(encoding="utf-8")
 
     def tearDown(self):
         self.temp.cleanup()
@@ -114,6 +131,12 @@ class WorkflowTests(unittest.TestCase):
     def git(self, *args):
         p = subprocess.run(["git", "-C", str(self.root), *args], capture_output=True, check=True)
         return p.stdout.decode()
+
+    def assert_only_offline_filter_script(self, report):
+        # Compare the actual script and attributes with a file rendered before
+        # inserting hostile fixture values. This checks the executable context.
+        self.assertEqual([attrs for attrs, _ in report.scripts], [{"id": "case-filter-script"}])
+        self.assertEqual(report.scripts, ReportParser(self.initial_report).scripts)
 
     def reading_fixture(self, source):
         # Real reads of synthetic test files; never a receipt for user documents.
@@ -163,6 +186,12 @@ class WorkflowTests(unittest.TestCase):
                              "ac_ids": ["AC-001"], "risk_ids": ["RISK-001"], "selection": "keep", "reason": "risk selected"}]
         reg["coverage_items"] = [{"id": "COV-001", "ac_ids": ["AC-001"], "technique": "state-transition",
                                    "description": "OFF -> evaluate -> ON", "selection": "keep", "reason": "selected transition"}]
+        reg["design_choices"] = [{"id": "DES-001", "objective": "Check the control output after evaluation",
+            "natures": ["functional"], "quality_aspects": ["正確性"], "technique": "state-transition",
+            "applicability": "applicable", "selection": "adopt", "reason": "Evaluating changes device state",
+            "criterion": "Exercise the selected OFF-to-ON transition", "ac_ids": ["AC-001"], "risk_ids": ["RISK-001"],
+            "model_rows": [{"label": "OFF to ON", "inputs": "Initially OFF; evaluate", "expected": "output ON",
+                            "coverage_ids": ["COV-001"]}]}]
         put(root / "qa/registry.json", reg)
         case = {"id": "TC-001", "title": "Evaluate changes OFF to ON", "revision": 1, "status": "ready",
                 "purpose": "Detect missing output", "level": "unit", "type": "manual", "ac_ids": ["AC-001"],
@@ -523,7 +552,7 @@ class WorkflowTests(unittest.TestCase):
         self.record_pair(self.qa_pair(question_text=raw, answer_text=raw, options=[raw]))
         self.run_tool("render")
         parser = ReportParser((self.root / "qa/report.html").read_text(encoding="utf-8"))
-        self.assertFalse(parser.scripts)
+        self.assert_only_offline_filter_script(parser)
         self.assertIn(raw, parser.records["QA-001"]["text"])
         self.assertEqual(len(parser.ids), len(set(parser.ids)))
         self.assertTrue(all(link[1:] in parser.ids for link in parser.links if link.startswith("#")))
@@ -660,6 +689,7 @@ class WorkflowTests(unittest.TestCase):
         reg["risks"] = []
         reg["scope"]["selected_risk_ids"] = []
         reg["scenarios"][0]["risk_ids"] = []
+        reg["design_choices"][0]["risk_ids"] = []
         case["risk_ids"] = []
         assessment = reg["requirements"][0]["risk_assessment"]
         assessment["rationale"] = "Reviewed isolated cosmetic scope; no additional failure scenario identified"
@@ -757,6 +787,9 @@ class WorkflowTests(unittest.TestCase):
 
     def test_legacy_draft_reads_but_new_baseline_requires_design_migration(self):
         reg, case = self.fixture()
+        # This historical contract predates COV and DES.
+        reg["project"].pop("method_policy")
+        reg.pop("design_choices")
         reg["project"].pop("design_policy")
         reg.pop("coverage_items")
         reg.pop("charters")
@@ -775,6 +808,344 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(historical.read_bytes(), before)
         self.run_tool("start-run", "--id", "RUN-LEGACY", "--case", "TC-001", "--sut-version", "fixture1", "--environment", "lab")
         self.run_tool("check-run", "--id", "RUN-LEGACY")
+
+    def test_project_method_reaches_baseline_report_and_portable_handoff(self):
+        reg, _ = self.fixture()
+        method = {"key": "project-signal-comparison", "title": "雙點訊號比對",
+                  "when_to_use": "兩個已同步觀測點的狀態須一致",
+                  "required_inputs": "時間基準、觀測點與可讀的狀態",
+                  "deliverable": "逐事件並列兩端當次狀態", "limitations": "取樣間隔內的變化無法辨識"}
+        reg["project"]["technique_catalog"] = [method]
+        reg["design_choices"][0]["technique"] = method["key"]
+        reg["coverage_items"][0]["technique"] = method["key"]
+        put(self.root / "qa/registry.json", reg)
+        self.refresh_review()
+        self.run_tool("check", "--gate", "baseline")
+        self.run_tool("render")
+        raw = (self.root / "qa/report.html").read_text(encoding="utf-8")
+        page = ReportParser(raw)
+        self.assertIn(method["limitations"], raw)
+        self.assertIn('<option value="project-signal-comparison">雙點訊號比對</option>', raw)
+        self.assertTrue(any(target.endswith("-step-1-check-1") for target in page.records["DES-001"]["links"]))
+        self.assertNotIn("的分類、方法或模型列格式待核對", raw)
+        self.assertIn(method["title"], (self.root / "qa/test-design.md").read_text(encoding="utf-8"))
+        self.run_tool("prepare-review", "--portable")
+        packets = list((self.root / "qa/review-packs").glob("*/packet.json"))
+        self.assertEqual(get(packets[0])["review_input"]["registry"]["project"]["technique_catalog"], [method])
+        for bad in ([{**method, "limitations": ""}], [method, method], [{**method, "key": "state-transition"}]):
+            with self.subTest(catalog=bad):
+                reg["project"]["technique_catalog"] = bad
+                put(self.root / "qa/registry.json", reg)
+                errors = json.loads(self.run_tool("check", ok=False).stdout)["errors"]
+                self.assertTrue(any("technique_catalog" in issue for issue in errors))
+                self.assertTrue(any("COV-001" in issue and "technique" in issue for issue in errors))
+                self.run_tool("render")
+                self.assertNotIn('<option value="project-signal-comparison">',
+                                 (self.root / "qa/report.html").read_text(encoding="utf-8"))
+
+    def test_method_policy_requires_adopted_model_for_each_retained_item(self):
+        reg, _ = self.fixture()
+        self.assertEqual(reg["project"]["method_policy"], "design-choices-v1")
+        second = {**reg["coverage_items"][0], "id": "COV-002", "description": "Evaluate while already ON"}
+        reg["coverage_items"].append(second)
+        put(self.root / "qa/registry.json", reg)
+        report = json.loads(self.run_tool("check").stdout)
+        self.assertTrue(any("COV-002" in w and "model row" in w for w in report["warnings"]))
+        self.refresh_review()
+        report = json.loads(self.run_tool("check", "--gate", "baseline", ok=False).stdout)
+        self.assertTrue(any("COV-002" in e and "model row" in e for e in report["errors"]))
+        self.assertTrue(any("COV-002: retained coverage item has no selected case assertion" in e for e in report["errors"]))
+        # The first transition's case, AC link and adopted method are insufficient for another transition.
+        reg["design_choices"] = []
+        put(self.root / "qa/registry.json", reg)
+        self.refresh_review()
+        self.assertIn("no adopted design choice", self.run_tool("check", "--gate", "baseline", ok=False).stdout)
+
+    def test_design_choice_blocks_false_mappings_and_impossible_status_combinations(self):
+        reg, _ = self.fixture()
+        original = reg["design_choices"][0]
+        reg["acceptance"].append({**reg["acceptance"][0], "id": "AC-OTHER"})
+        original_row = original["model_rows"][0]
+        for changes in ({"natures": "functional"}, {"selection": "adopt", "applicability": "unknown"},
+                        {"technique": "boundary-2"}, {"ac_ids": ["AC-OTHER"]},
+                        {"model_rows": [{**original_row, "coverage_ids": ["COV-ABSENT"]}]},
+                        {"model_rows": [{**original_row, "expected": ""}]},
+                        {"model_rows": [{**original_row, "coverage_ids": [["COV-001"]]}]},
+                        {"model_rows": ["OFF to ON"]}):
+            with self.subTest(changes=changes):
+                reg["design_choices"] = [{**original, **changes}]
+                put(self.root / "qa/registry.json", reg)
+                errors = json.loads(self.run_tool("check", ok=False).stdout)["errors"]
+                self.assertTrue(any("DES-001" in e for e in errors), errors)
+
+    def test_method_legacy_check_and_render_keep_digest_and_historical_snapshot(self):
+        reg, _ = self.fixture()
+        reg["project"].pop("method_policy")
+        reg.pop("design_choices")
+        path = self.root / "qa/registry.json"
+        put(path, reg)
+        self.refresh_review()
+        self.run_tool("baseline", "--id", "BL-OLDER", "--approval", "qa/approvals/APP-001.json")
+        baseline = self.root / "qa/baselines/BL-OLDER.json"
+        before = (path.read_bytes(), baseline.read_bytes(), self.run_tool("digest").stdout)
+        self.assertNotIn("design_choices", get(baseline)["snapshot"]["registry"])
+        self.run_tool("init")
+        self.run_tool("render")
+        self.run_tool("check")
+        self.assertEqual((path.read_bytes(), baseline.read_bytes(), self.run_tool("digest").stdout), before)
+        html = (self.root / "qa/report.html").read_text(encoding="utf-8")
+        self.assertIn("未分類", html)
+        self.assertIn("COV-001", ReportParser(html).records["TC-001"]["text"])
+
+    def test_unresolved_model_row_and_deferred_method_preserve_the_real_scope_decision(self):
+        reg, _ = self.fixture()
+        chosen = reg["design_choices"][0]
+        chosen["model_rows"].append({"label": "Evaluate while already ON", "inputs": "ON; evaluate",
+                                     "expected": "", "coverage_ids": []})
+        reg["design_choices"].append({**chosen, "id": "DES-002", "selection": "defer", "model_rows": [],
+            "reason": "Additional sequences exceed this test window", "residual_risk": "Longer sequences untested"})
+        put(self.root / "qa/registry.json", reg)
+        self.refresh_review()
+        errors = json.loads(self.run_tool("check", "--gate", "baseline", ok=False).stdout)["errors"]
+        self.assertTrue(any("DES-001" in e and "question" in e for e in errors), errors)
+        self.assertTrue(any("DES-002" in e and "decision" in e for e in errors), errors)
+        reg["questions"] = [self.question_fixture(impact_ids=[], blocks=["baseline"])]
+        chosen["model_rows"][1]["question_ids"] = ["Q-001"]
+        reg["design_choices"][1]["decision_refs"] = ["DEC-001"]
+        put(self.root / "qa/registry.json", reg)
+        self.refresh_review()
+        errors = json.loads(self.run_tool("check", "--gate", "baseline", ok=False).stdout)["errors"]
+        self.assertTrue(any("Q-001: unresolved blocker" in e for e in errors), errors)
+        self.assertFalse(any("DES-002" in e for e in errors), errors)
+        self.record_pair(self.qa_pair(question_id="Q-001", answer_status="unknown", answer_text="不知道"))
+        self.run_tool("review-pack", "--id", "REV-MODEL-Q")
+        self.assertEqual(get(self.root / "qa/review-packs/REV-MODEL-Q/packet.json")["interview_evidence_ids"], ["QA-001"])
+
+    def test_design_model_is_frozen_in_portable_pack_and_invalidates_prior_review(self):
+        reg, _ = self.fixture()
+        original, path = self.prepared("--portable")
+        packet = path / "packet.json"
+        frozen = packet.read_bytes()
+        self.assertEqual(get(packet)["review_input"]["registry"]["design_choices"], reg["design_choices"])
+        reg["design_choices"][0]["criterion"] = "Also examine resetting the controller"
+        put(self.root / "qa/registry.json", reg)
+        self.assertNotEqual(self.run_tool("digest").stdout.strip(), original["artifact_digest"])
+        self.assertIn("Missing current independent review", self.run_tool("check", "--gate", "baseline", ok=False).stdout)
+        _, next_pack = self.prepared("--portable")
+        self.assertNotEqual(path, next_pack)
+        self.assertEqual(packet.read_bytes(), frozen)
+        self.assertEqual(get(next_pack / "packet.json")["review_input"]["registry"]["design_choices"], reg["design_choices"])
+
+    def test_method_model_links_only_to_assertions_that_exercise_the_row(self):
+        reg, case = self.fixture()
+        hostile = "OFF</script><img src=x> & <ON>"
+        choice = reg["design_choices"][0]
+        choice["model_rows"][0]["label"] = hostile
+        choice["quality_aspects"] = [hostile]
+        case["steps"].insert(0, {**case["steps"][0], "action": "Reset the controller", "checks": []})
+        case["steps"][1]["n"] = 2
+        put(self.root / "qa/registry.json", reg)
+        put(self.root / "qa/cases/TC-001.json", case)
+        self.run_tool("render")
+        raw = (self.root / "qa/report.html").read_text(encoding="utf-8")
+        page = ReportParser(raw)
+        self.assert_only_offline_filter_script(page)
+        self.assertNotIn("<img ", raw)
+        model = page.records["DES-001"]
+        self.assertIn(hostile, model["text"])
+        self.assertIn("#" + page.records["COV-001"]["anchor"], model["links"])
+        self.assertTrue(any(h.endswith("-step-2-check-1") for h in model["links"]), model["links"])
+        self.assertFalse(any(h.endswith("-step-1-check-1") for h in model["links"]))
+        self.assertTrue(all(h[1:] in page.ids for h in page.links if h.startswith("#")))
+        self.assertEqual(len(page.ids), len(set(page.ids)))
+
+    def test_matrix_scoped_choices_distinguish_ready_partial_missing_and_unselected(self):
+        reg, case = self.fixture()
+        choice = reg["design_choices"][0]
+        choice["levels"] = ["unit", "integration"]
+        row = choice["model_rows"][0]
+        reg["coverage_items"].append({**reg["coverage_items"][0], "id": "COV-002"})
+        reg["design_choices"].extend([
+            {**choice, "id": "DES-002", "model_rows": [{**row, "coverage_ids": ["COV-002"]}]},
+            {**choice, "id": "DES-003", "selection": "exclude", "levels": ["acceptance"], "model_rows": []},
+            {**choice, "id": "DES-004", "selection": "pending", "levels": ["system"], "model_rows": []},
+            {**choice, "id": "DES-005", "selection": "exclude", "levels": ["system"],
+             "quality_aspects": ["unscoped quality"], "ac_ids": [], "risk_ids": [], "model_rows": []},
+        ])
+        # Partial at unit, no ready evidence at integration. Neither a draft in this round nor
+        # ready evidence outside this round can discharge the second choice.
+        for cid, status in (("TC-DRAFT", "draft"), ("TC-RETIRED", "retired"), ("TC-OTHER", "ready")):
+            second = copy.deepcopy(case)
+            second.update(id=cid, status=status, coverage_ids=["COV-002"])
+            second["steps"][0]["checks"][0]["coverage_ids"] = ["COV-002"]
+            put(self.root / f"qa/cases/{cid}.json", second)
+        reg["scope"]["selected_case_ids"] += ["TC-DRAFT", "TC-RETIRED"]
+        put(self.root / "qa/registry.json", reg)
+        self.run_tool("render")
+        page = ReportParser((self.root / "qa/report.html").read_text(encoding="utf-8"))
+        self.assertIn("coverage-matrix", page.ids)
+        for level, status in (("unit", "部分待補"), ("integration", "已選待補"),
+                              ("acceptance", "本輪未選"), ("system", "待取捨")):
+            with self.subTest(level=level):
+                self.assertIn(status, page.matrix_cells[level, "正確性"]["text"])
+        partial = page.matrix_cells["unit", "正確性"]
+        for rid in ("DES-001", "DES-002", "COV-001", "COV-002"):
+            self.assertIn("#" + page.records[rid]["anchor"], partial["links"])
+        check = "#" + page.records["TC-001"]["anchor"] + "-step-1-check-1"
+        self.assertIn(check, partial["links"])
+        self.assertNotIn(check, page.matrix_cells["integration", "正確性"]["links"])
+        self.assertIn("1 案", partial["text"])
+        outside = page.matrix_cells["system", "unscoped quality"]
+        self.assertIn("本輪未選", outside["text"])
+        self.assertNotIn("已選待補", outside["text"])
+        self.assertIn("未登錄取捨", page.matrix_cells["unit", "unscoped quality"]["text"])
+        self.assertTrue(all(h[1:] in page.ids for h in page.links if h.startswith("#")))
+
+    def test_matrix_multiple_obligations_and_duplicate_assertions_in_one_case(self):
+        reg, case = self.fixture()
+        choice = reg["design_choices"][0]
+        choice["levels"] = ["unit", "system-integration"]
+        target = reg["coverage_items"][0]
+        reg["coverage_items"].append({**target, "id": "COV-002"})
+        row = choice["model_rows"][0]
+        choice["model_rows"].append({**row, "coverage_ids": ["COV-002"]})
+        case["level"] = "system-integration"
+        case["steps"][0]["checks"].append(copy.deepcopy(case["steps"][0]["checks"][0]))
+        put(self.root / "qa/cases/TC-001.json", case)
+        put(self.root / "qa/registry.json", reg)
+        self.run_tool("render")
+        page = ReportParser((self.root / "qa/report.html").read_text(encoding="utf-8"))
+        partial = page.matrix_cells["system-integration", "正確性"]
+        self.assertIn("部分待補", partial["text"])
+        self.assertIn("已選待補", page.matrix_cells["unit", "正確性"]["text"])
+        for ai in (1, 2):
+            self.assertIn("#" + page.records["TC-001"]["anchor"] + f"-step-1-check-{ai}", partial["links"])
+        case["coverage_ids"].append("COV-002")
+        case["steps"][0]["checks"][0]["coverage_ids"].append("COV-002")
+        put(self.root / "qa/cases/TC-001.json", case)
+        self.run_tool("render")
+        page = ReportParser((self.root / "qa/report.html").read_text(encoding="utf-8"))
+        covered = page.matrix_cells["system-integration", "正確性"]["text"]
+        self.assertIn("已選有就緒案例", covered)
+        self.assertIn("1 案", covered)
+        self.assertNotIn("部分待補", covered)
+        self.assertNotIn("PASS", covered)
+
+    def test_matrix_shows_deferred_items_and_does_not_borrow_out_of_scope_cases(self):
+        reg, case = self.fixture()
+        choice = reg["design_choices"][0]
+        choice["levels"] = ["unit"]
+        row = choice["model_rows"][0]
+        cov = reg["coverage_items"][0]
+        reg["acceptance"].append({**reg["acceptance"][0], "id": "AC-OTHER"})
+        reg["coverage_items"].extend([
+            {**cov, "id": "COV-DEFER", "selection": "defer", "decision_refs": ["DEC-001"],
+             "residual_risk": "Not evaluated in this round"},
+            {**cov, "id": "COV-OTHER", "ac_ids": ["AC-OTHER"]},
+        ])
+        reg["design_choices"].extend([
+            {**choice, "id": "DES-DEFER", "quality_aspects": ["延後面向"],
+             "model_rows": [{**row, "coverage_ids": ["COV-DEFER"]}]},
+            {**choice, "id": "DES-OTHER", "ac_ids": ["AC-OTHER"], "risk_ids": [],
+             "quality_aspects": ["其他範圍"], "model_rows": [{**row, "coverage_ids": ["COV-OTHER"]}]},
+        ])
+        case["ac_ids"].append("AC-OTHER")
+        case["coverage_ids"].append("COV-OTHER")
+        case["steps"][0]["checks"].append({"expected": "fixture output ON", "rule_refs": ["AC-OTHER"],
+                                           "coverage_ids": ["COV-OTHER"]})
+        put(self.root / "qa/registry.json", reg)
+        put(self.root / "qa/cases/TC-001.json", case)
+        self.run_tool("render")
+        page = ReportParser((self.root / "qa/report.html").read_text(encoding="utf-8"))
+        for aspect, state in (("延後面向", "暫緩"), ("其他範圍", "範圍外")):
+            with self.subTest(aspect=aspect):
+                cell = page.matrix_cells["unit", aspect]
+                self.assertIn(state, cell["text"])
+                self.assertIn("0 案", cell["text"])
+                self.assertNotIn("已選待補", cell["text"])
+                self.assertNotIn("已選有就緒案例", cell["text"])
+
+    def test_matrix_preserves_legacy_intent_and_escapes_quality_names(self):
+        reg, _ = self.fixture()
+        path = self.root / "qa/registry.json"
+        hostile = 'signal "A" & <script>unknown</script>'
+        reg["design_choices"][0]["quality_aspects"] = [hostile]
+        put(path, reg)
+        before = (path.read_bytes(), self.run_tool("digest").stdout)
+        self.run_tool("render")
+        self.assertEqual(before, (path.read_bytes(), self.run_tool("digest").stdout))
+        raw = (self.root / "qa/report.html").read_text(encoding="utf-8")
+        page = ReportParser(raw)
+        self.assertIn(("", hostile), page.matrix_cells)
+        self.assertIn("#" + page.records["DES-001"]["anchor"], page.matrix_cells["", hostile]["links"])
+        self.assertNotIn("已選有就緒案例", page.matrix_cells["", hostile]["text"])
+        self.assertIn("#" + page.records["TC-001"]["anchor"] + "-step-1-check-1",
+                      page.matrix_cells["unit", hostile]["links"])
+        self.assertNotIn(hostile, raw)
+        self.assert_only_offline_filter_script(page)
+        for hook in ("case-filter-level", "case-filter-type", "case-filter-quality", "case-filter-technique"):
+            self.assertIn(hook, page.ids)
+
+    def test_measurement_profile_and_planned_levels_validate_and_render(self):
+        reg, case = self.fixture()
+        choice = reg["design_choices"][0]
+        profile = {"subtype": "load", "trigger": "Traffic at the specified peak",
+                   "workload": "16 concurrent streams for the contractual sample window",
+                   "metric": "Sum of receiver goodput in Mbit/s", "acceptance_basis": "AC-001, receiver total"}
+        choice.update(technique="measurement", levels=["component-integration", "system-integration"],
+                      measurement_profile=profile)
+        reg["coverage_items"][0]["technique"] = "measurement"
+        case["level"] = "component-integration"
+        put(self.root / "qa/cases/TC-001.json", case)
+        path = self.root / "qa/registry.json"
+        put(path, reg)
+        self.refresh_review()
+        self.run_tool("check", "--gate", "baseline")
+        self.run_tool("render")
+        page = ReportParser((self.root / "qa/report.html").read_text(encoding="utf-8"))
+        for key in ("trigger", "metric", "workload", "acceptance_basis"):
+            self.assertIn(profile[key], page.records["DES-001"]["text"])
+        for changes in ({"levels": []}, {"levels": ["unit", "unit"]}, {"levels": ["system", ["unit"]]},
+                        {"levels": ["no-such-level"]}, {"measurement_profile": {}},
+                        {"measurement_profile": {**profile, "subtype": "soak-and-hope"}},
+                        {"measurement_profile": {**profile, "metric": []}},
+                        {"measurement_profile": {**profile, "acceptance_basis": ""}},
+                        {"technique": "state-transition"}):
+            with self.subTest(changes=changes):
+                reg["design_choices"] = [{**choice, **changes}]
+                put(path, reg)
+                errors = json.loads(self.run_tool("check", ok=False).stdout)["errors"]
+                self.assertTrue(any("DES-001" in e for e in errors), errors)
+
+        reg["design_choices"] = [{**choice, "measurement_profile": {**profile, "acceptance_basis": ""}}]
+        put(path, reg)
+        self.run_tool("render")
+        page = ReportParser((self.root / "qa/report.html").read_text(encoding="utf-8"))
+        cell = page.matrix_cells["component-integration", "正確性"]
+        self.assertIn("0 案", cell["text"])
+        self.assertNotIn("已選有就緒案例", cell["text"])
+        self.assertFalse(any("-step-" in href for href in page.records["DES-001"]["links"]))
+
+    def test_measurement_with_unknown_acceptance_can_remain_pending(self):
+        reg, _ = self.fixture()
+        reg["design_choices"].append({
+            **reg["design_choices"][0], "id": "DES-002", "technique": "measurement", "selection": "pending",
+            "model_rows": [], "measurement_profile": {
+                "subtype": "stress", "trigger": "Service may not recover after overload",
+                "workload": "Apply overload then restore contractual demand", "metric": "Recovery time",
+                "acceptance_basis": ""}})
+        path = self.root / "qa/registry.json"
+        put(path, reg)
+        draft = json.loads(self.run_tool("check").stdout)
+        self.assertTrue(any("DES-002" in msg and "question" in msg for msg in draft["warnings"]), draft)
+        self.refresh_review()
+        baseline = json.loads(self.run_tool("check", "--gate", "baseline", ok=False).stdout)
+        self.assertTrue(any("DES-002" in msg and "question" in msg for msg in baseline["errors"]), baseline)
+        reg["questions"] = [self.question_fixture(impact_ids=[], blocks=[])]
+        reg["design_choices"][-1]["question_ids"] = ["Q-001"]
+        put(path, reg)
+        self.refresh_review()
+        self.run_tool("check", "--gate", "baseline")
 
     def test_ac_reference_alone_cannot_satisfy_missing_coverage_item(self):
         reg, _ = self.fixture()
@@ -1080,7 +1451,7 @@ class WorkflowTests(unittest.TestCase):
                 report = ReportParser(html)
                 self.assertNotIn('<script>', html)
                 self.assertNotIn('<img ', html)
-                self.assertEqual(report.scripts, [])
+                self.assert_only_offline_filter_script(report)
                 self.assertIn(hostile, report.records['TC-001']['text'])
                 # Filename characters must not become URL fragments or queries.
                 hrefs = [x for x in report.links if unquote(x) == '../' + filename]
@@ -1642,8 +2013,9 @@ class WorkflowTests(unittest.TestCase):
 
     def test_new_methods_are_accepted_but_do_not_supply_missing_expected(self):
         reg, case = self.fixture()
-        for technique in ("combinatorial", "error-guessing", "data-lifecycle"):
+        for technique in ("combinatorial", "error-guessing", "data-lifecycle", "measurement"):
             reg["coverage_items"][0]["technique"] = technique
+            reg["design_choices"][0]["technique"] = technique
             put(self.root / "qa/registry.json", reg)
             self.run_tool("check")
         case["steps"][0]["checks"][0]["rule_refs"] = []
@@ -1923,7 +2295,7 @@ class WorkflowTests(unittest.TestCase):
         self.run_tool('render')
         text = (self.root / 'qa/report.html').read_text(encoding='utf-8')
         page = ReportParser(text)
-        self.assertFalse(page.scripts)
+        self.assert_only_offline_filter_script(page)
         self.assertIn('紀錄檢查有缺口', page.records['RUN-001']['text'])
         self.assertIn('登錄中', page.records['RUN-001']['text'])
         self.assertIn('REV-BROKEN', page.records)

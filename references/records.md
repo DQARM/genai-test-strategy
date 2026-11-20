@@ -22,6 +22,7 @@ init 產生 `qa/registry.json`，保留以下欄位：
 
 - `schema_version`: 1。
 - `project.design_policy`: 新專案為 `coverage-items-v1`。舊版缺少時仍可 draft 檢查與 render；所有新基線須先補本輪覆蓋項目並採用這項政策，詳見 [test-design.md](test-design.md)。
+- `project.method_policy`：新專案採 `design-choices-v1`。方法選用資料存於 `design_choices`，舊專案續作見 [migration.md](migration.md#資料相容性)。
 - `project`: 至少 name、owner；依已知內容可加 purpose、product_type、users、sut、interfaces、environment、quality_goals、constraints、unknown_fields。這些是專案背景，未知值可留 null；不要先替新專案填入教材角色、功能或數值。本輪選取另外記在 scope，不需更動 schema_version。
   啟動進度可加 `folder_mode`（new／existing）及 `requirement_input: {known_spec_note, mode, original_locations, snapshot_paths}`。`known_spec_note` 是使用者對「有沒有已知規格」的原回答摘要，例如有文件、只有口頭規則或目前沒有已知規格；不代表規則已確認。mode 是 pending／documents／conversation，分別表示文件狀態尚待回答、有文件、使用者確認目前無文件而由訪談開始。沒有文件不等於沒有已知規則。位置與副本清單為陣列，只記實際內容，不把讀取失敗當無文件。這些欄位可逐步補充，舊專案不必為續作重填；init 不自動填寫，由代理在取得使用者答案後更新。
   `id_glossary` 可保存本專案的前綴字典：`{"前綴": {"english": "英文來源", "meaning": "中文意思", "purpose": "用途", "basis": "定義依據"}}`。未知定義保留 null 並待確認。此欄位不改變 ID 或 schema_version；變更內容仍會改變設計 digest。
@@ -46,7 +47,27 @@ init 產生 `qa/registry.json`，保留以下欄位：
 - `coverage_items`: `{id, ac_ids, technique, description, selection, reason, risk_ids?, scenario_ids?, decision_refs?, residual_risk?}`。COV 取自 Coverage，中文為覆蓋項目；後綴為流水號。technique 使用 test-design.md 的記錄值。selection 為 keep／defer；defer 必須有 residual_risk，基線前須有真實 decision_refs。本輪 selected_ac_ids 關聯的全部保留項目，須由 selected_case_ids 的斷言承接；沒有保留項目的已選 AC 不能建立基線。規則未決仍記 Q，不偽造可判定項目。
 - `charters`: 探索任務設計，EXP 取自 Exploration。欄位為 id、title、status（draft／ready／retired）、mission、scope、timebox_minutes、source_refs、binding_refs、ac_ids、question_ids、preconditions、actions、stop_conditions、cleanup。ready 需要正整數時間上限、已確認的操作來源，以及具體初態、操作／觀察／證據、停止及清理方式；actions 每項含 action、observe、evidence，前置及清理每項含 action、verify。ac_ids 可以為空；有引用則須已確認。觀察／發現另存 evidence，不寫入任務設計。模板及紀錄要求見 oracles-exploration.md。
 
-coverage_items、charters 在舊 schema 1 檔案可省略，不必為續作先重建全部專案；它們若存在會納入設計 digest，變動須重審對應新版本。
+選用的 `project.technique_catalog` 可登錄專案自訂方法。每筆提供唯一 `key`（例如 `project-clock-comparison`）、`title`（專案慣用名稱）、`when_to_use`、`required_inputs`、`deliverable` 和 `limitations`，皆為具體文字。方法登錄描述通用操作與限制；每個測試目標仍需獨立填選用理由、覆蓋準則與驗收依據。DES 與 COV 引用相同的 key 後，報告即可依該名稱篩選案例。
+
+DES 取自 Design，代表一筆方法選用紀錄，數字是本類流水號。`design_choices` 的每筆記錄使用下列欄位。選用的是一個目標下的某種方法，同一目標可有多筆。
+
+| 欄位 | 內容 |
+|---|---|
+| `id`、`objective`、`ac_ids` | 穩定編號、具體可驗證的目標、相應驗收條件。可用 `risk_ids`、`question_ids`、`decision_refs` 引用已登錄的風險、問題、取捨。 |
+| `natures`、`quality_aspects` | 各填至少一項。前者取 `functional` 或 `non-functional`，兩者可並列；後者填專案品質面向，如「功能正確性」「效能效率」。案例的 `type` 仍專指人工／自動執行。 |
+| `levels`（選填） | 列出這個選案決定適用的目標層級，使用下方案例 `level` 的代碼。提供時至少一個且不可重複。若不同層級的模型、品質面向或取捨不同，分筆記錄。缺省表示尚未指定層級。 |
+| `technique`、`applicability` | 方法代碼見 [test-design.md](test-design.md)。適用性填 `applicable`、`not-applicable` 或 `unknown`。 |
+| `measurement_profile`（量測方法選填） | 效能選案的可追溯摘要。填寫 `subtype`、`trigger`、`workload`、`metric`、`acceptance_basis` 五個字串，其餘方法沿用原欄位。 |
+| `selection`、`reason` | 適用的方法可 `adopt`（採用）、`defer`（暫緩）、`exclude`（不納入）或 `pending`（待決）；不適用填 exclude；適用性未知填 pending 或 defer。說明選擇與適用性的理由，暫緩另填 `residual_risk`。 |
+| `criterion`、`model_rows` | 採用時須連 AC、寫覆蓋準則與模型。每列有文字 `label`、`inputs`、`expected` 及陣列 `coverage_ids`。僅採用的方法可連 COV；該 COV 的方法須相同，所有 AC 均在本筆 `ac_ids` 中。尚未確定預期的列填空字串及空陣列，並指出缺哪項決策。 |
+
+採用且涉及已選 AC 或風險時，未決列須以列上的 `question_ids` 或該 DES 的 `question_ids` 指到尚未結案的問題，依問題的 `blocks` 處理。已評為適用卻暫緩的本輪方法須在基線前連到真實取捨的 `decision_refs`，可共用既有決策。
+
+效能選案的 `subtype` 可用 `load`、`stress`、`endurance`、`scalability`、`capacity`、`spike`、`concurrency`、`measurement`。依 [test-design.md](test-design.md) 選擇。`trigger` 記下引發量測的承諾或風險，沿用 DES 上的 AC 或風險引用。`workload` 描述已知負載與仍待釐清的條件，`metric` 記錄量測指標，`acceptance_basis` 指出適用條款或已確認 AC 與判定依據。若欠缺足以判定的依據，填空字串，模型列的 `expected` 填空字串、`coverage_ids` 填空陣列。本輪 `pending` 或 `adopt` 的未決依據在 DES 或模型列連到開放或延後的 Q（Question，待釐清問題）。可另外以探索任務收集觀察。有各自判準的工作負載或不同子類可分筆選用。同一子類在多個條件下驗證時，於模型分列負載與對應的預期。
+
+例如已確認「整數設定 1 至 50 均可儲存」時，模型的上限列可寫成 `{"label":"上限值","inputs":"設定 50 並儲存，再重新讀取","expected":"讀得 50","coverage_ids":["COV-02"]}`。此列只承接上限值；對超出範圍的處置另查已確認規則。人閱讀的版本應能從模型列經 COV 到實際步驟斷言。
+
+`design_choices`、`coverage_items` 與 `charters` 在舊 schema 1 檔案可省略。新增或修改這些記錄會改變設計 digest。
 
 工具的風險可加 origin、affected_areas、assessment_status、question_ids，明列整合／變更／環境等非需求來源；缺省仍沿用原直接需求關聯，不自動豁免孤立風險，見 [risk-assessment.md](risk-assessment.md#不強迫所有風險源自需求)。覆蓋方法另支援 combinatorial、error-guessing、data-lifecycle，契約及判準要求不變。
 
@@ -77,7 +98,7 @@ coverage_items、charters 在舊 schema 1 檔案可省略，不必為續作先�
 - id、title、revision、status（draft／blocked／ready／retired）、purpose。
 - ac_ids、risk_ids、scenario_ids。每個宣稱覆蓋的 AC 都要有具體斷言，不可只掛 ID。
 - coverage_ids：本案關聯的 COV ID；對應 AC 也須列於 ac_ids。ready 案例宣稱的每個 COV 都要有本案步驟斷言承接。舊案例可暫缺此欄位繼續編輯，新基線須補齊。
-- level（unit／integration／system／acceptance）、type（manual／automated）。
+- `level` 的值為 `unit`（元件／單元）、`component-integration`（元件整合）、`system`（系統）、`system-integration`（系統整合）、`acceptance`（驗收），或 `integration`（整合範圍未細分）。`type` 為 `manual` 或 `automated`。
 - environment：target、build_binding、tools、binding_refs（SRC ID）。binding_refs 指向已確認的 harness 或 normative 來源，說明實際可用操作及觀測介面；不得用觀測到的產品結果替代應然規格。
 - preconditions：物件陣列，每項 action、verify，必要時 evidence。寫出如何建立、如何確認。
 - data：陣列，包含 name、value、unit、basis；不需要外加資料時寫明原因，不能留空掩蓋缺口。
@@ -167,4 +188,4 @@ python3 qa/tools/qa_project.py record-run . --id RUN-001 --input qa/run-input.js
 
 ## 分析附表與相容性
 
-品質適用性表放 strategy.md，實測回顧／可選度量放 plan.md；沿用原設計 digest，不另設必填 registry 欄位。假想缺陷檢查寫在審查報告及既有 finding.evidence／proposal，無法評估寫 limitations；它不是產品執行結果。工具 1.10.0 增加選填的實測登錄事件與版本化結果視圖；schema 1、既有快照及原設計 digest 範圍不變。舊包保留，新準則需升級專案工具後建立新包；不回寫歷史包。
+品質面向的整體檢視放 strategy.md，方法及模型列存於 design_choices，實測回顧及可選度量放 plan.md。假想缺陷檢查寫在既有審查 finding.evidence／proposal，無法評估寫 limitations。舊包保留，新準則需升級專案工具後建立新包。
