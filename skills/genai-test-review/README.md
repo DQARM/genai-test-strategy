@@ -1,6 +1,6 @@
 # GenAI 測試審查 Skill 使用手冊
 
-版本 1.8.0，更新於 2026-11-20（Asia/Taipei）。
+版本 1.8.1，更新於 2026-11-23（Asia/Taipei）。
 
 此 Skill 用於審查已存在的 Test Case（測試案例），支援純軟體、系統設備與人工測試。需求釐清和案例產生請使用 `genai-test-strategy`；審查使用 `genai-test-review`。
 

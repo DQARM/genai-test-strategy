@@ -115,7 +115,7 @@ DES 取自 Design，代表一筆方法選用紀錄，數字是本類流水號。
 - environment：target、build_binding、tools、binding_refs（SRC ID）。binding_refs 指向已確認的 harness 或 normative 來源，說明實際可用操作及觀測介面；不得用觀測到的產品結果替代應然規格。
 - 只有在對端會影響判定時，才在 environment 增列 `required_dependencies`。例：`[{"key":"radio","target":"RU-A / FW 2.3","mode":"real"}]`。`key` 在個案內唯一，`target` 表示能辨認的對端與適用版本；`mode` 可用 `real`（真實）、`simulated`（模擬）或 `either`（兩者都適用）。同一流程有可用模擬器驗證的本端行為，以及僅能用真機驗收的互通承諾時，可拆成兩個案例，各自保留可判讀的結果。
 - preconditions：物件陣列，每項 action、verify，必要時 evidence。寫出如何建立、如何確認。
-- data：陣列，包含 name、value、unit、basis；不需要外加資料時寫明原因，不能留空掩蓋缺口。
+- data：陣列，包含 name、value、unit、basis；ready 案例每列須有名稱、單位、依據與明列的值，無量綱可寫「1」。數值 0 與布林值 false 都是有效輸入。若刻意傳空字串、null 或其他空值，保留該 value 並填 value_reason 說明測試目的。無需外加資料時可用單列 `[{"reason":"按鈕直接讀取裝置目前狀態"}]` 說明原因。
 - steps：陣列，n 連續從 1 起，action、input、observe、when、evidence、checks。`checks: [{expected, rule_refs: [AC ID]}]`。純注入／操作步驟 checks 可空；整個案例至少有一個產品斷言。每個斷言引用已確認且列於 ac_ids 的 AC。
   斷言可加 `coverage_ids: [COV ID]`，引用的項目須列於本案 coverage_ids，且其全部 ac_ids 須在該斷言的 rule_refs 中。COV 不能代替 AC；工具只能查引用，不能證明輸入確實位於該分區或轉移。
 - cleanup：物件陣列，每項 action、verify。無清理需求也必須解釋其無狀態／隔離依據。
@@ -142,12 +142,13 @@ DES 取自 Design，代表一筆方法選用紀錄，數字是本類流水號。
   "model": "unknown",
   "at": "實際時間",
   "independence": "fresh-session",
+  "checked_case_ids": ["TC-001"],
   "rounds": ["traceability", "executable", "coverage", "consistency"],
   "findings": []
 }
 ```
 
-independence 僅可如實填 fresh-session、human、same-session；same-session 不滿足正式基線的獨立審查要求。rounds 只記真正完成的輪次，來源或範圍不足則保留未完成並在 limitations 說明。沒有 findings 僅在實際審查後使用，不能預設填入以通過檢查。
+independence 僅可如實填 fresh-session、human、same-session；same-session 不滿足正式基線的獨立審查要求。rounds 只記真正完成的輪次，來源或範圍不足則保留未完成並在 limitations 說明。新基線逐一核對本輪選定案例是否各有四輪獨立審查。每份紀錄的 rounds 適用於該份明列的全部 checked_case_ids，檢查範圍不同時分筆保存。同一版可合計多份紀錄。既有審查缺少案例清單時保留原檔，待補足實際涵蓋證據才可用於新基線。沒有 findings 僅在實際審查後使用，不能預設填入以通過檢查。
 
 交接另保留 `input_mode`（review-pack／direct-project）、`review_pack_id`（直接審專案填 null）、`review_input_digest`（包內過濾輸入的 hash，不能代替 artifact_digest）、`checked_case_ids`、`read_sources`（source_id／path、sha256、locator、read_scope、limitations）、`review_focus_checked` 及 `limitations`。舊結果可讀，不補造過往閱讀紀錄；新增審查依實際情形填。可攜包的 REVIEW_TEMPLATE.json 是空白結構，不能直接存進 reviews 冒充已審。僅驗證包時不能宣稱重算原專案完整 digest；審查結果須保留此限制。
 

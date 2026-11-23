@@ -101,6 +101,25 @@ class EvaluationIntegrityTests(unittest.TestCase):
         self.assertNotEqual(capture['checks']['baseline-gate']['returncode'], 0)
         with self.assertRaisesRegex(ValueError, 'already exists'): ev.capture(self.out)
 
+    def test_workspace_artifacts_cannot_replace_an_empty_response(self):
+        self.stage_workspace()
+        ev.capture(self.out)
+        artifact = self.out / 'artifacts/case-09/capture.json'
+        grade_path = self.out / 'grading/case-09.json'
+        grade = ev.read(grade_path)
+        grade.update(grader='fixture', model='unknown', settings='unknown', contamination=False)
+        for check in grade['checks']:
+            check.update(status='pass', reason='fixture', evidence='"case_id": "case-09"',
+                         artifact_refs=[{'path': 'artifacts/case-09/capture.json', 'sha256': ev.sha(artifact)}])
+        ev.write(grade_path, grade)
+        transcript = self.out / 'responses/case-09.md'
+        for content in (None, '', '  \n\t', 'The actual response'):
+            with self.subTest(content=content):
+                if content is not None:
+                    transcript.write_text(content, encoding='utf-8')
+                self.assertEqual(ev.score(self.out)['cases'][0]['outcome'],
+                                 'PASS' if content and content.strip() else 'NOT_RUN')
+
     def test_workspace_grade_requires_captured_evidence_and_matching_hash(self):
         self.stage_workspace(); ev.capture(self.out)
         (self.out / 'responses/case-09.md').write_text('response', encoding='utf-8')

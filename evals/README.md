@@ -13,7 +13,7 @@ suite.json 列出核心任務；rubrics.json 保存評分者專用準則。核�
 1. 執行 `python evals/evaluate.py stage --out /新的暫存目錄 --strategy /設計Skill目錄 --review /審查Skill目錄`。輸出目錄必須不存在；可以 `--cases case-01 case-05` 選受影響情境。工具記輸入及技能檔案指紋，複製題目並按種子建立隔離專案，不複製評分答案。
 2. 每個任務開新的模型對話／授權代理，給該任務的 task.txt 與原始資料，保存原始回覆為 responses/case-01.md 等對應檔案；工具軌跡可另外保存。按各任務原指令完成，不提供預期答案、評測目的或解題提示。
 3. 評分者這時才讀 rubrics.json，逐項核對原始回覆。編輯 grading/case-01.json 等對應檔案 的 grader、model、settings、contamination 及各 check：status 為 pass／fail／unassessed，附逐字 evidence 與 reason；未看到的行為不能猜 pass。metadata 未知用 unknown，不杜撰模型名。所有 pass／fail 都要有原始回覆可核對的摘錄；摘錄存在只驗證可追溯，不證明評分正確。
-4. 執行 `python evals/evaluate.py score /暫存目錄`，只檢查輸入與結果結構並統計人工／評分者判斷。沒有 transcript 或尚未評分為 NOT_RUN／INCOMPLETE，不能報整套通過；污染另計。輸出含全部核心集與本次選取的分母。
+4. 執行 `python evals/evaluate.py score /暫存目錄`，只檢查輸入與結果結構並統計人工／評分者判斷。原始作答檔不存在、為空或僅含空白時記 NOT_RUN，即使已有工作區檔案證據也一樣。已有作答但尚未完成評分時記 INCOMPLETE，不能報整套通過；污染另計。輸出含全部核心集與本次選取的分母。
 5. 保存 run.json、responses/、grading/ 及工具結果；記實際版本、模型、設定、時間與限制。真實輸出不可改寫成理想答案。版本差異或失敗需修正後，另開新執行目錄；重要失敗加新的保留變體，避免只記住固定答案。
 
 ## 何時重跑

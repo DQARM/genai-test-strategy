@@ -1,6 +1,9 @@
 """Regression checks using synthetic projects and approvals; never product evidence."""
 import hashlib
 import copy
+from concurrent.futures import ThreadPoolExecutor
+from threading import Event
+from unittest.mock import patch
 from html.parser import HTMLParser
 import json
 import os
@@ -13,6 +16,7 @@ import unittest
 import zipfile
 from urllib.parse import unquote, urlsplit
 
+import qa_project
 from qa_project import review_handoff_text
 
 TOOL = Path(__file__).with_name("qa_project.py")
@@ -208,7 +212,7 @@ class WorkflowTests(unittest.TestCase):
         artifact = self.run_tool("digest").stdout.strip()
         put(root / "qa/reviews/REV-001.json", {"id": "REV-001", "artifact_digest": artifact,
             "reviewer": "synthetic-reviewer", "session": "synthetic-session", "at": "2026-11-09T00:01:00Z",
-            "independence": "human", "rounds": ["traceability", "executable", "coverage", "consistency"], "findings": []})
+            "independence": "human", "checked_case_ids": ["TC-001"], "rounds": ["traceability", "executable", "coverage", "consistency"], "findings": []})
         put(root / "qa/approvals/APP-001.json", {**confirm, "artifact_digest": artifact, "case_ids": ["TC-001"]})
         return reg, case
 
@@ -2502,15 +2506,137 @@ class WorkflowTests(unittest.TestCase):
         self.assertIn('REV-BROKEN', page.records)
         self.assertNotIn('../../outside', page.links)
 
+    def test_baseline_tracks_each_review_round_for_each_selected_case(self):
+        reg, case = self.fixture()
+        put(self.root / "qa/cases/TC-002.json", {**case, "id": "TC-002"})
+        reg["scope"]["selected_case_ids"].append("TC-002")
+        put(self.root / "qa/registry.json", reg)
+        self.refresh_review()
+        approval_path = self.root / "qa/approvals/APP-001.json"
+        put(approval_path, {**get(approval_path), "case_ids": ["TC-001", "TC-002"]})
+        review = get(self.root / "qa/reviews/REV-001.json")
+        other = self.root / "qa/reviews/REV-002.json"
+        put(other, {**review, "id": other.stem, "checked_case_ids": [], "limitations": ["TC-002 not examined"]})
+        baseline_args = ("--id", "BL-001", "--approval", "qa/approvals/APP-001.json")
+        self.assertIn("coverage for TC-002", self.run_tool("baseline", *baseline_args, ok=False).stderr)
+        self.assertFalse((self.root / "qa/baselines/BL-001.json").exists())
+        put(other, {**review, "id": other.stem, "checked_case_ids": ["TC-002"], "rounds": ["coverage"]})
+        remaining = json.loads(self.run_tool("check", "--gate", "baseline", ok=False).stdout)["errors"]
+        self.assertEqual(len(remaining), 3)
+        self.assertTrue(all("TC-002" in msg and "coverage for" not in msg for msg in remaining))
+        put(other, {**review, "id": other.stem, "checked_case_ids": ["TC-002"]})
+        self.run_tool("baseline", *baseline_args)
+
+    def test_legacy_review_with_unknown_case_scope_does_not_credit_a_new_baseline(self):
+        self.fixture()
+        path = self.root / "qa/reviews/REV-001.json"
+        old = get(path)
+        del old["checked_case_ids"]
+        put(path, old)
+        self.run_tool("check")
+        self.run_tool("render")
+        self.assertIn("traceability for TC-001", self.run_tool("check", "--gate", "baseline", ok=False).stdout)
+        self.assertEqual(get(path), old)
+
+    def test_overlapping_registry_writers_retry_without_losing_updates(self):
+        reg, _ = self.fixture()
+        put(self.root / "qa/first.json", self.qa_pair())
+        second = self.qa_pair(id="QA-002")
+        reading = self.reading_input(reg["sources"][0])
+        put(self.root / "qa/second.json", second)
+        put(self.root / "qa/reading.json", reading)
+        started, release = Event(), Event()
+        original_load = qa_project.load
+
+        def pause_after_read(root):
+            loaded = original_load(root)
+            started.set()
+            if not release.wait(15):
+                raise RuntimeError("Timed out waiting for overlapping writer")
+            return loaded
+
+        argv = [str(TOOL), "record-qa", str(self.root), "--input", "qa/first.json"]
+        commands = [("record-qa", "--input", "qa/second.json"),
+                    ("record-reading", "--source", "SRC-SPEC", "--input", "qa/reading.json")]
+        with ThreadPoolExecutor(max_workers=1) as workers, patch.object(sys, "argv", argv), patch.object(qa_project, "load", pause_after_read):
+            first = workers.submit(qa_project.main)
+            try:
+                self.assertTrue(started.wait(10))
+                for command in commands:
+                    self.assertIn("retry", self.run_tool(*command, ok=False).stderr)
+            finally:
+                release.set()
+            self.assertEqual(first.result(timeout=10), 0)
+        for command in commands:
+            self.run_tool(*command)
+        registry = get(self.root / "qa/registry.json")
+        self.assertEqual([r["id"] for r in registry["interactions"]], ["QA-001", "QA-002"])
+        self.assertEqual([r["seq"] for r in registry["sources"][0]["readings"]], [1, 2])
+
+    def test_selection_follows_method_rows_comparisons_and_their_sources(self):
+        reg, comparison = self.contract_assessment_fixture()
+        case = get(self.root / "qa/cases/TC-001.json")
+        # Same parent requirement but a separate AC and method.
+        reg["acceptance"].append({**reg["acceptance"][0], "id": "AC-002"})
+        put(self.root / "qa/cases/TC-002.json", {**case, "id": "TC-002", "ac_ids": ["AC-002"],
+            "coverage_ids": [], "steps": [], "status": "draft"})
+        reg["contract_assessments"].append({"id": "CMP-REQ", "requirement_ids": ["REQ-001"],
+            "clause": "The requirement-wide comparison is pending.", "status": "not-assessed"})
+        put(self.root / "qa/registry.json", reg)
+        self.run_tool("check")
+        for seed in ("DES-001", comparison["id"], "SRC-OBS", "SRC-DOC", "CMP-REQ"):
+            with self.subTest(seed=seed):
+                result = json.loads(self.run_tool("select-cases", "--changed", seed).stdout)
+                expected = ["TC-001", "TC-002"] if seed == "CMP-REQ" else ["TC-001"]
+                self.assertEqual([c["case_id"] for c in result["cases"]], expected)
+                self.assertEqual(result["unmapped_changed_ids"], [])
+                self.assertTrue(all("changed:" + seed in c["reasons"] for c in result["cases"]))
+
+    def test_ready_case_validates_test_data_rows_and_explicit_exceptions(self):
+        _, case = self.fixture()
+        path = self.root / "qa/cases/TC-001.json"
+        row = case["data"][0]
+        for data in ([{}], ["unspecified"], {"name": "not a list"}, [{"reason": "TBD"}],
+                     [{**row, "basis": ""}], [{**row, "unit": ""}], [{k: v for k, v in row.items() if k != "value"}]):
+            with self.subTest(data=data):
+                put(path, {**case, "data": data})
+                self.assertIn("TC-001", self.run_tool("check", ok=False).stdout)
+        put(path, {**case, "data": [{}]})
+        self.refresh_review()
+        self.assertIn("TC-001.data[1]", self.run_tool("check", "--gate", "baseline", ok=False).stdout)
+        for data in ([{**row, "value": 0, "unit": "1"}], [{**row, "value": False}],
+                     [{**row, "value": "", "value_reason": "Exercise an empty input field"}],
+                     [{"reason": "The button reads the device state without additional input."}]):
+            with self.subTest(data=data):
+                put(path, {**case, "data": data})
+                self.run_tool("check")
+        put(path, {**case, "status": "draft", "data": [{}]})
+        self.run_tool("check")
+
+    def test_clean_checkpoint_tags_existing_commit_without_creating_or_moving_a_commit(self):
+        self.run_tool("checkpoint", "-m", "Save design")
+        head = self.git("rev-parse", "HEAD").strip()
+        args = ("-m", "Label saved design", "--tag", "qa-baseline-BL-001")
+        self.assertEqual(self.run_tool("checkpoint", *args).stdout.strip(), head)
+        self.assertEqual(self.git("rev-parse", "qa-baseline-BL-001^{}").strip(), head)
+        self.assertEqual(self.git("rev-parse", "HEAD").strip(), head)
+        tag = self.git("rev-parse", "refs/tags/qa-baseline-BL-001")
+        self.run_tool("checkpoint", *args, ok=False)
+        self.assertEqual(self.git("rev-parse", "refs/tags/qa-baseline-BL-001"), tag)
+
     def test_report_baseline_binding_and_legacy_review_scope(self):
         self.fixture()
         self.run_tool('baseline', '--id', 'BL-001', '--approval', 'qa/approvals/APP-001.json')
+        review_path = self.root / 'qa/reviews/REV-LEGACY.json'
+        legacy = get(self.root / 'qa/reviews/REV-001.json')
+        legacy.pop('checked_case_ids')
+        put(review_path, {**legacy, 'id': review_path.stem})
         self.run_tool('render')
         page = ReportParser((self.root / 'qa/report.html').read_text(encoding='utf-8'))
         self.assertIn('對應目前完整設計', page.records['BL-001']['text'])
-        self.assertIn('未知／未提供', page.records['REV-001']['text'])
+        self.assertIn('未知／未提供', page.records['REV-LEGACY']['text'])
         self.assertIn('#' + page.records['BL-001']['anchor'], page.records['TC-001']['links'])
-        self.assertNotIn('#' + page.records['REV-001']['anchor'], page.records['TC-001']['links'])
+        self.assertNotIn('#' + page.records['REV-LEGACY']['anchor'], page.records['TC-001']['links'])
 
 
 if __name__ == "__main__":

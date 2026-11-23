@@ -54,6 +54,8 @@ python qa/tools/qa_project.py check-run . --id RUN-001
 
 先真正建立並讀取 inputs 才傳 `--include inputs`；參數可重複指定多個明確資料夾／檔案。不含 --include 時保存 qa、專案標記、本工具新建的 .gitignore，以及 registry 明確登錄的來源與決策證據檔。其他被測原始碼與未登錄資料不會自動全部加入；讀取差異後明確納入必要檔案，以讓版本能重建。不得默默對整個未知資料夾 git add .。
 
+乾淨工作樹執行 checkpoint 並指定新的 --tag 時，標籤會指到目前的提交。既有標籤保留原位置。
+
 初始化與第一個 checkpoint 分開完成；再次 init 沿用現有內容。工具升級及舊資料相容性統一依 [migration.md](migration.md)，功能沿革見 [CHANGELOG.md](../CHANGELOG.md)。
 
 checkpoint 遇到既有 staged 內容會拒絕提交，不會把別人的變更混入。請讀現況、說明阻塞，保留使用者 index；可先完成文件與檢查。若 Git 缺 identity，只在這一次 commit 使用明確 automation identity，不改全域設定。hook 或簽章失敗如實回報，不能假稱保存成功。
