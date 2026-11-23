@@ -88,7 +88,7 @@ F 取自 Finding（審查發現），TC＝Test Case（測試案例），AC＝Acc
 
 - independence 依實際條件填 fresh-session／human／same-session，不能靠換名稱取得獨立性。model 無法得知時保留 unknown，不編造版本。
 - 新模型仍應開新對話；同對話換模型是 same-session。依 REVIEW_TEMPLATE 另建結果，不修改模板。review-pack 模式填包中 review_pack_id／review_input_digest；direct-project 填 null。read_sources 逐筆填實際 source_id／path、sha256、locator、read_scope、limitations；review_focus_checked 說明每項特殊重點的檢查結果或阻塞。已有引用或讀取紀錄不能代填本次閱讀。
-- rounds 只加入真正完成的 traceability、executable、coverage、consistency。缺整份規格、看不到已選分母或未檢全部案例時，對應輪次不算完成。可另記 checked_case_ids 與 limitations 說明已檢部分。
+- rounds 只加入真正完成的 traceability、executable、coverage、consistency。缺整份規格、看不到已選分母或未檢全部案例時，對應輪次不算完成。在 checked_case_ids 列出實際完成所列輪次的案例，並以 limitations 說明未檢部分。若兩組案例完成的輪次不同，分成兩份審查紀錄。建立新基線時會逐一核對所選案例的四輪覆蓋。
 - findings 必須是陣列。完成審查且沒有發現才能留空；沒看資料不能直接留空交差。Finding 的 rule_refs 沒有適用已確認規則時可為空，evidence 要明說哪個 Expected 缺依據，不創造規則編號。
 - open 不代表應立即補一題產品訪談。必要決策與操作缺口一起交回設計端，讓使用者或適當責任人處理；不自行寫入 registry 或改 scope。
 - disposition 只有真實人的處置才填 by、at、evidence_ref、reason。fixed 需有實際修正及確認依據；dismissed 要有駁回理由；accepted-risk 另需 residual_risk。單純記錄建議或人尚未回答時保持 open。

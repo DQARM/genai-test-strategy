@@ -184,6 +184,8 @@ def score(root):
         if not transcript.is_file() or not grade_path.is_file():
             rows.append({'id': cid, 'outcome': 'NOT_RUN'}); continue
         text = transcript.read_text(encoding='utf-8')
+        if not text.strip():
+            rows.append({'id': cid, 'outcome': 'NOT_RUN'}); continue
         grade = read(grade_path)
         checks = grade.get('checks', [])
         expected = {x['id'] for x in rubrics[cid]['checks']}

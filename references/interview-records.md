@@ -54,7 +54,7 @@ python qa/tools/qa_project.py show-qa .
 python qa/tools/qa_project.py show-qa . --id QA-001
 ```
 
-record-qa 新增紀錄，或把原筆 pending 完成為已回答；完成時保留原題、選項與登錄時間，補回答／解讀。已回答紀錄只能補關聯；修改原話或解讀必須新增更正紀錄。輸入檔只是傳遞副本，寫入成功後移除代理自己建立的暫存檔，不保留另一份可編輯真相。--input - 可直接讀標準輸入。show-qa 未指定編號只列精簡索引，不印完整回答。
+record-qa 新增紀錄，或把原筆 pending 完成為已回答；完成時保留原題、選項與登錄時間，補回答／解讀。已回答紀錄只能補關聯；修改原話或解讀必須新增更正紀錄。輸入檔只是傳遞副本，寫入成功後移除代理自己建立的暫存檔，不保留另一份可編輯真相。--input - 可直接讀標準輸入。record-qa 與 record-reading 在讀寫 registry 時共用 .qa-registry.lock。遇到 Registry is busy，待寫入者完成後重試原命令。程序異常結束留下鎖檔時，先確認沒有寫入程序仍在工作，再清理鎖檔。show-qa 未指定編號只列精簡索引，不印完整回答。
 
 ## 決策、檢查與閱讀
 

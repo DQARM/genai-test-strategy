@@ -2,9 +2,9 @@
 
 | 項目 | 內容 |
 |---|---|
-| 手冊版本 | 1.26.0 |
-| 更新日期 | 2026-11-20（Asia/Taipei） |
-| 適用專案工具 | qa_project.py 1.13.0，可用 --version 查看專案副本版本 |
+| 手冊版本 | 1.26.1 |
+| 更新日期 | 2026-11-23（Asia/Taipei） |
+| 適用專案工具 | qa_project.py 1.13.1，可用 --version 查看專案副本版本 |
 | 設計入口 | genai-test-strategy |
 | 審查入口 | genai-test-review |
 

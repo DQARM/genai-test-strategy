@@ -17,7 +17,7 @@ import zipfile
 from datetime import datetime, timezone
 from urllib.parse import quote
 
-VERSION = "1.13.0"
+VERSION = "1.13.1"
 DESIGN_POLICY = "coverage-items-v1"
 METHOD_POLICY = "design-choices-v1"
 RISK_POLICY = "requirement-risk-v1"
@@ -459,10 +459,27 @@ def inspect_interactions(reg, cases, errors, warnings):
                 errors.append(f"{question['id']}: unresolved current answer {rid} conflicts with resolved question")
 
 
-def record_qa(args, root):
+def record_registry_entry(args, root):
+    # Collect interactive input before locking; both commands update the same JSON document.
+    incoming = json.load(sys.stdin) if args.input == "-" else read(safe(root, args.input))
+    lock = safe(root, ".qa-registry.lock")
+    try:
+        handle = lock.open("x", encoding="utf-8")
+    except FileExistsError:
+        fail("Registry is busy (.qa-registry.lock); retry after the active writer finishes.")
+    try:
+        with handle:
+            if args.cmd == "record-qa":
+                record_qa(root, incoming)
+            else:
+                record_reading(root, args.source, incoming)
+    finally:
+        lock.unlink()
+
+
+def record_qa(root, incoming):
     """Persist a supplied pair. Only an unanswered pair may be completed in place."""
     reg, cases = load(root)
-    incoming = json.load(sys.stdin) if args.input == "-" else read(safe(root, args.input))
     if not isinstance(incoming, dict):
         fail("Q&A input must be one JSON object")
     rows = reg.setdefault("interactions", [])
@@ -751,12 +768,11 @@ def inspect_source_reading(root, reg, cases, gate, errors, warnings):
         visit(record, rid, policy == READING_POLICY and rid in active)
 
 
-def record_reading(args, root):
+def record_reading(root, source_id, incoming):
     reg, _ = load(root)
-    source = next((s for s in reg.get("sources", []) if s.get("id") == args.source), None)
+    source = next((s for s in reg.get("sources", []) if s.get("id") == source_id), None)
     if source is None:
         fail("Source ID not found; register the source before recording a reading.")
-    incoming = json.loads(sys.stdin.read()) if args.input == "-" else read(safe(root, args.input))
     allowed = {"source_sha256", "status", "depth", "purpose", "method", "read_scope", "unread_scope", "findings",
                "limitations", "evidence_refs", "read_at", "reader", "supersedes", "change_reason"}
     if not isinstance(incoming, dict) or set(incoming) - allowed:
@@ -1309,6 +1325,24 @@ def inspect(root, gate="draft"):
         for source in bindings:
             if source.get("kind") not in ("harness", "normative") or source.get("status") != "confirmed":
                 error(f"{cid}: operation binding must be confirmed harness or normative source")
+        data = case.get("data")
+        if not isinstance(data, list):
+            error(f"{cid}: data must be a list")
+        else:
+            for index, item in enumerate(data, 1):
+                label = f"{cid}.data[{index}]"
+                if isinstance(item, dict) and set(item) == {"reason"} and len(data) == 1:
+                    if not known_model_expected(item["reason"]):
+                        error(f"{label}: explain why no external test data is needed")
+                    continue
+                if not isinstance(item, dict):
+                    error(f"{label}: expected a test data object")
+                    continue
+                for field in ("name", "unit", "basis"):
+                    if not known_model_expected(item.get(field)):
+                        error(f"{label}: missing or invalid {field}")
+                if "value" not in item or (not meaningful(item["value"]) and not known_model_expected(item.get("value_reason"))):
+                    error(f"{label}: supply a value or explain the explicitly empty test input")
         for key in ("preconditions", "cleanup"):
             for i, step in enumerate(case.get(key, []), 1):
                 require(step, ["action", "verify"], f"{cid}.{key}[{i}]")
@@ -1402,7 +1436,7 @@ def inspect(root, gate="draft"):
             if maps["scenarios"].get(sid, {}).get("selection") != "keep":
                 error(f"{sid}: selected scenario must be kept")
         current = snapshot_digest(root)
-        completed = set()
+        reviewed_cases = {name: set() for name in ROUNDS}
         for path in sorted(safe(root, "qa/reviews").glob("*.json")):
             review = read(safe(root, path.relative_to(root)))
             if review.get("artifact_digest") != current:
@@ -1411,8 +1445,15 @@ def inspect(root, gate="draft"):
                 warnings.append(f"{path.name}: self-check is not independent review")
                 continue
             require(review, ["reviewer", "session", "at", "rounds"], path.name)
-            if review.get("rounds"):
-                completed.update(r for r in review["rounds"] if r in ROUNDS)
+            checked = review.get("checked_case_ids", [])
+            rounds = review.get("rounds", [])
+            if not isinstance(checked, list) or any(not isinstance(cid, str) or cid not in cases for cid in checked):
+                error(f"{path.name}: checked_case_ids must list existing cases")
+            elif not isinstance(rounds, list) or any(name not in ROUNDS for name in rounds):
+                error(f"{path.name}: invalid review rounds")
+            else:
+                for name in rounds:
+                    reviewed_cases[name].update(checked)
             if not isinstance(review.get("findings"), list):
                 error(f"{path.name}: findings must be a list, possibly empty")
             for finding in review.get("findings", []):
@@ -1423,8 +1464,10 @@ def inspect(root, gate="draft"):
                     error(f"{finding.get('id')}: needs human disposition evidence")
                 if finding.get("status") == "accepted-risk" and not meaningful(finding.get("residual_risk")):
                     error(f"{finding.get('id')}: accepted risk needs residual_risk")
-        if set(ROUNDS) - completed:
-            error("Missing current independent review rounds: " + ", ".join(sorted(set(ROUNDS) - completed)))
+        for name, checked in reviewed_cases.items():
+            missing = set(selected) - checked
+            if missing:
+                error(f"Missing current independent review rounds: {name} for " + ", ".join(sorted(missing)))
     return {"gate": gate, "artifact_digest": snapshot_digest(root), "errors": errors,
             "warnings": warnings, "note": "Structural checks only; not human approval or product test results."}
 
@@ -1642,6 +1685,36 @@ def selection_source_hashes(root, reg):
     return hashes
 
 
+def selection_design_links(reg, cases):
+    """Connect method and comparison changes to cases without marking the underlying rules changed."""
+    by_coverage, by_ac, by_requirement = {}, {}, {}
+    parents = {ac["id"]: ref_list(ac.get("requirement_ids")) for ac in reg.get("acceptance", [])}
+    for cid, case in cases.items():
+        for cov in ref_list(case.get("coverage_ids")):
+            by_coverage.setdefault(cov, set()).add(cid)
+        for aid in ref_list(case.get("ac_ids")):
+            by_ac.setdefault(aid, set()).add(cid)
+            for rid in parents.get(aid, []):
+                by_requirement.setdefault(rid, set()).add(cid)
+    for choice in reg.get("design_choices", []):
+        for row in ref_list(choice.get("model_rows")):
+            for cov in ref_list(row.get("coverage_ids")):
+                for cid in by_coverage.get(cov, ()):
+                    yield choice["id"], cid
+    for comparison in reg.get("contract_assessments", []):
+        cmp_id = comparison["id"]
+        if comparison.get("contract_ref"):
+            yield comparison["contract_ref"], cmp_id
+        for field in ("derived_refs", "observation_refs"):
+            for sid in ref_list(comparison.get(field)):
+                yield sid, cmp_id
+        ac_ids = ref_list(comparison.get("ac_ids"))
+        index = by_ac if ac_ids else by_requirement
+        for rule in ac_ids or ref_list(comparison.get("requirement_ids")):
+            for cid in index.get(rule, ()):
+                yield cmp_id, cid
+
+
 def select_cases(args, root):
     """Explain a candidate set. No budget trimming, execution or scope mutation."""
     reg, cases = load(root)
@@ -1671,6 +1744,8 @@ def select_cases(args, root):
                     edge(rid, dest)
                 else:
                     unresolved.add(str(dest))
+    for dependency, dependent in selection_design_links(reg, cases):
+        edge(dependency, dependent)
     affected = {}
     for seed in sorted(changes):
         todo, visited = [seed], set()
@@ -3066,7 +3141,10 @@ def checkpoint(args, root):
         fail("No eligible files. Inspect ignore rules and explicit --include paths.")
     for name in sorted(names):
         git(root, "add", "-A", "--", name)
-    if git(root, "diff", "--cached", "--quiet", check=False).returncode == 0:
+    staged = git(root, "diff", "--cached", "--quiet", check=False).returncode
+    if staged not in (0, 1):
+        fail("Cannot determine staged changes; checkpoint stopped.")
+    if not staged and not args.tag:
         print("No changes to checkpoint.")
         return
     identity = []
@@ -3074,10 +3152,12 @@ def checkpoint(args, root):
         identity += ["-c", "user.name=QA workflow"]
     if git(root, "config", "user.email", check=False).returncode:
         identity += ["-c", "user.email=qa-workflow@localhost"]
-    git(root, *identity, "commit", "-m", args.message)
+    if staged:
+        git(root, *identity, "commit", "-m", args.message)
+    head = git(root, "rev-parse", "--verify", "HEAD^{commit}").stdout.decode().strip()
     if args.tag:
-        git(root, *identity, "tag", "-a", args.tag, "-m", args.message)
-    print(git(root, "rev-parse", "HEAD").stdout.decode().strip())
+        git(root, *identity, "tag", "-a", "-m", args.message, "--", args.tag, head)
+    print(head)
 
 
 def valid_id(value):
@@ -3209,7 +3289,7 @@ artifact_digest 是原專案完整設計的版本識別；review_input 是按交
 ## 輸出契約與獨立性
 初審固定規格、方法、覆蓋準則與版本。修正後預設做一次聚焦原發現與受影響項目的複核，列實際檢查範圍及未檢部分。引用原 Finding 編號串連新版本的審查紀錄，既有紀錄維持原樣。已結案問題有新證據才重開，新方法另列候選；仍受阻或有爭議則交人決定。只將確實完成的輪次列為完成，核可須有人的明確決策。
 以 REVIEW_TEMPLATE.json 作空白結構，不能把模板當已完成結果。填真實 reviewer、session、at、model；不知道模型名稱填 unknown。只有真正新工作階段重新載入依據才能填 fresh-session；同對話換模型仍是 same-session；實際人審才填 human。不同模型也不保證無共同偏誤。無法確認工作階段就保守標 same-session 並說明。
-記錄 checked_case_ids、read_sources（source_id／path、sha256、locator、read_scope、limitations）、review_focus_checked、limitations 及真正完成的 rounds。review_pack_id 及 artifact_digest 沿用包內值；若直接從專案審查，input_mode=direct-project，review_pack_id=null，使用實際讀取的設計版本。
+記錄 checked_case_ids、read_sources（source_id／path、sha256、locator、read_scope、limitations）、review_focus_checked、limitations 及真正完成的 rounds。每一輪均須實際涵蓋該份 checked_case_ids 中的每一案，各案已檢輪次不同時分筆保存。review_pack_id 及 artifact_digest 沿用包內值；若直接從專案審查，input_mode=direct-project，review_pack_id=null，使用實際讀取的設計版本。
 每項 finding 填 id、round、case_ids、rule_refs、issue、evidence、proposal、status=open、disposition=null。指出具體步驟與原文差異；缺規則時 rule_refs 可空並說明。不能自動關閉發現、代填核可或接受風險。只有真的檢完且無發現才用空 findings；未完成的輪次不能填滿以通過檢查。
 查看 packet 的 used_review_ids／used_finding_ids，選不衝突的新 ID，回傳時再檢查是否已被使用；不覆寫舊結果。可回傳 JSON 與簡短摘要，不必改回原專案。設計端接回後按人的真實處置修正，以新版本重審，不改舊 digest。審查、人工核可與實測分開，不能填 Actual 或產品 PASS。
 ID＝Identifier（識別碼）；SRC＝Source（資料來源）、REQ＝Requirement（需求）、AC＝Acceptance Criterion（驗收條件）、QA＝Question and Answer（問答）、Q＝Question（待釐清）、DEC＝Decision（決策）、DES 取自 Design（方法選用紀錄）、TC＝Test Case（測試案例）、COV 取自 Coverage（覆蓋）、EXP 取自 Exploration（探索）、REV 取自 Review（審查）、F 取自 Finding（發現）、RISK 為 Risk（風險）。數字是各類流水號，不表示優先度或通過；既有未知縮寫不猜。
@@ -3926,9 +4006,8 @@ def main():
     root = Path(args.root).expanduser().resolve()
     try:
         if args.cmd == "init": init(args, root)
-        elif args.cmd == "record-qa": record_qa(args, root)
+        elif args.cmd in ("record-qa", "record-reading"): record_registry_entry(args, root)
         elif args.cmd == "show-qa": show_qa(args, root)
-        elif args.cmd == "record-reading": record_reading(args, root)
         elif args.cmd == "show-source": show_source(args, root)
         elif args.cmd == "export-questions": export_questions(root)
         elif args.cmd == "select-cases": select_cases(args, root)
